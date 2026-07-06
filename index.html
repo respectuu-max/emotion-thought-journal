@@ -1202,7 +1202,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION = "2026.07.07-v5";
+    const APP_VERSION = "2026.07.07-v6";
     const STORAGE_KEY = "addiction-behavior-journal-v1";
     const PIN_KEY = "addiction-behavior-journal-pin-v1";
     const PERIODS = ["오전", "오후", "저녁"];
@@ -1217,7 +1217,8 @@
       entryMode: "routine",
       exportRangeDays: 7,
       lastExport: null,
-      formSnapshot: ""
+      formSnapshot: "",
+      removedDemoRecords: 0
     };
 
     const $ = (selector) => document.querySelector(selector);
@@ -1252,6 +1253,10 @@
       } catch {
         state.records = [];
       }
+      const beforeCount = state.records.length;
+      state.records = state.records.filter(record => !String(record.id || "").startsWith("demo-"));
+      state.removedDemoRecords = beforeCount - state.records.length;
+      if (state.removedDemoRecords > 0) saveRecords();
       state.records.sort((a, b) => (b.date + b.period).localeCompare(a.date + a.period));
     }
 
@@ -2234,6 +2239,9 @@
       resetForm("오전", "routine");
       renderAll();
       setupLock();
+      if (state.removedDemoRecords > 0) {
+        showToast(`예전 가상자료 ${state.removedDemoRecords}건을 정리했습니다.`);
+      }
     }
 
     init();
