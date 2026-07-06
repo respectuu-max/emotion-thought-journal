@@ -1,6 +1,5 @@
-const CACHE_NAME = "emotion-thought-journal-v2";
+﻿const CACHE_NAME = "emotion-thought-journal-v3";
 const APP_SHELL = [
-  "./",
   "./index.html",
   "./manifest.webmanifest",
   "./app-icon-192.png",
@@ -55,3 +54,4 @@ self.addEventListener("fetch", (event) => {
       }))
   );
 });
+
