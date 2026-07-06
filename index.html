@@ -1117,10 +1117,11 @@
             <h2>자료 내보내기</h2>
             <p class="small-muted">상담 전 공유하거나 본인이 보관할 수 있도록 CSV 파일로 저장합니다.</p>
             <ul class="guide-list">
-              <li>가장 쉬운 방법은 CSV 공유를 눌러 메일 앱을 선택하는 것입니다. 지원되는 기기에서는 파일이 함께 전달됩니다.</li>
-              <li>메일 작성은 받는 사람과 본문만 자동 입력됩니다. CSV 파일은 다운로드 후 직접 첨부해야 합니다.</li>
-              <li>아이폰 Safari: 보통 파일 앱의 다운로드 폴더에 저장됩니다.</li>
-              <li>안드로이드 Chrome/Samsung Internet: 보통 내 파일 또는 Files 앱의 Download 폴더에 저장됩니다.</li>
+              <li>가장 쉬운 방법은 CSV 공유/메일 선택을 눌러 메일 앱을 선택하는 것입니다. 지원되는 기기에서는 파일이 함께 전달됩니다.</li>
+              <li>공유창에서 메일 앱을 선택한 뒤 받는 사람에 respectuu@naver.com을 입력해 보내면 됩니다.</li>
+              <li>공유가 제한되는 기기에서는 CSV 내보내기를 눌러 저장한 뒤 직접 첨부합니다.</li>
+              <li>아이폰 Safari: 저장한 파일은 보통 파일 앱의 다운로드 폴더에 있습니다.</li>
+              <li>안드로이드 Chrome/Samsung Internet: 저장한 파일은 보통 내 파일 또는 Files 앱의 Download 폴더에 있습니다.</li>
               <li>파일 이름에는 선택한 범위와 오늘 날짜가 함께 표시됩니다.</li>
             </ul>
             <div style="height:12px"></div>
@@ -1138,7 +1139,7 @@
             <button class="solid-btn" id="exportButton"><span class="tab-icon icon-download"></span>CSV 내보내기</button>
             <div class="share-actions">
               <button class="ghost-btn" id="shareCsvButton" type="button"><span class="tab-icon icon-upload"></span>CSV 공유</button>
-              <button class="ghost-btn" id="emailButton" type="button"><span class="tab-icon icon-upload"></span>CSV 저장 후 메일</button>
+              <button class="ghost-btn" id="emailButton" type="button"><span class="tab-icon icon-upload"></span>CSV 공유/메일 선택</button>
             </div>
             <p class="small-muted" id="exportInfo" style="margin-top:10px;"></p>
           </div>
@@ -1202,7 +1203,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION = "2026.07.07-v6";
+    const APP_VERSION = "2026.07.07-v7";
     const STORAGE_KEY = "addiction-behavior-journal-v1";
     const PIN_KEY = "addiction-behavior-journal-pin-v1";
     const PERIODS = ["오전", "오후", "저녁"];
@@ -1970,16 +1971,34 @@
       showToast("CSV를 다운로드했습니다. 메일에 첨부하세요.");
     }
 
-    function openEmailDraft() {
+    async function openEmailDraft() {
       const exportData = buildCSVExport();
       state.lastExport = exportData;
+      const file = new File([exportData.blob], exportData.fileName, { type: "text/csv" });
+      const shareText = `감정사고 관찰일지 ${exportData.count}건입니다.\n\n받는 사람: respectuu@naver.com\n선택 범위: ${exportData.rangeDescription}\n실제 포함: ${exportData.coverage}`;
+
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        try {
+          await navigator.share({
+            title: "감정사고 관찰일지 CSV",
+            text: shareText,
+            files: [file]
+          });
+          $("#exportInfo").textContent = `공유한 파일: ${exportData.fileName}. 공유창에서 메일 앱을 선택했다면 CSV 파일이 함께 전달됩니다. 받는 사람은 respectuu@naver.com으로 입력하세요.`;
+          showToast("CSV 파일을 공유했습니다.");
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+        }
+      }
+
       downloadBlob(exportData.blob, exportData.fileName);
       const subject = encodeURIComponent(`감정사고 관찰일지 공유 ${todayISO()}`);
       const body = encodeURIComponent(
-        `안녕하세요.\n\n감정사고 관찰일지 CSV 파일을 공유드립니다.\n\n선택 범위: ${exportData.rangeDescription}\n실제 포함: ${exportData.coverage}\n기록 수: ${exportData.count}건\n첨부할 파일명: ${exportData.fileName}\n\n중요: 메일 앱 보안상 파일은 자동 첨부되지 않을 수 있습니다. 이 메일을 보내기 전에 방금 다운로드된 CSV 파일(${exportData.fileName})을 직접 첨부해 주세요.\n\n감사합니다.`
+        `안녕하세요.\n\n감정사고 관찰일지 CSV 파일을 공유드립니다.\n\n선택 범위: ${exportData.rangeDescription}\n실제 포함: ${exportData.coverage}\n기록 수: ${exportData.count}건\n첨부할 파일명: ${exportData.fileName}\n\n중요: 이 기기에서는 파일 자동 공유가 제한되어 CSV 파일을 먼저 저장했습니다. 이 메일을 보내기 전에 방금 저장된 CSV 파일(${exportData.fileName})을 직접 첨부해 주세요.\n\n감사합니다.`
       );
-      $("#exportInfo").textContent = `CSV를 먼저 다운로드했습니다: ${exportData.fileName}. 메일 앱이 열리면 받는 사람 respectuu@naver.com을 확인하고, 방금 다운로드된 CSV 파일을 직접 첨부한 뒤 보내세요.`;
-      showToast("CSV를 다운로드했습니다. 메일에 직접 첨부하세요.");
+      $("#exportInfo").textContent = `이 기기에서는 파일 자동 공유가 제한되어 CSV를 먼저 저장했습니다: ${exportData.fileName}. 메일 앱이 열리면 방금 저장된 CSV 파일을 직접 첨부하세요. 아이폰은 파일 앱의 다운로드 폴더, 안드로이드는 내 파일 또는 Files 앱의 Download 폴더에서 찾을 수 있습니다.`;
+      showToast("CSV를 저장했습니다. 메일에 직접 첨부하세요.");
       window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
     }
 
