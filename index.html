@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2f7567">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="감정사고 일지">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./app-icon-192.png">
+  <title>감정사고 관찰일지</title>
+  <style>
+    :root {
+      --bg: #f5f7f4;
+      --surface: #ffffff;
+      --line: #dfe7df;
+      --ink: #182421;
+      --muted: #64736d;
+      --brand: #2f7567;
+      --brand-dark: #204f48;
+      --accent: #c1842f;
+      --danger: #b64a45;
+      --blue: #3f6f98;
+      --soft-green: #e7f2ef;
+      --soft-amber: #f7eddc;
+      --soft-blue: #e8eef5;
+      --shadow: 0 10px 28px rgba(28, 44, 40, 0.10);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+      line-height: 1.45;
+      letter-spacing: 0;
+      background: radial-gradient(circle at top left, #e5f0ed 0, #f5f7f4 34%, #f6f4ef 100%);
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      max-width: 920px;
+      min-height: 100vh;
+      margin: 0 auto;
+      background: var(--bg);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.04);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(245, 247, 244, 0.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(210, 220, 212, 0.85);
+      padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .text-logo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 0 1 auto;
+    }
+
+    .brand-logo-img {
+      display: block;
+      width: min(220px, 48vw);
+      height: auto;
+      object-fit: contain;
+    }
+
+    .text-logo-name {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      white-space: nowrap;
+      line-height: 0.95;
+    }
+
+    .text-logo-main {
+      color: #007f78;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .text-logo-sub {
+      color: #3f4346;
+      font-size: 13px;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .text-logo-caption {
+      display: block;
+      margin-top: 1px;
+      color: #777f7b;
+      font-size: 7px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0.7px;
+      white-space: nowrap;
+    }
+
+    .center-contact {
+      color: var(--brand-dark);
+      font-size: 8.5px;
+      line-height: 1.35;
+      font-weight: 750;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .center-contact span {
+      display: block;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+
+    .app-title {
+      margin-top: 10px;
+    }
+
+    .subtitle {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ghost-btn,
+    .solid-btn,
+    .danger-btn,
+    .icon-btn {
+      min-height: 40px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-weight: 750;
+      transition: transform 0.12s ease, background 0.12s ease;
+    }
+
+    .ghost-btn:active,
+    .solid-btn:active,
+    .danger-btn:active,
+    .icon-btn:active {
+      transform: translateY(1px);
+    }
+
+    .ghost-btn {
+      padding: 0 12px;
+      background: #eef3ef;
+      color: var(--brand-dark);
+    }
+
+    .solid-btn {
+      width: 100%;
+      padding: 0 16px;
+      color: white;
+      background: var(--brand);
+      box-shadow: 0 8px 18px rgba(47, 117, 103, 0.24);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .danger-btn {
+      width: 100%;
+      padding: 0 16px;
+      color: white;
+      background: var(--danger);
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      background: #eef3ef;
+      color: var(--brand-dark);
+      flex: 0 0 auto;
+      font-size: 18px;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .tab {
+      min-height: 42px;
+      padding: 6px 4px;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .tab .tab-icon {
+      width: 18px;
+      height: 18px;
+      display: block;
+      position: relative;
+    }
+
+    .tab.active {
+      background: var(--surface);
+      color: var(--brand-dark);
+      box-shadow: 0 3px 10px rgba(29, 42, 38, 0.08);
+    }
+
+    .icon-home::before,
+    .icon-write::before,
+    .icon-chart::before,
+    .icon-data::before,
+    .icon-lock::before,
+    .icon-plus::before,
+    .icon-download::before,
+    .icon-upload::before,
+    .icon-trash::before,
+    .icon-save::before {
+      content: "";
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: currentColor;
+      mask-size: contain;
+      mask-repeat: no-repeat;
+      mask-position: center;
+      -webkit-mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+    }
+
+    .icon-home::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z'/%3E%3C/svg%3E"); }
+    .icon-write::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 4h10l4 4v12H5zm9 1.5V9h3.5L14 5.5zM8 13h8v2H8zm0 4h8v2H8z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 4h10l4 4v12H5zm9 1.5V9h3.5L14 5.5zM8 13h8v2H8zm0 4h8v2H8z'/%3E%3C/svg%3E"); }
+    .icon-chart::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 19h17v2H2V3h2zm3-2V9h3v8zm5 0V5h3v12zm5 0v-6h3v6z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 19h17v2H2V3h2zm3-2V9h3v8zm5 0V5h3v12zm5 0v-6h3v6z'/%3E%3C/svg%3E"); }
+    .icon-data::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4h16v4H4zm0 6h16v4H4zm0 6h16v4H4z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4h16v4H4zm0 6h16v4H4zm0 6h16v4H4z'/%3E%3C/svg%3E"); }
+    .icon-lock::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V8a5 5 0 0 1 10 0v2h2v11H5V10zm2 0h6V8a3 3 0 0 0-6 0z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V8a5 5 0 0 1 10 0v2h2v11H5V10zm2 0h6V8a3 3 0 0 0-6 0z'/%3E%3C/svg%3E"); }
+    .icon-plus::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z'/%3E%3C/svg%3E"); }
+    .icon-download::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3h2v10l3-3 1.4 1.4L12 16.8l-5.4-5.4L8 10l3 3zM5 19h14v2H5z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3h2v10l3-3 1.4 1.4L12 16.8l-5.4-5.4L8 10l3 3zM5 19h14v2H5z'/%3E%3C/svg%3E"); }
+    .icon-upload::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 16h2V6l3 3 1.4-1.4L12 2.2 6.6 7.6 8 9l3-3zM5 19h14v2H5z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 16h2V6l3 3 1.4-1.4L12 2.2 6.6 7.6 8 9l3-3zM5 19h14v2H5z'/%3E%3C/svg%3E"); }
+    .icon-trash::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 21h10l1-13H6zm2-16V3h6v2h5v2H4V5z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 21h10l1-13H6zm2-16V3h6v2h5v2H4V5z'/%3E%3C/svg%3E"); }
+    .icon-save::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 3h12l2 2v16H5zm3 2v5h8V5zm1 12h6v-5H9z'/%3E%3C/svg%3E"); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 3h12l2 2v16H5zm3 2v5h8V5zm1 12h6v-5H9z'/%3E%3C/svg%3E"); }
+
+    main {
+      padding: 16px 14px 92px;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid rgba(211, 221, 213, 0.92);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 10px;
+    }
+
+    .today-card {
+      color: white;
+      background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+      border: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .today-card::after {
+      content: "";
+      position: absolute;
+      right: -34px;
+      top: -50px;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      border: 18px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .date-text {
+      position: relative;
+      z-index: 1;
+      font-size: 24px;
+      font-weight: 850;
+    }
+
+    .date-sub {
+      position: relative;
+      z-index: 1;
+      margin-top: 4px;
+      color: rgba(255,255,255,0.76);
+      font-size: 12px;
+    }
+
+    .metric {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 92px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .metric-value {
+      margin-top: 4px;
+      font-size: 28px;
+      font-weight: 850;
+      line-height: 1;
+      color: var(--brand-dark);
+    }
+
+    .metric-note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 18px 0 8px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .small-muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .slot-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .slot {
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .slot.am { border-left: 5px solid var(--brand); }
+    .slot.pm { border-left: 5px solid var(--accent); }
+    .slot.evening { border-left: 5px solid var(--blue); }
+
+    .slot-symbol {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 850;
+    }
+
+    .slot.am .slot-symbol { color: var(--brand-dark); background: var(--soft-green); }
+    .slot.pm .slot-symbol { color: #7a4b0d; background: var(--soft-amber); }
+    .slot.evening .slot-symbol { color: #264e72; background: var(--soft-blue); }
+
+    .slot-title {
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .slot-detail {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .slot-score {
+      min-width: 46px;
+      text-align: right;
+      font-weight: 850;
+      color: var(--brand-dark);
+    }
+
+    .form-row {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    input[type="date"],
+    select,
+    textarea,
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fbfcfa;
+      color: var(--ink);
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(47, 117, 103, 0.14);
+      background: white;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .segmented button,
+    .chip {
+      min-height: 40px;
+      border-radius: 8px;
+      background: #edf2ee;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .segmented button.active,
+    .chip.active {
+      color: white;
+      background: var(--brand);
+    }
+
+    .mode-note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip {
+      padding: 0 12px;
+    }
+
+    .slider-card {
+      padding: 11px 0 8px;
+      border-bottom: 1px solid #edf1ed;
+    }
+
+    .slider-card:last-child {
+      border-bottom: 0;
+    }
+
+    .urgent-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid rgba(182, 74, 69, 0.26);
+      border-radius: var(--radius);
+      background: #fff6f2;
+    }
+
+    .urgent-panel.active {
+      display: block;
+    }
+
+    .urgent-title {
+      color: #8c332f;
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .coping-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .coping-btn {
+      min-height: 38px;
+      padding: 0 10px;
+      border-radius: 8px;
+      background: white;
+      color: #6d302d;
+      border: 1px solid rgba(182, 74, 69, 0.24);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .slider-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .slider-name {
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .slider-value {
+      width: 42px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--brand);
+      font-weight: 850;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--brand);
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .chart-wrap {
+      height: 230px;
+      width: 100%;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .pattern-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pattern-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #edf1ed;
+    }
+
+    .pattern-item:last-child {
+      border-bottom: 0;
+    }
+
+    .bar {
+      height: 8px;
+      margin-top: 7px;
+      border-radius: 99px;
+      background: #e6ece7;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--brand);
+    }
+
+    .record-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .record-item {
+      display: grid;
+      gap: 5px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+
+    .record-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-weight: 850;
+      font-size: 13px;
+    }
+
+    .record-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .record-badge {
+      display: inline-flex;
+      width: fit-content;
+      padding: 3px 7px;
+      border-radius: 999px;
+      color: #8c332f;
+      background: #fff1ee;
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .record-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .mini-btn {
+      min-height: 34px;
+      padding: 0 10px;
+      border-radius: 8px;
+      background: #edf2ee;
+      color: var(--brand-dark);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .empty {
+      padding: 24px 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      z-index: 30;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      max-width: min(420px, calc(100vw - 28px));
+      padding: 12px 14px;
+      color: white;
+      background: rgba(20, 34, 30, 0.94);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      font-weight: 750;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .lock-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      padding: 22px;
+      background: linear-gradient(135deg, var(--brand-dark), #31433f);
+    }
+
+    .lock-screen.active {
+      display: grid;
+    }
+
+    .lock-box {
+      width: min(380px, 100%);
+      padding: 20px;
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.24);
+    }
+
+    .lock-box h2 {
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .report-box {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: #fbfcfa;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .privacy-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .guide-list {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .guide-list li {
+      margin: 4px 0;
+    }
+
+    .share-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    @media (min-width: 720px) {
+      .app {
+        min-height: 100vh;
+      }
+
+      main {
+        padding: 18px 20px 34px;
+      }
+
+      .desktop-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .chart-wrap {
+        height: 280px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      h1 {
+        font-size: 16px;
+      }
+
+      .text-logo-main {
+        font-size: 13px;
+      }
+
+      .text-logo-sub {
+        font-size: 11.5px;
+      }
+
+      .text-logo-caption {
+        font-size: 6.5px;
+      }
+
+      .brand-line {
+        gap: 3px 8px;
+      }
+
+      .brand-logo-img {
+        width: min(176px, 52vw);
+      }
+
+      .center-contact {
+        font-size: 7.5px;
+      }
+
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row,
+      .coping-actions,
+      .share-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .slot {
+        grid-template-columns: 38px 1fr;
+      }
+
+      .slot-score {
+        grid-column: 2;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="top-row">
+        <div class="brand-mark">
+          <div>
+            <div class="brand-line">
+              <div class="text-logo" aria-label="마음고요 심리상담센터">
+                <img class="brand-logo-img" src="./maeumgoyo_logo_large_subtitle.png" alt="마음고요 심리상담센터 - 임상심리학자 운영 심리치료 전문기관">
+              </div>
+              <div class="center-contact" aria-label="마음고요 심리상담센터 연락처">
+                <span>전화 0507-1388-3016</span>
+                <span>메일 respectuu@naver.com</span>
+              </div>
+            </div>
+            <h1 class="app-title">감정사고 관찰일지</h1>
+            <p class="subtitle">하루 3회 기록으로 사고·감정·충동의 흐름 보기</p>
+          </div>
+        </div>
+        <button class="icon-btn" id="lockButton" title="잠금"><span class="tab-icon icon-lock"></span></button>
+      </div>
+      <nav class="tabs" aria-label="앱 메뉴">
+        <button class="tab active" data-view="home"><span class="tab-icon icon-home"></span><span>오늘</span></button>
+        <button class="tab" data-view="record"><span class="tab-icon icon-write"></span><span>기록</span></button>
+        <button class="tab" data-view="trend"><span class="tab-icon icon-chart"></span><span>추세</span></button>
+        <button class="tab" data-view="data"><span class="tab-icon icon-data"></span><span>자료</span></button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="view active" id="homeView">
+        <div class="summary">
+          <div class="card today-card">
+            <div class="date-text" id="todayText">오늘</div>
+            <div class="date-sub" id="todaySub">오전 · 오후 · 저녁 중 편한 시간에 기록</div>
+          </div>
+          <div class="card metric">
+            <div class="metric-label">최근 7일 평균</div>
+            <div class="metric-value" id="weekAverage">0.0</div>
+            <div class="metric-note">사고·감정·충동 0~10 평균</div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>오늘의 3회 기록</h2>
+          <div class="button-row" style="width:min(260px, 100%);">
+            <button class="ghost-btn" id="quickRecord"><span class="tab-icon icon-plus"></span>정기</button>
+            <button class="ghost-btn" id="urgeRecord"><span class="tab-icon icon-plus"></span>충동</button>
+          </div>
+        </div>
+        <div class="slot-list" id="todaySlots"></div>
+
+        <div class="section-head">
+          <h2>최근 기록</h2>
+          <span class="small-muted" id="recordCount">0건</span>
+        </div>
+        <div class="record-list" id="recentRecords"></div>
+      </section>
+
+      <section class="view" id="recordView">
+        <form class="card" id="entryForm">
+          <input type="hidden" id="editId">
+          <div class="form-row">
+            <label for="dateInput">날짜</label>
+            <input id="dateInput" type="date" required>
+            <div class="small-muted">관찰한 날짜입니다. 실제 기록한 시각은 자동으로 따로 저장됩니다.</div>
+          </div>
+
+          <div class="form-row">
+            <label>기록 방식</label>
+            <div class="segmented" id="modeButtons">
+              <button type="button" data-mode="routine" class="active">하루 3회</button>
+              <button type="button" data-mode="event">충동 발생</button>
+            </div>
+            <div class="mode-note" id="modeNote">하루 3회 기록은 같은 날짜와 시간대에 1개만 유지됩니다.</div>
+          </div>
+
+          <div class="form-row">
+            <label>시간대</label>
+            <div class="segmented" id="periodButtons">
+              <button type="button" data-period="오전" class="active">오전</button>
+              <button type="button" data-period="오후">오후</button>
+              <button type="button" data-period="저녁">저녁</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>중독 유형</label>
+            <div class="chip-row" id="typeChips">
+              <button type="button" class="chip active" data-type="도박">도박</button>
+              <button type="button" class="chip" data-type="음주">음주</button>
+              <button type="button" class="chip" data-type="성">성</button>
+              <button type="button" class="chip" data-type="쇼핑">쇼핑</button>
+              <button type="button" class="chip" data-type="인터넷">인터넷</button>
+              <button type="button" class="chip" data-type="기타">기타</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="situationInput">상황</label>
+            <textarea id="situationInput" placeholder="예: 퇴근 후 혼자 있을 때, 갈등 후 휴대폰을 오래 보던 중"></textarea>
+          </div>
+
+          <div class="form-row">
+            <label for="thoughtTextInput">그때 든 생각</label>
+            <textarea id="thoughtTextInput" placeholder="예: 지금 하지 않으면 답답함이 사라지지 않을 것 같았다"></textarea>
+          </div>
+
+          <div class="form-row">
+            <label>감정 종류</label>
+            <div class="chip-row" id="emotionChips">
+              <button type="button" class="chip active" data-emotion="">선택 안 함</button>
+              <button type="button" class="chip" data-emotion="불안">불안</button>
+              <button type="button" class="chip" data-emotion="외로움">외로움</button>
+              <button type="button" class="chip" data-emotion="분노">분노</button>
+              <button type="button" class="chip" data-emotion="공허함">공허함</button>
+              <button type="button" class="chip" data-emotion="수치심">수치심</button>
+              <button type="button" class="chip" data-emotion="심심함">심심함</button>
+              <button type="button" class="chip" data-emotion="짜증">짜증</button>
+              <button type="button" class="chip" data-emotion="우울">우울</button>
+              <button type="button" class="chip" data-emotion="두려움">두려움</button>
+              <button type="button" class="chip" data-emotion="기타">기타</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>충동이 시작된 때</label>
+            <div class="segmented" id="urgeStartButtons" style="grid-template-columns: repeat(4, 1fr);">
+              <button type="button" data-urge-start="방금" class="active">방금</button>
+              <button type="button" data-urge-start="30분 전">30분 전</button>
+              <button type="button" data-urge-start="1시간 전">1시간 전</button>
+              <button type="button" data-urge-start="더 이전">더 이전</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>강도 및 중독행동 기록</label>
+            <div class="card" style="box-shadow:none; padding:4px 12px;">
+              <div class="slider-card">
+                <div class="slider-top"><span class="slider-name">중독 관련 생각</span><span class="slider-value" id="thoughtValue">0</span></div>
+                <input id="thoughtInput" type="range" min="0" max="10" value="0">
+                <div class="range-labels"><span>없음</span><span>매우 강함</span></div>
+              </div>
+              <div class="slider-card">
+                <div class="slider-top"><span class="slider-name">불편한 감정</span><span class="slider-value" id="emotionValue">0</span></div>
+                <input id="emotionInput" type="range" min="0" max="10" value="0">
+                <div class="range-labels"><span>안정</span><span>압도됨</span></div>
+              </div>
+              <div class="slider-card">
+                <div class="slider-top"><span class="slider-name">하고 싶은 마음</span><span class="slider-value" id="urgeValue">0</span></div>
+                <input id="urgeInput" type="range" min="0" max="10" value="0">
+                <div class="range-labels"><span>없음</span><span>통제 어려움</span></div>
+              </div>
+              <div class="slider-card">
+                <div class="slider-top"><span class="slider-name">행동 여부</span><span class="small-muted">0/1 기록</span></div>
+                <input id="actionInput" type="hidden" value="0">
+                <div class="segmented" id="actionButtons">
+                  <button type="button" data-action="0" class="active">일어나지 않음 (0)</button>
+                  <button type="button" data-action="1">일어남 (1)</button>
+                </div>
+              </div>
+            </div>
+            <div class="urgent-panel" id="urgentPanel">
+              <div class="urgent-title">지금 충동이 강합니다. 먼저 10분만 늦춰보세요.</div>
+              <div class="small-muted" style="margin-top:4px;">아래 대처를 누르면 대처행동 칸에 바로 기록됩니다.</div>
+              <div class="coping-actions">
+                <button type="button" class="coping-btn" data-coping="10분 미루기">10분 미루기</button>
+                <button type="button" class="coping-btn" data-coping="장소 바꾸기">장소 바꾸기</button>
+                <button type="button" class="coping-btn" data-coping="마음챙김호흡 1분">호흡 1분</button>
+                <button type="button" class="coping-btn" data-coping="신뢰하는 사람에게 연락하기">연락하기</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="noteInput">대처행동</label>
+            <textarea id="noteInput" placeholder="대처방법(멈춤-한걸음뒤로-관찰하기-가치 행동하기, 세수하기-심한운동-마음챙김호흡-근육이완-전화하기), 기타 자신이 사용한 대처 방식을 기록하세요"></textarea>
+          </div>
+
+          <div class="form-row">
+            <label>대처 후 도움 정도</label>
+            <div class="card" style="box-shadow:none; padding:4px 12px;">
+              <div class="slider-card">
+                <div class="slider-top"><span class="slider-name">도움 정도</span><span class="slider-value" id="copingEffectValue">0</span></div>
+                <input id="copingEffectInput" type="range" min="0" max="10" value="0">
+                <div class="range-labels"><span>도움 안 됨</span><span>많이 도움</span></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="solid-btn" type="submit"><span class="tab-icon icon-save"></span>지금 저장</button>
+          <div class="small-muted" id="saveStatus" style="margin-top:8px; text-align:center;">변경 후 저장 버튼을 눌러주세요.</div>
+        </form>
+      </section>
+
+      <section class="view" id="trendView">
+        <div class="desktop-grid">
+          <div class="card">
+            <div class="section-head" style="margin-top:0;">
+              <h2>사고·감정·충동과 중독행동</h2>
+              <span class="small-muted">O=했음, X=하지 않았음</span>
+            </div>
+            <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+            <div style="height:10px"></div>
+            <button class="ghost-btn" id="demoButton" style="width:100%;">가상 7일 자료로 보기</button>
+          </div>
+
+          <div class="card">
+            <div class="section-head" style="margin-top:0;">
+              <h2>패턴 요약</h2>
+              <span class="small-muted" id="patternSource">기록 기준</span>
+            </div>
+            <div class="pattern-grid" id="patternSummary"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="dataView">
+        <div class="grid">
+          <div class="card">
+            <h2>자료 내보내기</h2>
+            <p class="small-muted">상담 전 공유하거나 본인이 보관할 수 있도록 CSV 파일로 저장합니다.</p>
+            <ul class="guide-list">
+              <li>아이폰 Safari: 보통 파일 앱의 다운로드 폴더에 저장됩니다.</li>
+              <li>안드로이드 Chrome/Samsung Internet: 보통 내 파일 또는 Files 앱의 Download 폴더에 저장됩니다.</li>
+              <li>파일 이름에는 선택한 범위와 오늘 날짜가 함께 표시됩니다.</li>
+            </ul>
+            <div style="height:12px"></div>
+            <div class="form-row" style="margin-bottom:0;">
+              <label>내보낼 범위</label>
+              <div class="segmented" id="exportRangeButtons" style="grid-template-columns: repeat(4, 1fr);">
+                <button type="button" data-days="7" class="active">1주</button>
+                <button type="button" data-days="14">2주</button>
+                <button type="button" data-days="28">4주</button>
+                <button type="button" data-days="all">전체</button>
+              </div>
+              <div class="mode-note" id="exportRangeNote">최근 1주 자료를 내보냅니다. 기록이 1주보다 적으면 있는 기록만 포함합니다.</div>
+            </div>
+            <div style="height:12px"></div>
+            <button class="solid-btn" id="exportButton"><span class="tab-icon icon-download"></span>CSV 내보내기</button>
+            <div class="share-actions">
+              <button class="ghost-btn" id="shareCsvButton" type="button"><span class="tab-icon icon-upload"></span>CSV 공유</button>
+              <button class="ghost-btn" id="emailButton" type="button"><span class="tab-icon icon-upload"></span>메일 작성</button>
+            </div>
+            <p class="small-muted" id="exportInfo" style="margin-top:10px;"></p>
+          </div>
+
+          <div class="card">
+            <h2>자료 가져오기</h2>
+            <p class="small-muted">이 앱에서 내보낸 CSV를 다시 불러올 수 있습니다.</p>
+            <div style="height:12px"></div>
+            <input class="file-input" id="importFile" type="file" accept=".csv,text/csv">
+            <button class="ghost-btn" id="importButton" style="width:100%;"><span class="tab-icon icon-upload"></span>CSV 가져오기</button>
+          </div>
+
+          <div class="card">
+            <h2>상담용 요약</h2>
+            <p class="small-muted">최근 기록을 바탕으로 상담 전에 함께 볼 핵심 패턴을 정리합니다.</p>
+            <div class="report-box" id="counselingSummary"></div>
+          </div>
+
+          <div class="card">
+            <h2>개인정보 보호</h2>
+            <p class="small-muted">기록은 이 기기의 브라우저 저장공간에만 저장되며 서버로 전송되지 않습니다.</p>
+            <p class="privacy-note">PIN은 간단한 화면 잠금입니다. 강한 암호화가 아니므로 공용 기기에서는 사용 후 자료를 내보내고 삭제하세요.</p>
+            <div style="height:12px"></div>
+            <div class="grid">
+              <input id="pinInput" type="password" inputmode="numeric" minlength="4" placeholder="4자리 이상 PIN 설정 또는 변경">
+              <button class="ghost-btn" id="pinButton" style="width:100%;"><span class="tab-icon icon-lock"></span>PIN 저장</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>전체 삭제</h2>
+            <p class="small-muted">기기에 저장된 모든 관찰 기록을 삭제합니다. 삭제 전 CSV 내보내기를 권장합니다.</p>
+            <div style="height:12px"></div>
+            <button class="danger-btn" id="clearButton"><span class="tab-icon icon-trash"></span>모든 기록 삭제</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <section class="lock-screen" id="lockScreen">
+    <div class="lock-box">
+      <h2>잠금 해제</h2>
+      <p class="small-muted">설정한 PIN을 입력하면 기록을 볼 수 있습니다.</p>
+      <div style="height:14px"></div>
+      <div class="grid">
+        <input id="unlockInput" type="password" inputmode="numeric" placeholder="PIN">
+        <button class="solid-btn" id="unlockButton">열기</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "addiction-behavior-journal-v1";
+    const PIN_KEY = "addiction-behavior-journal-pin-v1";
+    const PERIODS = ["오전", "오후", "저녁"];
+
+    const state = {
+      records: [],
+      currentView: "home",
+      selectedPeriod: "오전",
+      selectedType: "도박",
+      selectedEmotion: "",
+      selectedUrgeStart: "방금",
+      entryMode: "routine",
+      exportRangeDays: 7,
+      lastExport: null,
+      formSnapshot: ""
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function todayISO() {
+      const now = new Date();
+      const tz = now.getTimezoneOffset() * 60000;
+      return new Date(now - tz).toISOString().slice(0, 10);
+    }
+
+    function formatKoreanDate(dateString) {
+      const date = new Date(dateString + "T00:00:00");
+      return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+    }
+
+    function formatSavedTime(isoString) {
+      if (!isoString) return "";
+      const date = new Date(isoString);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString("ko-KR", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function loadRecords() {
+      try {
+        state.records = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      } catch {
+        state.records = [];
+      }
+      state.records.sort((a, b) => (b.date + b.period).localeCompare(a.date + a.period));
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.records));
+    }
+
+    function currentFormHasContent() {
+      return Boolean(
+        $("#situationInput").value.trim() ||
+        $("#thoughtTextInput").value.trim() ||
+        $("#noteInput").value.trim() ||
+        state.selectedEmotion ||
+        Number($("#thoughtInput").value) > 0 ||
+        Number($("#emotionInput").value) > 0 ||
+        Number($("#urgeInput").value) > 0 ||
+        Number($("#actionInput").value) > 0 ||
+        Number($("#copingEffectInput").value) > 0
+      );
+    }
+
+    function score(record) {
+      return intensityScore(record);
+    }
+
+    function intensityScore(record) {
+      return Number(record.thought || 0) + Number(record.emotion || 0) + Number(record.urge || 0);
+    }
+
+    function average(records) {
+      if (!records.length) return 0;
+      return records.reduce((sum, record) => sum + score(record), 0) / records.length;
+    }
+
+    function averageIntensity(records) {
+      if (!records.length) return 0;
+      return records.reduce((sum, record) => sum + intensityScore(record), 0) / records.length;
+    }
+
+    function averageLevel(records) {
+      if (!records.length) return 0;
+      return records.reduce((sum, record) => sum + intensityScore(record) / 3, 0) / records.length;
+    }
+
+    function showToast(message) {
+      const toast = $("#toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 1900);
+    }
+
+    function formStateString() {
+      const form = buildEntry({ keepUpdatedAt: true });
+      delete form.id;
+      delete form.updatedAt;
+      return JSON.stringify(form);
+    }
+
+    function formHasUnsavedChanges() {
+      if (state.currentView !== "record") return false;
+      return state.formSnapshot && formStateString() !== state.formSnapshot;
+    }
+
+    function markFormClean() {
+      state.formSnapshot = formStateString();
+      const status = $("#saveStatus");
+      if (status) status.textContent = "변경 후 저장 버튼을 눌러주세요.";
+    }
+
+    function markFormChanged() {
+      if (state.currentView !== "record") return;
+      const status = $("#saveStatus");
+      if (!status) return;
+      status.textContent = formHasUnsavedChanges()
+        ? "저장하지 않은 변경이 있습니다."
+        : "변경 후 저장 버튼을 눌러주세요.";
+    }
+
+    function confirmLeaveRecord() {
+      if (!formHasUnsavedChanges()) return true;
+      return confirm("저장하지 않은 변경이 있습니다. 저장하지 않고 나갈까요?");
+    }
+
+    function setView(viewName, options = {}) {
+      if (!options.force && state.currentView === "record" && viewName !== "record") {
+        if (!confirmLeaveRecord()) return false;
+        resetForm(currentPeriodByClock(), "routine");
+      }
+      state.currentView = viewName;
+      $$(".view").forEach(view => view.classList.toggle("active", view.id === `${viewName}View`));
+      $$(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === viewName));
+      if (viewName === "trend") drawTrend();
+      renderAll();
+      return true;
+    }
+
+    function setPeriod(period) {
+      state.selectedPeriod = period;
+      $$("#periodButtons button").forEach(button => button.classList.toggle("active", button.dataset.period === period));
+    }
+
+    function setType(type) {
+      state.selectedType = type;
+      $$("#typeChips .chip").forEach(button => button.classList.toggle("active", button.dataset.type === type));
+    }
+
+    function setEmotion(emotion) {
+      state.selectedEmotion = emotion || "";
+      $$("#emotionChips .chip").forEach(button => button.classList.toggle("active", button.dataset.emotion === state.selectedEmotion));
+    }
+
+    function setUrgeStart(value) {
+      state.selectedUrgeStart = value || "방금";
+      $$("#urgeStartButtons button").forEach(button => button.classList.toggle("active", button.dataset.urgeStart === state.selectedUrgeStart));
+    }
+
+    function setEntryMode(mode) {
+      state.entryMode = mode === "event" ? "event" : "routine";
+      $$("#modeButtons button").forEach(button => button.classList.toggle("active", button.dataset.mode === state.entryMode));
+      $("#modeNote").textContent = state.entryMode === "event"
+        ? "충동 발생 기록은 같은 시간대에 여러 번 남길 수 있습니다."
+        : "하루 3회 기록은 같은 날짜와 시간대에 1개만 유지됩니다.";
+    }
+
+    function setAction(value) {
+      const normalized = Number(value) > 0 ? 1 : 0;
+      $("#actionInput").value = normalized;
+      $$("#actionButtons button").forEach(button => button.classList.toggle("active", Number(button.dataset.action) === normalized));
+      renderUrgentPanel();
+    }
+
+    function updateSliderLabels() {
+      [
+        ["thoughtInput", "thoughtValue"],
+        ["emotionInput", "emotionValue"],
+        ["urgeInput", "urgeValue"],
+        ["copingEffectInput", "copingEffectValue"]
+      ].forEach(([inputId, labelId]) => {
+        const input = $("#" + inputId);
+        const label = $("#" + labelId);
+        label.textContent = input.value;
+        label.style.background = Number(input.value) >= 8 ? "var(--danger)" : Number(input.value) >= 5 ? "var(--accent)" : "var(--brand)";
+      });
+      renderUrgentPanel();
+    }
+
+    function renderUrgentPanel() {
+      const panel = $("#urgentPanel");
+      if (!panel) return;
+      const isHighRisk = Number($("#urgeInput").value) >= 8 || Number($("#actionInput").value) > 0;
+      panel.classList.toggle("active", isHighRisk);
+    }
+
+    function currentPeriodByClock() {
+      const hour = new Date().getHours();
+      if (hour < 12) return "오전";
+      if (hour < 18) return "오후";
+      return "저녁";
+    }
+
+    function resetForm(period = "오전", mode = "routine") {
+      $("#editId").value = "";
+      $("#dateInput").value = todayISO();
+      setEntryMode(mode);
+      setPeriod(period);
+      setType("도박");
+      setEmotion("");
+      setUrgeStart("방금");
+      $("#situationInput").value = "";
+      $("#thoughtTextInput").value = "";
+      $("#noteInput").value = "";
+      ["thoughtInput", "emotionInput", "urgeInput", "copingEffectInput"].forEach(id => $("#" + id).value = 0);
+      setAction(0);
+      updateSliderLabels();
+      markFormClean();
+    }
+
+    function fillForm(record) {
+      $("#editId").value = record.id;
+      $("#dateInput").value = record.date;
+      setEntryMode(record.mode || "routine");
+      setPeriod(record.period);
+      setType(record.type);
+      setEmotion(record.emotionName || "");
+      setUrgeStart(record.urgeStart || "방금");
+      $("#situationInput").value = record.situation || "";
+      $("#thoughtTextInput").value = record.thoughtText || "";
+      $("#noteInput").value = record.note || "";
+      $("#thoughtInput").value = record.thought || 0;
+      $("#emotionInput").value = record.emotion || 0;
+      $("#urgeInput").value = record.urge || 0;
+      $("#copingEffectInput").value = record.copingEffect || 0;
+      setAction(record.action || 0);
+      updateSliderLabels();
+      markFormClean();
+      setView("record", { force: true });
+    }
+
+    function renderHome() {
+      const today = todayISO();
+      const now = new Date();
+      $("#todayText").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일`;
+      $("#todaySub").textContent = now.toLocaleDateString("ko-KR", { weekday: "long" });
+
+      const weekStart = new Date(today + "T00:00:00");
+      weekStart.setDate(weekStart.getDate() - 6);
+      const weekRecords = state.records.filter(record => new Date(record.date + "T00:00:00") >= weekStart);
+      $("#weekAverage").textContent = averageLevel(weekRecords).toFixed(1);
+      $("#recordCount").textContent = `${state.records.length}건`;
+
+      const todayRecords = state.records.filter(record => record.date === today);
+      $("#todaySlots").innerHTML = PERIODS.map((period, index) => {
+        const found = todayRecords.find(record => record.period === period && (record.mode || "routine") === "routine");
+        const className = index === 0 ? "am" : index === 1 ? "pm" : "evening";
+        const symbol = index === 0 ? "AM" : index === 1 ? "PM" : "EV";
+        return `
+          <button class="slot ${className}" data-slot="${period}">
+            <span class="slot-symbol">${symbol}</span>
+            <span>
+              <span class="slot-title">${period}</span>
+              <span class="slot-detail">${found ? `${found.type} · ${found.situation || "상황 미입력"}` : "아직 기록 없음"}</span>
+            </span>
+            <span class="slot-score">${found ? score(found) + "점" : "기록"}</span>
+          </button>
+        `;
+      }).join("");
+
+      $("#recentRecords").innerHTML = state.records.slice(0, 5).map(recordTemplate).join("") || `<div class="empty">아직 기록이 없습니다.</div>`;
+    }
+
+    function recordTemplate(record) {
+      return `
+        <article class="record-item">
+          ${(record.mode || "routine") === "event" ? `<span class="record-badge">충동 발생 기록</span>` : ""}
+          <div class="record-top">
+            <span>${formatKoreanDate(record.date)} ${record.period}</span>
+            <span>${score(record)}점</span>
+          </div>
+          <div class="record-meta">${record.type} · ${record.situation || "상황 미입력"}</div>
+          ${record.emotionName ? `<div class="record-meta">감정: ${record.emotionName}</div>` : ""}
+          ${record.urgeStart ? `<div class="record-meta">충동 시작: ${record.urgeStart}</div>` : ""}
+          ${record.updatedAt ? `<div class="record-meta">기록시각: ${formatSavedTime(record.updatedAt)}</div>` : ""}
+          ${record.thoughtText ? `<div class="record-meta">생각: ${record.thoughtText}</div>` : ""}
+          ${record.note ? `<div class="record-meta">대처행동: ${record.note}</div>` : ""}
+          ${Number(record.copingEffect || 0) > 0 ? `<div class="record-meta">대처 후 도움 정도: ${record.copingEffect}/10</div>` : ""}
+          <div class="record-actions">
+            <button class="mini-btn" data-edit="${record.id}">수정</button>
+            <button class="mini-btn" data-delete="${record.id}">삭제</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function periodOrder(period) {
+      return PERIODS.indexOf(period) >= 0 ? PERIODS.indexOf(period) : 9;
+    }
+
+    function weekdayName(dateString) {
+      return new Date(dateString + "T00:00:00").toLocaleDateString("ko-KR", { weekday: "short" });
+    }
+
+    function trendData(days = 14) {
+      const start = new Date(todayISO() + "T00:00:00");
+      start.setDate(start.getDate() - (days - 1));
+      return state.records
+        .filter(record => new Date(record.date + "T00:00:00") >= start)
+        .slice()
+        .sort((a, b) => {
+          const dateCompare = a.date.localeCompare(b.date);
+          if (dateCompare !== 0) return dateCompare;
+          return periodOrder(a.period) - periodOrder(b.period);
+        })
+        .map(record => ({
+          date: record.date,
+          period: record.period,
+          dateLabel: record.date.slice(5).replace("-", "/"),
+          periodLabel: record.period,
+          thought: Number(record.thought || 0),
+          emotion: Number(record.emotion || 0),
+          urge: Number(record.urge || 0),
+          average: (Number(record.thought || 0) + Number(record.emotion || 0) + Number(record.urge || 0)) / 3,
+          action: Number(record.action || 0) > 0 ? 1 : 0,
+          count: 1
+        }));
+    }
+
+    function drawTrend() {
+      const canvas = $("#trendChart");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const data = trendData(14);
+      const padding = { left: 34, right: 16, top: 30, bottom: 66 };
+      const width = rect.width - padding.left - padding.right;
+      const height = rect.height - padding.top - padding.bottom;
+      const maxY = 10;
+
+      ctx.strokeStyle = "#dfe7df";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#64736d";
+      ctx.font = "11px system-ui";
+      [0, 2, 4, 6, 8, 10].forEach(tick => {
+        const y = padding.top + height - (tick / maxY) * height;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + width, y);
+        ctx.stroke();
+        ctx.fillText(String(tick), 5, y + 4);
+      });
+
+      const xStep = width / Math.max(1, data.length);
+      const series = [
+        { key: "thought", label: "사고", color: "#2f7567" },
+        { key: "emotion", label: "감정", color: "#c1842f" },
+        { key: "urge", label: "충동", color: "#3f6f98" },
+        { key: "average", label: "평균", color: "#4b4f54", dashed: true }
+      ];
+
+      series.forEach(item => {
+        ctx.beginPath();
+        ctx.setLineDash(item.dashed ? [5, 4] : []);
+        data.forEach((point, index) => {
+          const x = padding.left + (index + 0.5) * xStep;
+          const y = padding.top + height - (point[item.key] / maxY) * height;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = item.color;
+        ctx.lineWidth = item.dashed ? 2 : 2.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+
+      data.forEach((point, index) => {
+        const x = padding.left + (index + 0.5) * xStep;
+        if (point.action) {
+          ctx.save();
+          ctx.globalAlpha = 0.12;
+          ctx.fillStyle = "#b64a45";
+          ctx.fillRect(x - Math.max(4, xStep * 0.28), padding.top, Math.max(8, xStep * 0.56), height);
+          ctx.restore();
+        }
+        series.forEach(item => {
+          const y = padding.top + height - (point[item.key] / maxY) * height;
+          ctx.fillStyle = point.count ? item.color : "#bcc8c0";
+          ctx.beginPath();
+          ctx.arc(x, y, point.count ? 3.4 : 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        if (point.action) {
+          ctx.fillStyle = "#b64a45";
+          ctx.font = "bold 12px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("O", x, padding.top + height + 21);
+        } else {
+          ctx.fillStyle = "#7c8882";
+          ctx.font = "bold 12px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("X", x, padding.top + height + 21);
+        }
+        const periodMap = { "오전": "오", "오후": "후", "저녁": "저" };
+        ctx.fillStyle = "#64736d";
+        ctx.textAlign = "center";
+        ctx.font = "10px system-ui";
+        ctx.fillText(periodMap[point.periodLabel] || point.periodLabel, x, rect.height - 10);
+        if (index === 0 || point.date !== data[index - 1].date) {
+          ctx.fillText(point.dateLabel, x, rect.height - 26);
+        }
+      });
+
+      let legendX = padding.left;
+      let legendY = 14;
+      const legend = [...series, { label: "O/X", color: "#b64a45" }];
+      legend.forEach(item => {
+        const nextWidth = item.label.length * 12 + 25;
+        if (legendX + nextWidth > rect.width - 12) {
+          legendX = padding.left;
+          legendY += 14;
+        }
+        ctx.fillStyle = item.color;
+        ctx.beginPath();
+        ctx.arc(legendX, legendY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#47554f";
+        ctx.textAlign = "left";
+        ctx.font = "11px system-ui";
+        ctx.fillText(item.label, legendX + 7, legendY + 4);
+        legendX += nextWidth;
+      });
+
+      if (!state.records.length) {
+        ctx.fillStyle = "#64736d";
+        ctx.font = "13px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("기록을 저장하면 추세가 표시됩니다.", rect.width / 2, rect.height / 2);
+      }
+    }
+
+    function renderPatterns() {
+      const box = $("#patternSummary");
+      if (!state.records.length) {
+        box.innerHTML = `<div class="empty">기록이 쌓이면 요일과 시간대별 평균을 요약합니다.</div>`;
+        $("#patternSource").textContent = "0건 기준";
+        return;
+      }
+      $("#patternSource").textContent = `${state.records.length}건 기준`;
+
+      const byTimeBlock = groupByWeekdayPeriod(state.records);
+      const highestThought = highestByMetric(byTimeBlock, "thought");
+      const highestEmotion = highestByMetric(byTimeBlock, "emotion");
+      const highestUrge = highestByMetric(byTimeBlock, "urge");
+      const highestCombined = highestByMetric(byTimeBlock, "combined");
+      const highestAction = highestByMetric(byTimeBlock, "actionRate");
+
+      const items = [
+        { label: "사고 평균이 높은 때", value: formatPatternValue(highestThought, "thought"), pct: highestThought ? highestThought.thought * 10 : 0 },
+        { label: "감정 평균이 높은 때", value: formatPatternValue(highestEmotion, "emotion"), pct: highestEmotion ? highestEmotion.emotion * 10 : 0 },
+        { label: "충동 평균이 높은 때", value: formatPatternValue(highestUrge, "urge"), pct: highestUrge ? highestUrge.urge * 10 : 0 },
+        { label: "3개 항목 평균이 높은 때", value: formatPatternValue(highestCombined, "combined"), pct: highestCombined ? highestCombined.combined * 10 : 0 },
+        { label: "중독행동 비율이 높은 때", value: highestAction ? `${highestAction.label} ${highestAction.actionRate.toFixed(0)}%` : "없음", pct: highestAction ? highestAction.actionRate : 0 }
+      ];
+
+      box.innerHTML = items.map(item => `
+        <div class="pattern-item">
+          <div>
+            <div class="slot-title">${item.label}</div>
+            <div class="bar"><span style="width:${Math.min(100, item.pct)}%"></span></div>
+          </div>
+          <strong>${item.value}</strong>
+        </div>
+      `).join("");
+    }
+
+    function groupByWeekdayPeriod(records) {
+      const groups = new Map();
+      records.forEach(record => {
+        const weekday = weekdayName(record.date);
+        const period = record.period || "미입력";
+        const key = `${weekday} ${period}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            label: key,
+            count: 0,
+            thoughtSum: 0,
+            emotionSum: 0,
+            urgeSum: 0,
+            actionCount: 0
+          });
+        }
+        const group = groups.get(key);
+        group.count += 1;
+        group.thoughtSum += Number(record.thought || 0);
+        group.emotionSum += Number(record.emotion || 0);
+        group.urgeSum += Number(record.urge || 0);
+        if (Number(record.action || 0) > 0) group.actionCount += 1;
+      });
+      return Array.from(groups.values()).map(group => ({
+        label: group.label,
+        count: group.count,
+        thought: group.thoughtSum / group.count,
+        emotion: group.emotionSum / group.count,
+        urge: group.urgeSum / group.count,
+        combined: (group.thoughtSum + group.emotionSum + group.urgeSum) / group.count / 3,
+        actionRate: group.actionCount / group.count * 100
+      })).sort((a, b) => b.combined - a.combined || b.count - a.count);
+    }
+
+    function highestByMetric(groups, metric) {
+      return groups
+        .slice()
+        .sort((a, b) => b[metric] - a[metric] || b.count - a.count)[0];
+    }
+
+    function formatPatternValue(group, metric) {
+      if (!group) return "없음";
+      return `${group.label} ${group[metric].toFixed(1)}점`;
+    }
+
+    function renderDataList() {
+      if (state.currentView !== "data") return;
+      renderCounselingSummary();
+    }
+
+    function renderCounselingSummary() {
+      const box = $("#counselingSummary");
+      if (!box) return;
+      if (!state.records.length) {
+        box.innerHTML = `<div class="small-muted">기록이 쌓이면 최근 1주 요약이 표시됩니다.</div>`;
+        return;
+      }
+
+      const start = new Date(todayISO() + "T00:00:00");
+      start.setDate(start.getDate() - 6);
+      const recent = state.records.filter(record => new Date(record.date + "T00:00:00") >= start);
+      const source = recent.length ? recent : state.records;
+      const eventCount = source.filter(record => (record.mode || "routine") === "event").length;
+      const actionCount = source.filter(record => Number(record.action || 0) > 0).length;
+      const highUrgeCount = source.filter(record => Number(record.urge || 0) >= 8).length;
+      const resistedCount = source.filter(record => Number(record.urge || 0) >= 5 && Number(record.action || 0) === 0).length;
+      const groups = groupByWeekdayPeriod(source);
+      const highestUrge = highestByMetric(groups, "urge");
+      const helpfulNotes = source
+        .filter(record => Number(record.action || 0) === 0 && Number(record.urge || 0) >= 5 && record.note)
+        .slice(0, 3)
+        .map(record => record.note);
+      const emotionCounts = source.reduce((counts, record) => {
+        if (record.emotionName) counts[record.emotionName] = (counts[record.emotionName] || 0) + 1;
+        return counts;
+      }, {});
+      const topEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0];
+
+      box.innerHTML = `
+        <div><strong>기록 수:</strong> ${source.length}건 / 충동 발생 기록 ${eventCount}건</div>
+        <div><strong>평균 강도:</strong> ${averageLevel(source).toFixed(1)}점 / 10점</div>
+        <div><strong>고위험 신호:</strong> 충동 8점 이상 ${highUrgeCount}건, 중독행동 ${actionCount}건</div>
+        <div><strong>주요 감정:</strong> ${topEmotion ? `${topEmotion[0]} ${topEmotion[1]}건` : "아직 기록 없음"}</div>
+        <div><strong>충동을 넘긴 기록:</strong> ${resistedCount}건</div>
+        <div><strong>취약 시간대:</strong> ${highestUrge ? `${highestUrge.label} 충동 평균 ${highestUrge.urge.toFixed(1)}점` : "아직 없음"}</div>
+        <div><strong>도움 된 대처:</strong> ${helpfulNotes.length ? helpfulNotes.join(" · ") : "아직 기록 없음"}</div>
+      `;
+    }
+
+    function renderAll() {
+      renderHome();
+      renderPatterns();
+      renderDataList();
+      if (state.currentView === "trend") drawTrend();
+    }
+
+    function buildEntry(options = {}) {
+      const id = $("#editId").value || crypto.randomUUID();
+      return {
+        id,
+        date: $("#dateInput").value || todayISO(),
+        period: state.selectedPeriod,
+        mode: state.entryMode,
+        type: state.selectedType,
+        emotionName: state.selectedEmotion,
+        urgeStart: state.selectedUrgeStart,
+        situation: $("#situationInput").value.trim(),
+        thoughtText: $("#thoughtTextInput").value.trim(),
+        thought: Number($("#thoughtInput").value),
+        emotion: Number($("#emotionInput").value),
+        urge: Number($("#urgeInput").value),
+        action: Number($("#actionInput").value) > 0 ? 1 : 0,
+        note: $("#noteInput").value.trim(),
+        copingEffect: Number($("#copingEffectInput").value),
+        updatedAt: options.keepUpdatedAt ? ($("#editId").value ? (state.records.find(record => record.id === $("#editId").value)?.updatedAt || "") : "") : new Date().toISOString()
+      };
+    }
+
+    function persistEntry(entry, options = {}) {
+      const existingIndex = state.records.findIndex(record => record.id === entry.id);
+      const allowMultiple = entry.mode === "event";
+      const sameSlotIndex = allowMultiple ? -1 : state.records.findIndex(record =>
+        record.id !== entry.id &&
+        record.date === entry.date &&
+        record.period === entry.period &&
+        (record.mode || "routine") === "routine"
+      );
+
+      if (sameSlotIndex >= 0 && !options.auto && !confirm("같은 날짜와 시간대의 기록이 이미 있습니다. 덮어쓸까요?")) return false;
+      if (sameSlotIndex >= 0) state.records.splice(sameSlotIndex, 1);
+      if (existingIndex >= 0) state.records[existingIndex] = entry;
+      else state.records.push(entry);
+
+      $("#editId").value = entry.id;
+      saveRecords();
+      loadRecords();
+      renderAll();
+      return true;
+    }
+
+    function saveEntry(event) {
+      if (event) event.preventDefault();
+      const entry = buildEntry();
+      const saved = persistEntry(entry, { auto: false });
+      if (!saved) return;
+
+      resetForm(entry.period);
+      showToast("기록을 저장했습니다.");
+      setView("home", { force: true });
+    }
+
+    function csvEscape(value) {
+      const text = String(value ?? "");
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function exportRangeLabel(days = state.exportRangeDays) {
+      if (days === "all") return "전체";
+      if (Number(days) === 7) return "최근1주";
+      if (Number(days) === 14) return "최근2주";
+      if (Number(days) === 28) return "최근4주";
+      return `최근${days}일`;
+    }
+
+    function exportRangeDescription(days = state.exportRangeDays) {
+      if (days === "all") return "전체 자료";
+      if (Number(days) === 7) return "최근 1주 자료";
+      if (Number(days) === 14) return "최근 2주 자료";
+      if (Number(days) === 28) return "최근 4주 자료";
+      return `최근 ${days}일 자료`;
+    }
+
+    function recordsForExport() {
+      const days = state.exportRangeDays;
+      if (days === "all") return state.records.slice();
+      const start = new Date(todayISO() + "T00:00:00");
+      start.setDate(start.getDate() - (Number(days) - 1));
+      return state.records.filter(record => new Date(record.date + "T00:00:00") >= start);
+    }
+
+    function exportCoverage(records) {
+      if (!records.length) return "포함된 기록 없음";
+      const dates = records.map(record => record.date).sort();
+      const first = dates[0];
+      const last = dates[dates.length - 1];
+      const daySpan = Math.floor((new Date(last + "T00:00:00") - new Date(first + "T00:00:00")) / 86400000) + 1;
+      return first === last ? `${first} 하루 기록` : `${first}~${last}, 실제 ${daySpan}일 범위`;
+    }
+
+    function setExportRange(days) {
+      state.exportRangeDays = days === "all" ? "all" : Number(days);
+      $$("#exportRangeButtons button").forEach(button => {
+        const buttonValue = button.dataset.days === "all" ? "all" : Number(button.dataset.days);
+        button.classList.toggle("active", buttonValue === state.exportRangeDays);
+      });
+      $("#exportRangeNote").textContent = `${exportRangeDescription()}를 내보냅니다. 선택한 기간보다 기록이 적으면 있는 기록만 포함합니다.`;
+    }
+
+    function buildCSVExport() {
+      const header = ["날짜", "시간대", "기록저장시각", "중독 유형", "감정 종류", "충동 시작", "상황", "그때 든 생각", "중독 관련 생각", "불편한 감정", "하고 싶은 마음", "행동 여부", "사고감정충동합계", "대처행동", "대처 후 도움 정도", "기록구분"];
+      const exportRecords = recordsForExport();
+      const rows = exportRecords
+        .slice()
+        .sort((a, b) => (a.date + a.period).localeCompare(b.date + b.period))
+        .map(record => [
+          record.date,
+          record.period,
+          formatSavedTime(record.updatedAt),
+          record.type,
+          record.emotionName || "",
+          record.urgeStart || "",
+          record.situation,
+          record.thoughtText || "",
+          record.thought,
+          record.emotion,
+          record.urge,
+          record.action,
+          intensityScore(record),
+          record.note,
+          record.copingEffect || 0,
+          (record.mode || "routine") === "event" ? "충동 발생" : "하루 3회"
+        ]);
+      const csv = [header, ...rows].map(row => row.map(csvEscape).join(",")).join("\n");
+      const rangeLabel = exportRangeLabel();
+      const coverage = exportCoverage(exportRecords);
+      const fileName = `감정사고_관찰일치_${rangeLabel}_${todayISO()}.csv`;
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+      return { csv, blob, fileName, count: rows.length, rangeLabel, rangeDescription: exportRangeDescription(), coverage };
+    }
+
+    function downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCSV() {
+      const exportData = buildCSVExport();
+      state.lastExport = exportData;
+      downloadBlob(exportData.blob, exportData.fileName);
+      $("#exportInfo").textContent = `내보낸 파일: ${exportData.fileName} / 선택 범위: ${exportData.rangeDescription}, 실제 포함: ${exportData.coverage}, ${exportData.count}건 / 아이폰은 파일 앱의 다운로드 폴더, 안드로이드는 내 파일 또는 Files 앱의 Download 폴더에서 확인하세요.`;
+      showToast("CSV 파일을 내보냈습니다.");
+    }
+
+    async function shareCSV() {
+      const exportData = buildCSVExport();
+      state.lastExport = exportData;
+      const file = new File([exportData.blob], exportData.fileName, { type: "text/csv" });
+      const shareText = `감정사고 관찰일지 ${exportData.count}건입니다. 선택 범위: ${exportData.rangeDescription}. 실제 포함: ${exportData.coverage}. 치료자 이메일: respectuu@naver.com`;
+
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        try {
+          await navigator.share({
+            title: "감정사고 관찰일지",
+            text: shareText,
+            files: [file]
+          });
+          $("#exportInfo").textContent = `공유한 파일: ${exportData.fileName} / 선택 범위: ${exportData.rangeDescription}, 실제 포함: ${exportData.coverage}, ${exportData.count}건`;
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+        }
+      }
+
+      downloadBlob(exportData.blob, exportData.fileName);
+      $("#exportInfo").textContent = `이 브라우저에서는 파일 공유가 제한되어 CSV를 다운로드했습니다. 선택 범위: ${exportData.rangeDescription}, 실제 포함: ${exportData.coverage}, ${exportData.count}건입니다. 메일 앱에서 respectuu@naver.com으로 보낼 때 ${exportData.fileName} 파일을 첨부하세요.`;
+      showToast("CSV를 다운로드했습니다. 메일에 첨부하세요.");
+    }
+
+    function openEmailDraft() {
+      const exportData = state.lastExport || buildCSVExport();
+      state.lastExport = exportData;
+      const subject = encodeURIComponent(`감정사고 관찰일지 공유 ${todayISO()}`);
+      const body = encodeURIComponent(
+        `안녕하세요.\n\n감정사고 관찰일지 CSV 파일을 공유드립니다.\n\n선택 범위: ${exportData.rangeDescription}\n실제 포함: ${exportData.coverage}\n기록 수: ${exportData.count}건\n첨부할 파일명: ${exportData.fileName}\n\n스마트폰에서 방금 CSV 내보내기를 했다면 다운로드 폴더에서 위 파일을 선택해 첨부해 주세요.\n\n감사합니다.`
+      );
+      window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
+      $("#exportInfo").textContent = `메일 앱이 열리면 받는 사람 respectuu@naver.com을 확인하고, ${exportData.fileName} 파일을 첨부해 보내세요. 선택 범위는 ${exportData.rangeDescription}, 실제 포함은 ${exportData.coverage}, ${exportData.count}건입니다.`;
+    }
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let quoted = false;
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (quoted) {
+          if (char === '"' && next === '"') {
+            cell += '"';
+            i++;
+          } else if (char === '"') {
+            quoted = false;
+          } else {
+            cell += char;
+          }
+        } else if (char === '"') {
+          quoted = true;
+        } else if (char === ",") {
+          row.push(cell);
+          cell = "";
+        } else if (char === "\n") {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else if (char !== "\r") {
+          cell += char;
+        }
+      }
+      row.push(cell);
+      rows.push(row);
+      return rows.filter(r => r.some(c => c.trim()));
+    }
+
+    function importCSV(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const rows = parseCSV(String(reader.result || ""));
+        const header = rows[0] || [];
+        const indexOf = (name) => header.indexOf(name);
+        const idx = {
+          date: indexOf("날짜"),
+          period: indexOf("시간대"),
+          savedAt: indexOf("기록저장시각"),
+          type: indexOf("중독 유형"),
+          emotionName: indexOf("감정 종류"),
+          urgeStart: indexOf("충동 시작"),
+          situation: indexOf("상황"),
+          thoughtText: indexOf("그때 든 생각"),
+          thought: indexOf("중독 관련 생각") >= 0 ? indexOf("중독 관련 생각") : indexOf("사고"),
+          emotion: indexOf("불편한 감정") >= 0 ? indexOf("불편한 감정") : indexOf("감정"),
+          urge: indexOf("하고 싶은 마음") >= 0 ? indexOf("하고 싶은 마음") : indexOf("충동"),
+          action: indexOf("행동 여부") >= 0 ? indexOf("행동 여부") : indexOf("중독행동"),
+          note: indexOf("대처행동"),
+          copingEffect: indexOf("대처 후 도움 정도"),
+          mode: indexOf("기록구분")
+        };
+        const get = (cols, key, fallback = "") => idx[key] >= 0 ? (cols[idx[key]] || fallback) : fallback;
+        const legacyHasSavedTime = idx.savedAt === 2;
+        const legacyHasThoughtText = legacyHasSavedTime ? header[5] === "그때 든 생각" : header[4] === "그때 든 생각";
+        const body = rows.slice(1);
+        const imported = body.map(cols => ({
+          id: crypto.randomUUID(),
+          date: get(cols, "date", cols[0] || todayISO()),
+          period: get(cols, "period", cols[1] || "오전"),
+          type: get(cols, "type", cols[legacyHasSavedTime ? 3 : 2] || "기타"),
+          emotionName: get(cols, "emotionName", ""),
+          urgeStart: get(cols, "urgeStart", ""),
+          situation: get(cols, "situation", cols[legacyHasSavedTime ? 4 : 3] || ""),
+          thoughtText: get(cols, "thoughtText", legacyHasThoughtText ? (cols[legacyHasSavedTime ? 5 : 4] || "") : ""),
+          thought: Number(get(cols, "thought", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 6 : 5] : cols[legacyHasSavedTime ? 5 : 4]) || 0)),
+          emotion: Number(get(cols, "emotion", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 7 : 6] : cols[legacyHasSavedTime ? 6 : 5]) || 0)),
+          urge: Number(get(cols, "urge", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 8 : 7] : cols[legacyHasSavedTime ? 7 : 6]) || 0)),
+          action: Number(get(cols, "action", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 9 : 8] : cols[legacyHasSavedTime ? 8 : 7]) || 0)) > 0 ? 1 : 0,
+          note: get(cols, "note", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 11 : 10] : cols[legacyHasSavedTime ? 10 : 9]) || ""),
+          copingEffect: Number(get(cols, "copingEffect", 0)),
+          mode: get(cols, "mode", cols[12] || "") === "충동 발생" ? "event" : "routine",
+          updatedAt: new Date().toISOString()
+        }));
+        state.records = imported;
+        saveRecords();
+        loadRecords();
+        renderAll();
+        showToast(`${imported.length}건을 가져왔습니다.`);
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    function deleteRecord(id) {
+      if (!confirm("이 기록을 삭제할까요?")) return;
+      state.records = state.records.filter(record => record.id !== id);
+      saveRecords();
+      renderAll();
+      showToast("기록을 삭제했습니다.");
+    }
+
+    function loadDemoData() {
+      if (state.records.length && !confirm("현재 기록을 가상 7일 자료로 바꿔서 보시겠습니까?")) return;
+      const demo = [];
+      const start = new Date(todayISO() + "T00:00:00");
+      start.setDate(start.getDate() - 6);
+      const situations = {
+        "오전": "출근 준비 전 혼자 있는 시간",
+        "오후": "업무 피로가 쌓인 시간",
+        "저녁": "퇴근 후 혼자 쉬는 시간"
+      };
+      const coping = ["마음챙김호흡", "세수하기", "전화하기", "근육이완", "멈춤-한걸음뒤로-관찰하기"];
+      const values = [
+        [[3, 4, 3, 0], [4, 5, 4, 0], [6, 6, 7, 1]],
+        [[2, 3, 2, 0], [5, 5, 6, 0], [7, 8, 8, 1]],
+        [[4, 4, 4, 0], [5, 6, 5, 0], [8, 7, 9, 1]],
+        [[3, 5, 4, 0], [6, 6, 7, 1], [5, 5, 6, 0]],
+        [[2, 3, 3, 0], [4, 5, 5, 0], [7, 7, 8, 1]],
+        [[3, 4, 4, 0], [6, 7, 7, 1], [8, 8, 9, 1]],
+        [[2, 3, 2, 0], [4, 4, 5, 0], [6, 6, 7, 0]]
+      ];
+
+      values.forEach((dayValues, dayIndex) => {
+        const date = new Date(start);
+        date.setDate(start.getDate() + dayIndex);
+        const iso = date.toISOString().slice(0, 10);
+        PERIODS.forEach((period, periodIndex) => {
+          const [thought, emotion, urge, action] = dayValues[periodIndex];
+          demo.push({
+            id: `demo-${dayIndex}-${periodIndex}`,
+            date: iso,
+            period,
+            type: "도박",
+            emotionName: action ? "불안" : ["심심함", "짜증", "우울"][(dayIndex + periodIndex) % 3],
+            urgeStart: action ? "30분 전" : "방금",
+            mode: "routine",
+            situation: situations[period],
+            thoughtText: action ? "지금 하지 않으면 불편감이 계속될 것 같았다" : "잠깐 지나가면 줄어들 수 있다고 생각했다",
+            thought,
+            emotion,
+            urge,
+            action,
+            note: coping[(dayIndex + periodIndex) % coping.length],
+            copingEffect: action ? 2 : 6,
+            updatedAt: new Date().toISOString()
+          });
+        });
+      });
+
+      state.records = demo;
+      saveRecords();
+      loadRecords();
+      renderAll();
+      setView("trend");
+      showToast("가상 7일 자료를 불러왔습니다.");
+    }
+
+    function setupLock() {
+      const pin = localStorage.getItem(PIN_KEY);
+      if (pin) $("#lockScreen").classList.add("active");
+    }
+
+    function bindEvents() {
+      $$(".tab").forEach(tab => tab.addEventListener("click", () => setView(tab.dataset.view)));
+      $("#dateInput").addEventListener("change", markFormChanged);
+      ["situationInput", "thoughtTextInput", "noteInput"].forEach(id => $("#" + id).addEventListener("input", markFormChanged));
+      $$("#periodButtons button").forEach(button => button.addEventListener("click", () => {
+        setPeriod(button.dataset.period);
+        markFormChanged();
+      }));
+      $$("#typeChips .chip").forEach(button => button.addEventListener("click", () => {
+        setType(button.dataset.type);
+        markFormChanged();
+      }));
+      $$("#emotionChips .chip").forEach(button => button.addEventListener("click", () => {
+        setEmotion(button.dataset.emotion);
+        markFormChanged();
+      }));
+      $$("#urgeStartButtons button").forEach(button => button.addEventListener("click", () => {
+        setUrgeStart(button.dataset.urgeStart);
+        markFormChanged();
+      }));
+      $$("#actionButtons button").forEach(button => button.addEventListener("click", () => {
+        setAction(button.dataset.action);
+        markFormChanged();
+      }));
+      $$("#modeButtons button").forEach(button => button.addEventListener("click", () => {
+        setEntryMode(button.dataset.mode);
+        markFormChanged();
+      }));
+      $$(".coping-btn").forEach(button => button.addEventListener("click", () => {
+        const current = $("#noteInput").value.trim();
+        const value = button.dataset.coping;
+        $("#noteInput").value = current ? `${current}, ${value}` : value;
+        markFormChanged();
+        showToast("대처행동에 추가했습니다.");
+      }));
+      ["thoughtInput", "emotionInput", "urgeInput", "copingEffectInput"].forEach(id => $("#" + id).addEventListener("input", () => {
+        updateSliderLabels();
+        markFormChanged();
+      }));
+      $("#entryForm").addEventListener("submit", saveEntry);
+      $("#quickRecord").addEventListener("click", () => {
+        resetForm(currentPeriodByClock(), "routine");
+        setView("record");
+      });
+      $("#urgeRecord").addEventListener("click", () => {
+        resetForm(currentPeriodByClock(), "event");
+        $("#urgeInput").value = 7;
+        updateSliderLabels();
+        setView("record");
+      });
+      $("#todaySlots").addEventListener("click", event => {
+        const slot = event.target.closest("[data-slot]");
+        if (!slot) return;
+        const period = slot.dataset.slot;
+        const existing = state.records.find(record => record.date === todayISO() && record.period === period && (record.mode || "routine") === "routine");
+        if (existing) fillForm(existing);
+        else {
+          resetForm(period, "routine");
+          setView("record");
+        }
+      });
+      document.addEventListener("click", event => {
+        const edit = event.target.closest("[data-edit]");
+        const remove = event.target.closest("[data-delete]");
+        if (edit) {
+          const record = state.records.find(item => item.id === edit.dataset.edit);
+          if (record) fillForm(record);
+        }
+        if (remove) deleteRecord(remove.dataset.delete);
+      });
+      $("#exportButton").addEventListener("click", exportCSV);
+      $$("#exportRangeButtons button").forEach(button => button.addEventListener("click", () => setExportRange(button.dataset.days)));
+      $("#shareCsvButton").addEventListener("click", shareCSV);
+      $("#emailButton").addEventListener("click", openEmailDraft);
+      $("#demoButton").addEventListener("click", loadDemoData);
+      $("#importButton").addEventListener("click", () => $("#importFile").click());
+      $("#importFile").addEventListener("change", event => {
+        const file = event.target.files[0];
+        if (file) importCSV(file);
+        event.target.value = "";
+      });
+      $("#pinButton").addEventListener("click", () => {
+        const pin = $("#pinInput").value.trim();
+        if (pin.length < 4) {
+          showToast("PIN은 4자리 이상으로 입력하세요.");
+          return;
+        }
+        localStorage.setItem(PIN_KEY, pin);
+        $("#pinInput").value = "";
+        showToast("PIN을 저장했습니다.");
+      });
+      $("#lockButton").addEventListener("click", () => {
+        if (!localStorage.getItem(PIN_KEY)) {
+          setView("data");
+          showToast("자료 화면에서 PIN을 먼저 설정하세요.");
+          return;
+        }
+        $("#lockScreen").classList.add("active");
+      });
+      $("#unlockButton").addEventListener("click", () => {
+        if ($("#unlockInput").value === localStorage.getItem(PIN_KEY)) {
+          $("#unlockInput").value = "";
+          $("#lockScreen").classList.remove("active");
+        } else {
+          showToast("PIN이 맞지 않습니다.");
+        }
+      });
+      $("#clearButton").addEventListener("click", () => {
+        if (!confirm("모든 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")) return;
+        state.records = [];
+        saveRecords();
+        renderAll();
+        showToast("모든 기록을 삭제했습니다.");
+      });
+      window.addEventListener("resize", () => {
+        if (state.currentView === "trend") drawTrend();
+      });
+      window.addEventListener("beforeunload", event => {
+        if (!formHasUnsavedChanges()) return;
+        event.preventDefault();
+        event.returnValue = "";
+      });
+    }
+
+    function init() {
+      $("#dateInput").value = todayISO();
+      loadRecords();
+      bindEvents();
+      resetForm("오전", "routine");
+      renderAll();
+      setupLock();
+    }
+
+    init();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(() => {
+          console.warn("Service worker registration failed.");
+        });
+      });
+    }
+  </script>
+</body>
+</html>
