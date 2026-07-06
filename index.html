@@ -1169,6 +1169,14 @@
           </div>
 
           <div class="card">
+            <h2>앱 업데이트</h2>
+            <p class="small-muted">버튼이나 화면이 예전 모습으로 보이면 앱 파일만 새로 받습니다. 저장한 관찰 기록은 삭제되지 않습니다.</p>
+            <p class="privacy-note">현재 버전: <span id="appVersionText">확인 중</span></p>
+            <div style="height:12px"></div>
+            <button class="ghost-btn" id="refreshAppButton" style="width:100%;"><span class="tab-icon icon-download"></span>새 버전 적용</button>
+          </div>
+
+          <div class="card">
             <h2>전체 삭제</h2>
             <p class="small-muted">기기에 저장된 모든 관찰 기록을 삭제합니다. 삭제 전 CSV 내보내기를 권장합니다.</p>
             <div style="height:12px"></div>
@@ -1194,6 +1202,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    const APP_VERSION = "2026.07.07-v5";
     const STORAGE_KEY = "addiction-behavior-journal-v1";
     const PIN_KEY = "addiction-behavior-journal-pin-v1";
     const PERIODS = ["오전", "오후", "저녁"];
@@ -2067,6 +2076,27 @@
       showToast("기록을 삭제했습니다.");
     }
 
+    async function refreshAppFiles() {
+      if (!confirm("저장한 관찰 기록은 그대로 두고, 앱 화면 파일만 새로 받을까요?")) return;
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        showToast("앱 파일을 새로 받습니다.");
+      } catch (error) {
+        showToast("새로고침을 진행합니다.");
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.set("appVersion", APP_VERSION);
+      url.searchParams.set("refresh", Date.now());
+      window.location.replace(url.toString());
+    }
+
     function setupLock() {
       const pin = localStorage.getItem(PIN_KEY);
       if (pin) $("#lockScreen").classList.add("active");
@@ -2162,6 +2192,7 @@
         $("#pinInput").value = "";
         showToast("PIN을 저장했습니다.");
       });
+      $("#refreshAppButton").addEventListener("click", refreshAppFiles);
       $("#lockButton").addEventListener("click", () => {
         if (!localStorage.getItem(PIN_KEY)) {
           setView("data");
@@ -2196,6 +2227,7 @@
     }
 
     function init() {
+      $("#appVersionText").textContent = APP_VERSION;
       $("#dateInput").value = todayISO();
       loadRecords();
       bindEvents();
