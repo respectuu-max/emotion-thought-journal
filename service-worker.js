@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "emotion-thought-journal-v3";
+﻿const CACHE_NAME = "emotion-thought-journal-v4";
 const APP_SHELL = [
   "./index.html",
   "./manifest.webmanifest",
