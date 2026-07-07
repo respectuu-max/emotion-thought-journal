@@ -983,14 +983,22 @@
           </div>
 
           <div class="form-row">
-            <label>중독 유형</label>
+            <label>행동 유형</label>
             <div class="chip-row" id="typeChips">
               <button type="button" class="chip active" data-type="도박">도박</button>
               <button type="button" class="chip" data-type="성행동">성행동</button>
               <button type="button" class="chip" data-type="음주">음주</button>
               <button type="button" class="chip" data-type="쇼핑">쇼핑</button>
               <button type="button" class="chip" data-type="게임">게임</button>
-              <button type="button" class="chip" data-type="스마트폰">스마트폰</button>
+              <button type="button" class="chip" data-type="스마트폰/인터넷">스마트폰/인터넷</button>
+              <button type="button" class="chip" data-type="AI 사용">AI 사용</button>
+              <button type="button" class="chip" data-type="회피/미루기">회피/미루기</button>
+              <button type="button" class="chip" data-type="분노표출">분노표출</button>
+              <button type="button" class="chip" data-type="폭식/과식">폭식/과식</button>
+              <button type="button" class="chip" data-type="과도한 확인">과도한 확인</button>
+              <button type="button" class="chip" data-type="관계단절">관계단절</button>
+              <button type="button" class="chip" data-type="자기비난/반추">자기비난/반추</button>
+              <button type="button" class="chip" data-type="무기력">무기력</button>
               <button type="button" class="chip" data-type="기타">기타</button>
             </div>
           </div>
@@ -1023,6 +1031,24 @@
           </div>
 
           <div class="form-row">
+            <label>몸 반응</label>
+            <div class="chip-row" id="bodyReactionChips">
+              <button type="button" class="chip" data-body="심박상승">심박상승</button>
+              <button type="button" class="chip" data-body="가슴답답">가슴답답</button>
+              <button type="button" class="chip" data-body="열감">열감</button>
+              <button type="button" class="chip" data-body="근육긴장">근육긴장</button>
+              <button type="button" class="chip" data-body="호흡가쁨">호흡가쁨</button>
+              <button type="button" class="chip" data-body="손떨림">손떨림</button>
+              <button type="button" class="chip" data-body="속불편">속불편</button>
+              <button type="button" class="chip" data-body="시선고정">시선고정</button>
+              <button type="button" class="chip" data-body="멍함">멍함</button>
+              <button type="button" class="chip" data-body="얼어붙음">얼어붙음</button>
+              <button type="button" class="chip" data-body="기타">기타</button>
+            </div>
+            <div class="small-muted">행동 전에 몸에서 먼저 나타난 신호를 표시합니다. 여러 개를 선택할 수 있습니다.</div>
+          </div>
+
+          <div class="form-row">
             <label>충동이 시작된 때</label>
             <div class="segmented" id="urgeStartButtons" style="grid-template-columns: repeat(4, 1fr);">
               <button type="button" data-urge-start="방금" class="active">방금</button>
@@ -1033,10 +1059,10 @@
           </div>
 
           <div class="form-row">
-            <label>강도 및 중독행동 기록</label>
+            <label>강도 및 행동화 기록</label>
             <div class="card" style="box-shadow:none; padding:4px 12px;">
               <div class="slider-card">
-                <div class="slider-top"><span class="slider-name">중독 관련 생각</span><span class="slider-value" id="thoughtValue">0</span></div>
+                <div class="slider-top"><span class="slider-name">행동 관련 생각</span><span class="slider-value" id="thoughtValue">0</span></div>
                 <input id="thoughtInput" type="range" min="0" max="10" value="0">
                 <div class="range-labels"><span>없음</span><span>매우 강함</span></div>
               </div>
@@ -1104,8 +1130,22 @@
             <label>하루 성찰</label>
             <textarea id="reflectionInsightInput" placeholder="오늘 기록을 보며 알아차린 점은 무엇인가요?"></textarea>
             <div style="height:10px"></div>
-            <textarea id="reflectionNextInput" placeholder="내일 나를 돕기 위해 시도할 작은 행동은 무엇인가요?"></textarea>
-            <div class="small-muted">통찰을 한 문장으로 보고, 내일의 작은 행동으로 연결합니다.</div>
+            <div class="chip-row" id="valueChips">
+              <button type="button" class="chip active" data-value="">선택 안 함</button>
+              <button type="button" class="chip" data-value="건강">건강</button>
+              <button type="button" class="chip" data-value="정직">정직</button>
+              <button type="button" class="chip" data-value="책임">책임</button>
+              <button type="button" class="chip" data-value="관계">관계</button>
+              <button type="button" class="chip" data-value="회복">회복</button>
+              <button type="button" class="chip" data-value="자기존중">자기존중</button>
+              <button type="button" class="chip" data-value="안정">안정</button>
+              <button type="button" class="chip" data-value="용기">용기</button>
+              <button type="button" class="chip" data-value="성장">성장</button>
+              <button type="button" class="chip" data-value="자유">자유</button>
+            </div>
+            <div style="height:10px"></div>
+            <textarea id="reflectionNextInput" placeholder="그 가치를 실천하기 위한 아주 작은 행동은 무엇인가요?"></textarea>
+            <div class="small-muted">통찰을 한 문장으로 보고, 가치 있는 아주 작은 행동으로 연결합니다.</div>
           </div>
 
           <button class="solid-btn" type="submit"><span class="tab-icon icon-save"></span>지금 저장</button>
@@ -1225,7 +1265,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION = "2026.07.07-v8";
+    const APP_VERSION = "2026.07.07-v9";
     const STORAGE_KEY = "addiction-behavior-journal-v1";
     const PIN_KEY = "addiction-behavior-journal-pin-v1";
     const PERIODS = ["오전", "오후", "저녁"];
@@ -1244,6 +1284,8 @@
       selectedPeriod: "오전",
       selectedType: "도박",
       selectedEmotion: "",
+      selectedBodyReactions: [],
+      selectedValue: "",
       selectedUrgeStart: "방금",
       entryMode: "routine",
       exportRangeDays: 7,
@@ -1305,6 +1347,8 @@
         $("#reflectionInsightInput").value.trim() ||
         $("#reflectionNextInput").value.trim() ||
         state.selectedEmotion ||
+        state.selectedBodyReactions.length > 0 ||
+        state.selectedValue ||
         Number($("#thoughtInput").value) > 0 ||
         Number($("#emotionInput").value) > 0 ||
         Number($("#urgeInput").value) > 0 ||
@@ -1410,6 +1454,36 @@
       $$("#emotionChips .chip").forEach(button => button.classList.toggle("active", button.dataset.emotion === state.selectedEmotion));
     }
 
+    function setBodyReactions(values = []) {
+      state.selectedBodyReactions = Array.isArray(values)
+        ? values.filter(Boolean)
+        : String(values || "").split(/[;|,·]/).map(value => value.trim()).filter(Boolean);
+      $$("#bodyReactionChips .chip").forEach(button => {
+        button.classList.toggle("active", state.selectedBodyReactions.includes(button.dataset.body));
+      });
+    }
+
+    function toggleBodyReaction(value) {
+      const body = value || "";
+      if (!body) return;
+      const exists = state.selectedBodyReactions.includes(body);
+      setBodyReactions(exists
+        ? state.selectedBodyReactions.filter(item => item !== body)
+        : [...state.selectedBodyReactions, body]);
+    }
+
+    function bodyReactionText(record) {
+      const values = Array.isArray(record.bodyReactions)
+        ? record.bodyReactions
+        : String(record.bodyReactions || "").split(/[;|,·]/).map(value => value.trim()).filter(Boolean);
+      return values.join(" · ");
+    }
+
+    function setValueName(value) {
+      state.selectedValue = value || "";
+      $$("#valueChips .chip").forEach(button => button.classList.toggle("active", button.dataset.value === state.selectedValue));
+    }
+
     function setUrgeStart(value) {
       state.selectedUrgeStart = value || "방금";
       $$("#urgeStartButtons button").forEach(button => button.classList.toggle("active", button.dataset.urgeStart === state.selectedUrgeStart));
@@ -1489,6 +1563,8 @@
       setPeriod(period);
       setType("도박");
       setEmotion("");
+      setBodyReactions([]);
+      setValueName("");
       setUrgeStart("방금");
       $("#situationInput").value = "";
       $("#thoughtTextInput").value = "";
@@ -1510,6 +1586,8 @@
       setPeriod(record.period);
       setType(record.type);
       setEmotion(record.emotionName || "");
+      setBodyReactions(record.bodyReactions || []);
+      setValueName(record.valueName || "");
       setUrgeStart(record.urgeStart || "방금");
       $("#situationInput").value = record.situation || "";
       $("#thoughtTextInput").value = record.thoughtText || "";
@@ -1571,6 +1649,7 @@
           </div>
           <div class="record-meta">${record.type} · ${record.situation || "상황 미입력"}</div>
           ${record.emotionName ? `<div class="record-meta">감정: ${record.emotionName}</div>` : ""}
+          ${bodyReactionText(record) ? `<div class="record-meta">몸 반응: ${bodyReactionText(record)}</div>` : ""}
           ${record.urgeStart ? `<div class="record-meta">충동 시작: ${record.urgeStart}</div>` : ""}
           ${record.updatedAt ? `<div class="record-meta">기록시각: ${formatSavedTime(record.updatedAt)}</div>` : ""}
           ${record.thoughtText ? `<div class="record-meta">생각: ${record.thoughtText}</div>` : ""}
@@ -1580,7 +1659,8 @@
           ${record.gratitudeOther ? `<div class="record-meta">감사: ${record.gratitudeOther}</div>` : ""}
           ${record.gratitudeSelf ? `<div class="record-meta">나에게 감사: ${record.gratitudeSelf}</div>` : ""}
           ${record.reflectionInsight ? `<div class="record-meta">성찰: ${record.reflectionInsight}</div>` : ""}
-          ${record.reflectionNext ? `<div class="record-meta">내일 시도: ${record.reflectionNext}</div>` : ""}
+          ${record.valueName ? `<div class="record-meta">가치: ${record.valueName}</div>` : ""}
+          ${record.reflectionNext ? `<div class="record-meta">가치 실천: ${record.reflectionNext}</div>` : ""}
           <div class="record-actions">
             <button class="mini-btn" data-edit="${record.id}">수정</button>
             <button class="mini-btn" data-delete="${record.id}">삭제</button>
@@ -1854,6 +1934,7 @@
       const resistedCount = source.filter(record => Number(record.urge || 0) >= 5 && actionLevelFromRecord(record) <= 1).length;
       const gratitudeCount = source.filter(record => record.gratitudeOther || record.gratitudeSelf).length;
       const reflectionCount = source.filter(record => record.reflectionInsight || record.reflectionNext).length;
+      const valueCount = source.filter(record => record.valueName || record.reflectionNext).length;
       const groups = groupByWeekdayPeriod(source);
       const highestUrge = highestByMetric(groups, "urge");
       const highestActionLevel = highestByMetric(groups, "actionLevel");
@@ -1866,6 +1947,13 @@
         return counts;
       }, {});
       const topEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0];
+      const bodyCounts = source.reduce((counts, record) => {
+        bodyReactionText(record).split(" · ").filter(Boolean).forEach(value => {
+          counts[value] = (counts[value] || 0) + 1;
+        });
+        return counts;
+      }, {});
+      const topBody = Object.entries(bodyCounts).sort((a, b) => b[1] - a[1])[0];
 
       box.innerHTML = `
         <div><strong>기록 수:</strong> ${source.length}건 / 충동 발생 기록 ${eventCount}건</div>
@@ -1873,10 +1961,11 @@
         <div><strong>행동 수준:</strong> 평균 ${averageActionLevel.toFixed(1)}점 / 5점, 행동 발생 ${actionCount}건</div>
         <div><strong>고위험 신호:</strong> 충동 8점 이상 ${highUrgeCount}건, 행동수준 4점 이상 ${source.filter(record => actionLevelFromRecord(record) >= 4).length}건</div>
         <div><strong>주요 감정:</strong> ${topEmotion ? `${topEmotion[0]} ${topEmotion[1]}건` : "아직 기록 없음"}</div>
+        <div><strong>주요 몸 반응:</strong> ${topBody ? `${topBody[0]} ${topBody[1]}건` : "아직 기록 없음"}</div>
         <div><strong>충동을 넘긴 기록:</strong> ${resistedCount}건</div>
         <div><strong>취약 시간대:</strong> ${highestUrge ? `${highestUrge.label} 충동 평균 ${highestUrge.urge.toFixed(1)}점` : "아직 없음"}</div>
         <div><strong>행동 연결:</strong> ${highestActionLevel ? `${highestActionLevel.label} 행동수준 평균 ${highestActionLevel.actionLevel.toFixed(1)}점` : "아직 없음"}</div>
-        <div><strong>회복 자원:</strong> 감사기록 ${gratitudeCount}건, 성찰기록 ${reflectionCount}건</div>
+        <div><strong>회복 자원:</strong> 감사기록 ${gratitudeCount}건, 성찰기록 ${reflectionCount}건, 가치실천 ${valueCount}건</div>
         <div><strong>도움 된 대처:</strong> ${helpfulNotes.length ? helpfulNotes.join(" · ") : "아직 기록 없음"}</div>
       `;
     }
@@ -1897,6 +1986,7 @@
         mode: state.entryMode,
         type: state.selectedType,
         emotionName: state.selectedEmotion,
+        bodyReactions: state.selectedBodyReactions.slice(),
         urgeStart: state.selectedUrgeStart,
         situation: $("#situationInput").value.trim(),
         thoughtText: $("#thoughtTextInput").value.trim(),
@@ -1910,6 +2000,7 @@
         gratitudeOther: $("#gratitudeOtherInput").value.trim(),
         gratitudeSelf: $("#gratitudeSelfInput").value.trim(),
         reflectionInsight: $("#reflectionInsightInput").value.trim(),
+        valueName: state.selectedValue,
         reflectionNext: $("#reflectionNextInput").value.trim(),
         updatedAt: options.keepUpdatedAt ? ($("#editId").value ? (state.records.find(record => record.id === $("#editId").value)?.updatedAt || "") : "") : new Date().toISOString()
       };
@@ -1996,7 +2087,7 @@
     }
 
     function buildCSVExport() {
-      const header = ["날짜", "시간대", "기록저장시각", "중독 유형", "감정 종류", "충동 시작", "상황", "그때 든 생각", "중독 관련 생각", "불편한 감정", "하고 싶은 마음", "행동 여부", "행동 수준", "행동 수준 설명", "사고감정충동합계", "대처행동", "대처 후 도움 정도", "오늘 고마웠던 사람/일", "오늘 나에게 고마운 점", "오늘 기록을 보며 알아차린 점", "내일 시도할 작은 행동", "기록구분"];
+      const header = ["날짜", "시간대", "기록저장시각", "행동 유형", "감정 종류", "몸 반응", "충동 시작", "상황", "그때 든 생각", "행동 관련 생각", "불편한 감정", "하고 싶은 마음", "행동 여부", "행동 수준", "행동 수준 설명", "사고감정충동합계", "대처행동", "대처 후 도움 정도", "오늘 고마웠던 사람/일", "오늘 나에게 고마운 점", "오늘 기록을 보며 알아차린 점", "오늘 지키고 싶은 가치", "그 가치를 실천하기 위한 아주 작은 행동", "기록구분"];
       const exportRecords = recordsForExport();
       const rows = exportRecords
         .slice()
@@ -2007,6 +2098,7 @@
           formatSavedTime(record.updatedAt),
           record.type,
           record.emotionName || "",
+          bodyReactionText(record),
           record.urgeStart || "",
           record.situation,
           record.thoughtText || "",
@@ -2022,6 +2114,7 @@
           record.gratitudeOther || "",
           record.gratitudeSelf || "",
           record.reflectionInsight || "",
+          record.valueName || "",
           record.reflectionNext || "",
           (record.mode || "routine") === "event" ? "충동 발생" : "하루 3회"
         ]);
@@ -2154,12 +2247,13 @@
           date: indexOf("날짜"),
           period: indexOf("시간대"),
           savedAt: indexOf("기록저장시각"),
-          type: indexOf("중독 유형"),
+          type: indexOf("행동 유형") >= 0 ? indexOf("행동 유형") : indexOf("중독 유형"),
           emotionName: indexOf("감정 종류"),
+          bodyReactions: indexOf("몸 반응"),
           urgeStart: indexOf("충동 시작"),
           situation: indexOf("상황"),
           thoughtText: indexOf("그때 든 생각"),
-          thought: indexOf("중독 관련 생각") >= 0 ? indexOf("중독 관련 생각") : indexOf("사고"),
+          thought: indexOf("행동 관련 생각") >= 0 ? indexOf("행동 관련 생각") : (indexOf("중독 관련 생각") >= 0 ? indexOf("중독 관련 생각") : indexOf("사고")),
           emotion: indexOf("불편한 감정") >= 0 ? indexOf("불편한 감정") : indexOf("감정"),
           urge: indexOf("하고 싶은 마음") >= 0 ? indexOf("하고 싶은 마음") : indexOf("충동"),
           action: indexOf("행동 여부") >= 0 ? indexOf("행동 여부") : indexOf("중독행동"),
@@ -2169,7 +2263,8 @@
           gratitudeOther: indexOf("오늘 고마웠던 사람/일"),
           gratitudeSelf: indexOf("오늘 나에게 고마운 점"),
           reflectionInsight: indexOf("오늘 기록을 보며 알아차린 점"),
-          reflectionNext: indexOf("내일 시도할 작은 행동"),
+          valueName: indexOf("오늘 지키고 싶은 가치"),
+          reflectionNext: indexOf("그 가치를 실천하기 위한 아주 작은 행동") >= 0 ? indexOf("그 가치를 실천하기 위한 아주 작은 행동") : indexOf("내일 시도할 작은 행동"),
           mode: indexOf("기록구분")
         };
         const get = (cols, key, fallback = "") => idx[key] >= 0 ? (cols[idx[key]] || fallback) : fallback;
@@ -2182,6 +2277,7 @@
           period: get(cols, "period", cols[1] || "오전"),
           type: get(cols, "type", cols[legacyHasSavedTime ? 3 : 2] || "기타"),
           emotionName: get(cols, "emotionName", ""),
+          bodyReactions: get(cols, "bodyReactions", ""),
           urgeStart: get(cols, "urgeStart", ""),
           situation: get(cols, "situation", cols[legacyHasSavedTime ? 4 : 3] || ""),
           thoughtText: get(cols, "thoughtText", legacyHasThoughtText ? (cols[legacyHasSavedTime ? 5 : 4] || "") : ""),
@@ -2195,6 +2291,7 @@
           gratitudeOther: get(cols, "gratitudeOther", ""),
           gratitudeSelf: get(cols, "gratitudeSelf", ""),
           reflectionInsight: get(cols, "reflectionInsight", ""),
+          valueName: get(cols, "valueName", ""),
           reflectionNext: get(cols, "reflectionNext", ""),
           mode: get(cols, "mode", cols[12] || "") === "충동 발생" ? "event" : "routine",
           updatedAt: new Date().toISOString()
@@ -2256,6 +2353,14 @@
       }));
       $$("#emotionChips .chip").forEach(button => button.addEventListener("click", () => {
         setEmotion(button.dataset.emotion);
+        markFormChanged();
+      }));
+      $$("#bodyReactionChips .chip").forEach(button => button.addEventListener("click", () => {
+        toggleBodyReaction(button.dataset.body);
+        markFormChanged();
+      }));
+      $$("#valueChips .chip").forEach(button => button.addEventListener("click", () => {
+        setValueName(button.dataset.value);
         markFormChanged();
       }));
       $$("#urgeStartButtons button").forEach(button => button.addEventListener("click", () => {
