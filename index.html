@@ -1032,7 +1032,7 @@
           </div>
 
           <div class="form-row">
-            <label>강도 및 중독행동 기록</label>
+            <label>강도 및 문제 행동 기록</label>
             <div class="card" style="box-shadow:none; padding:4px 12px;">
               <div class="slider-card">
                 <div class="slider-top"><span class="slider-name">문제 행동 관련 생각 강도</span><span class="slider-value" id="thoughtValue">0</span></div>
@@ -1095,7 +1095,7 @@
         <div class="desktop-grid">
           <div class="card">
             <div class="section-head" style="margin-top:0;">
-              <h2>사고·감정·충동과 중독행동</h2>
+              <h2>사고·감정·조절 어려움과 문제 행동</h2>
               <span class="small-muted">O=했음, X=하지 않았음</span>
             </div>
             <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
@@ -1683,7 +1683,7 @@
         { label: "감정 평균이 높은 때", value: formatPatternValue(highestEmotion, "emotion"), pct: highestEmotion ? highestEmotion.emotion * 10 : 0 },
         { label: "충동 평균이 높은 때", value: formatPatternValue(highestUrge, "urge"), pct: highestUrge ? highestUrge.urge * 10 : 0 },
         { label: "3개 항목 평균이 높은 때", value: formatPatternValue(highestCombined, "combined"), pct: highestCombined ? highestCombined.combined * 10 : 0 },
-        { label: "중독행동 비율이 높은 때", value: highestAction ? `${highestAction.label} ${highestAction.actionRate.toFixed(0)}%` : "없음", pct: highestAction ? highestAction.actionRate : 0 }
+        { label: "문제 행동 비율이 높은 때", value: highestAction ? `${highestAction.label} ${highestAction.actionRate.toFixed(0)}%` : "없음", pct: highestAction ? highestAction.actionRate : 0 }
       ];
 
       box.innerHTML = items.map(item => `
@@ -1778,7 +1778,7 @@
       box.innerHTML = `
         <div><strong>기록 수:</strong> ${source.length}건 / 충동 발생 기록 ${eventCount}건</div>
         <div><strong>평균 강도:</strong> ${averageLevel(source).toFixed(1)}점 / 10점</div>
-        <div><strong>고위험 신호:</strong> 충동 8점 이상 ${highUrgeCount}건, 중독행동 ${actionCount}건</div>
+        <div><strong>고위험 신호:</strong> 조절 어려움 8점 이상 ${highUrgeCount}건, 문제 행동 ${actionCount}건</div>
         <div><strong>주요 감정:</strong> ${topEmotion ? `${topEmotion[0]} ${topEmotion[1]}건` : "아직 기록 없음"}</div>
         <div><strong>충동을 넘긴 기록:</strong> ${resistedCount}건</div>
         <div><strong>취약 시간대:</strong> ${highestUrge ? `${highestUrge.label} 충동 평균 ${highestUrge.urge.toFixed(1)}점` : "아직 없음"}</div>
