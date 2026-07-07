@@ -986,10 +986,11 @@
             <label>중독 유형</label>
             <div class="chip-row" id="typeChips">
               <button type="button" class="chip active" data-type="도박">도박</button>
+              <button type="button" class="chip" data-type="성행동">성행동</button>
               <button type="button" class="chip" data-type="음주">음주</button>
-              <button type="button" class="chip" data-type="성">성</button>
               <button type="button" class="chip" data-type="쇼핑">쇼핑</button>
-              <button type="button" class="chip" data-type="인터넷">인터넷</button>
+              <button type="button" class="chip" data-type="게임">게임</button>
+              <button type="button" class="chip" data-type="스마트폰">스마트폰</button>
               <button type="button" class="chip" data-type="기타">기타</button>
             </div>
           </div>
@@ -1057,6 +1058,11 @@
                   <button type="button" data-action="1">일어남 (1)</button>
                 </div>
               </div>
+              <div class="slider-card">
+                <div class="slider-top"><span class="slider-name">행동 수준</span><span class="slider-value" id="actionLevelValue">0 없음</span></div>
+                <input id="actionLevelInput" type="range" min="0" max="5" value="0">
+                <div class="range-labels"><span>멈춤</span><span>멈추기 어려움</span></div>
+              </div>
             </div>
             <div class="urgent-panel" id="urgentPanel">
               <div class="urgent-title">지금 충동이 강합니다. 먼저 10분만 늦춰보세요.</div>
@@ -1086,6 +1092,22 @@
             </div>
           </div>
 
+          <div class="form-row">
+            <label>감사 기록</label>
+            <textarea id="gratitudeOtherInput" placeholder="오늘 고마웠던 사람이나 일은 무엇인가요? 누구에게, 무엇이 고마웠나요?"></textarea>
+            <div style="height:10px"></div>
+            <textarea id="gratitudeSelfInput" placeholder="오늘 나에게 고마운 점은 무엇인가요? 아주 작은 것도 괜찮습니다."></textarea>
+            <div class="small-muted">짧게 적거나 비워두어도 됩니다.</div>
+          </div>
+
+          <div class="form-row">
+            <label>하루 성찰</label>
+            <textarea id="reflectionInsightInput" placeholder="오늘 기록을 보며 알아차린 점은 무엇인가요?"></textarea>
+            <div style="height:10px"></div>
+            <textarea id="reflectionNextInput" placeholder="내일 나를 돕기 위해 시도할 작은 행동은 무엇인가요?"></textarea>
+            <div class="small-muted">통찰을 한 문장으로 보고, 내일의 작은 행동으로 연결합니다.</div>
+          </div>
+
           <button class="solid-btn" type="submit"><span class="tab-icon icon-save"></span>지금 저장</button>
           <div class="small-muted" id="saveStatus" style="margin-top:8px; text-align:center;">변경 후 저장 버튼을 눌러주세요.</div>
         </form>
@@ -1095,8 +1117,8 @@
         <div class="desktop-grid">
           <div class="card">
             <div class="section-head" style="margin-top:0;">
-              <h2>사고·감정·충동과 중독행동</h2>
-              <span class="small-muted">O=했음, X=하지 않았음</span>
+              <h2>마음-행동 함께 보기</h2>
+              <span class="small-muted">행동 0~5점은 0~10 축에 맞춰 표시</span>
             </div>
             <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
           </div>
@@ -1203,10 +1225,18 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION = "2026.07.07-v7";
+    const APP_VERSION = "2026.07.07-v8";
     const STORAGE_KEY = "addiction-behavior-journal-v1";
     const PIN_KEY = "addiction-behavior-journal-pin-v1";
     const PERIODS = ["오전", "오후", "저녁"];
+    const ACTION_LEVEL_LABELS = [
+      "0 없음",
+      "1 하려다 멈춤",
+      "2 잠깐 함",
+      "3 조절하며 함",
+      "4 평소처럼 함",
+      "5 멈추기 어려웠음"
+    ];
 
     const state = {
       records: [],
@@ -1270,11 +1300,16 @@
         $("#situationInput").value.trim() ||
         $("#thoughtTextInput").value.trim() ||
         $("#noteInput").value.trim() ||
+        $("#gratitudeOtherInput").value.trim() ||
+        $("#gratitudeSelfInput").value.trim() ||
+        $("#reflectionInsightInput").value.trim() ||
+        $("#reflectionNextInput").value.trim() ||
         state.selectedEmotion ||
         Number($("#thoughtInput").value) > 0 ||
         Number($("#emotionInput").value) > 0 ||
         Number($("#urgeInput").value) > 0 ||
         Number($("#actionInput").value) > 0 ||
+        Number($("#actionLevelInput").value) > 0 ||
         Number($("#copingEffectInput").value) > 0
       );
     }
@@ -1285,6 +1320,11 @@
 
     function intensityScore(record) {
       return Number(record.thought || 0) + Number(record.emotion || 0) + Number(record.urge || 0);
+    }
+
+    function actionLevelFromRecord(record) {
+      const fallback = Number(record.action || 0) > 0 ? 4 : 0;
+      return Math.max(0, Math.min(5, Number(record.actionLevel ?? fallback) || 0));
     }
 
     function average(records) {
@@ -1387,6 +1427,28 @@
       const normalized = Number(value) > 0 ? 1 : 0;
       $("#actionInput").value = normalized;
       $$("#actionButtons button").forEach(button => button.classList.toggle("active", Number(button.dataset.action) === normalized));
+      if (normalized > 0 && Number($("#actionLevelInput").value) < 2) setActionLevel(2, { skipActionSync: true });
+      if (normalized === 0 && Number($("#actionLevelInput").value) > 1) setActionLevel(0, { skipActionSync: true });
+      renderUrgentPanel();
+    }
+
+    function actionLevelLabel(value) {
+      const level = Math.max(0, Math.min(5, Number(value) || 0));
+      return ACTION_LEVEL_LABELS[level] || ACTION_LEVEL_LABELS[0];
+    }
+
+    function setActionLevel(value, options = {}) {
+      const level = Math.max(0, Math.min(5, Number(value) || 0));
+      $("#actionLevelInput").value = level;
+      const label = $("#actionLevelValue");
+      if (label) {
+        label.textContent = actionLevelLabel(level);
+        label.style.background = level >= 4 ? "var(--danger)" : level >= 2 ? "var(--accent)" : "var(--brand)";
+      }
+      if (!options.skipActionSync) {
+        $("#actionInput").value = level >= 2 ? 1 : 0;
+        $$("#actionButtons button").forEach(button => button.classList.toggle("active", Number(button.dataset.action) === Number($("#actionInput").value)));
+      }
       renderUrgentPanel();
     }
 
@@ -1402,13 +1464,14 @@
         label.textContent = input.value;
         label.style.background = Number(input.value) >= 8 ? "var(--danger)" : Number(input.value) >= 5 ? "var(--accent)" : "var(--brand)";
       });
+      setActionLevel($("#actionLevelInput").value);
       renderUrgentPanel();
     }
 
     function renderUrgentPanel() {
       const panel = $("#urgentPanel");
       if (!panel) return;
-      const isHighRisk = Number($("#urgeInput").value) >= 8 || Number($("#actionInput").value) > 0;
+      const isHighRisk = Number($("#urgeInput").value) >= 8 || Number($("#actionInput").value) > 0 || Number($("#actionLevelInput").value) >= 4;
       panel.classList.toggle("active", isHighRisk);
     }
 
@@ -1430,7 +1493,11 @@
       $("#situationInput").value = "";
       $("#thoughtTextInput").value = "";
       $("#noteInput").value = "";
-      ["thoughtInput", "emotionInput", "urgeInput", "copingEffectInput"].forEach(id => $("#" + id).value = 0);
+      $("#gratitudeOtherInput").value = "";
+      $("#gratitudeSelfInput").value = "";
+      $("#reflectionInsightInput").value = "";
+      $("#reflectionNextInput").value = "";
+      ["thoughtInput", "emotionInput", "urgeInput", "actionLevelInput", "copingEffectInput"].forEach(id => $("#" + id).value = 0);
       setAction(0);
       updateSliderLabels();
       markFormClean();
@@ -1447,11 +1514,16 @@
       $("#situationInput").value = record.situation || "";
       $("#thoughtTextInput").value = record.thoughtText || "";
       $("#noteInput").value = record.note || "";
+      $("#gratitudeOtherInput").value = record.gratitudeOther || "";
+      $("#gratitudeSelfInput").value = record.gratitudeSelf || "";
+      $("#reflectionInsightInput").value = record.reflectionInsight || "";
+      $("#reflectionNextInput").value = record.reflectionNext || "";
       $("#thoughtInput").value = record.thought || 0;
       $("#emotionInput").value = record.emotion || 0;
       $("#urgeInput").value = record.urge || 0;
+      $("#actionLevelInput").value = actionLevelFromRecord(record);
       $("#copingEffectInput").value = record.copingEffect || 0;
-      setAction(record.action || 0);
+      setActionLevel($("#actionLevelInput").value);
       updateSliderLabels();
       markFormClean();
       setView("record", { force: true });
@@ -1502,8 +1574,13 @@
           ${record.urgeStart ? `<div class="record-meta">충동 시작: ${record.urgeStart}</div>` : ""}
           ${record.updatedAt ? `<div class="record-meta">기록시각: ${formatSavedTime(record.updatedAt)}</div>` : ""}
           ${record.thoughtText ? `<div class="record-meta">생각: ${record.thoughtText}</div>` : ""}
+          <div class="record-meta">행동 수준: ${actionLevelLabel(actionLevelFromRecord(record))}</div>
           ${record.note ? `<div class="record-meta">대처행동: ${record.note}</div>` : ""}
           ${Number(record.copingEffect || 0) > 0 ? `<div class="record-meta">대처 후 도움 정도: ${record.copingEffect}/10</div>` : ""}
+          ${record.gratitudeOther ? `<div class="record-meta">감사: ${record.gratitudeOther}</div>` : ""}
+          ${record.gratitudeSelf ? `<div class="record-meta">나에게 감사: ${record.gratitudeSelf}</div>` : ""}
+          ${record.reflectionInsight ? `<div class="record-meta">성찰: ${record.reflectionInsight}</div>` : ""}
+          ${record.reflectionNext ? `<div class="record-meta">내일 시도: ${record.reflectionNext}</div>` : ""}
           <div class="record-actions">
             <button class="mini-btn" data-edit="${record.id}">수정</button>
             <button class="mini-btn" data-delete="${record.id}">삭제</button>
@@ -1541,6 +1618,8 @@
           urge: Number(record.urge || 0),
           average: (Number(record.thought || 0) + Number(record.emotion || 0) + Number(record.urge || 0)) / 3,
           action: Number(record.action || 0) > 0 ? 1 : 0,
+          actionLevel: actionLevelFromRecord(record),
+          actionScaled: actionLevelFromRecord(record) * 2,
           count: 1
         }));
     }
@@ -1599,12 +1678,25 @@
 
       data.forEach((point, index) => {
         const x = padding.left + (index + 0.5) * xStep;
-        if (point.action) {
+        if (point.actionLevel >= 2) {
           ctx.save();
           ctx.globalAlpha = 0.12;
           ctx.fillStyle = "#b64a45";
           ctx.fillRect(x - Math.max(4, xStep * 0.28), padding.top, Math.max(8, xStep * 0.56), height);
           ctx.restore();
+        }
+        if (point.actionLevel > 0) {
+          const actionY = padding.top + height - (point.actionScaled / maxY) * height;
+          ctx.strokeStyle = point.actionLevel >= 4 ? "#b64a45" : "#4b4f54";
+          ctx.lineWidth = Math.max(3, Math.min(10, xStep * 0.24));
+          ctx.beginPath();
+          ctx.moveTo(x, padding.top + height);
+          ctx.lineTo(x, actionY);
+          ctx.stroke();
+          ctx.fillStyle = point.actionLevel >= 4 ? "#b64a45" : "#4b4f54";
+          ctx.beginPath();
+          ctx.arc(x, actionY, 4.6, 0, Math.PI * 2);
+          ctx.fill();
         }
         series.forEach(item => {
           const y = padding.top + height - (point[item.key] / maxY) * height;
@@ -1613,17 +1705,10 @@
           ctx.arc(x, y, point.count ? 3.4 : 2.4, 0, Math.PI * 2);
           ctx.fill();
         });
-        if (point.action) {
-          ctx.fillStyle = "#b64a45";
-          ctx.font = "bold 12px system-ui";
-          ctx.textAlign = "center";
-          ctx.fillText("O", x, padding.top + height + 21);
-        } else {
-          ctx.fillStyle = "#7c8882";
-          ctx.font = "bold 12px system-ui";
-          ctx.textAlign = "center";
-          ctx.fillText("X", x, padding.top + height + 21);
-        }
+        ctx.fillStyle = point.actionLevel >= 4 ? "#b64a45" : "#7c8882";
+        ctx.font = "bold 12px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(String(point.actionLevel), x, padding.top + height + 21);
         const periodMap = { "오전": "오", "오후": "후", "저녁": "저" };
         ctx.fillStyle = "#64736d";
         ctx.textAlign = "center";
@@ -1636,7 +1721,7 @@
 
       let legendX = padding.left;
       let legendY = 14;
-      const legend = [...series, { label: "O/X", color: "#b64a45" }];
+      const legend = [...series, { label: "행동수준", color: "#b64a45" }];
       legend.forEach(item => {
         const nextWidth = item.label.length * 12 + 25;
         if (legendX + nextWidth > rect.width - 12) {
@@ -1676,14 +1761,14 @@
       const highestEmotion = highestByMetric(byTimeBlock, "emotion");
       const highestUrge = highestByMetric(byTimeBlock, "urge");
       const highestCombined = highestByMetric(byTimeBlock, "combined");
-      const highestAction = highestByMetric(byTimeBlock, "actionRate");
+      const highestActionLevel = highestByMetric(byTimeBlock, "actionLevel");
 
       const items = [
         { label: "사고 평균이 높은 때", value: formatPatternValue(highestThought, "thought"), pct: highestThought ? highestThought.thought * 10 : 0 },
         { label: "감정 평균이 높은 때", value: formatPatternValue(highestEmotion, "emotion"), pct: highestEmotion ? highestEmotion.emotion * 10 : 0 },
         { label: "충동 평균이 높은 때", value: formatPatternValue(highestUrge, "urge"), pct: highestUrge ? highestUrge.urge * 10 : 0 },
         { label: "3개 항목 평균이 높은 때", value: formatPatternValue(highestCombined, "combined"), pct: highestCombined ? highestCombined.combined * 10 : 0 },
-        { label: "중독행동 비율이 높은 때", value: highestAction ? `${highestAction.label} ${highestAction.actionRate.toFixed(0)}%` : "없음", pct: highestAction ? highestAction.actionRate : 0 }
+        { label: "행동 수준이 높은 때", value: formatPatternValue(highestActionLevel, "actionLevel"), pct: highestActionLevel ? highestActionLevel.actionLevel * 20 : 0 }
       ];
 
       box.innerHTML = items.map(item => `
@@ -1710,6 +1795,7 @@
             thoughtSum: 0,
             emotionSum: 0,
             urgeSum: 0,
+            actionLevelSum: 0,
             actionCount: 0
           });
         }
@@ -1718,7 +1804,8 @@
         group.thoughtSum += Number(record.thought || 0);
         group.emotionSum += Number(record.emotion || 0);
         group.urgeSum += Number(record.urge || 0);
-        if (Number(record.action || 0) > 0) group.actionCount += 1;
+        group.actionLevelSum += actionLevelFromRecord(record);
+        if (actionLevelFromRecord(record) >= 2) group.actionCount += 1;
       });
       return Array.from(groups.values()).map(group => ({
         label: group.label,
@@ -1727,6 +1814,7 @@
         emotion: group.emotionSum / group.count,
         urge: group.urgeSum / group.count,
         combined: (group.thoughtSum + group.emotionSum + group.urgeSum) / group.count / 3,
+        actionLevel: group.actionLevelSum / group.count,
         actionRate: group.actionCount / group.count * 100
       })).sort((a, b) => b.combined - a.combined || b.count - a.count);
     }
@@ -1760,13 +1848,17 @@
       const recent = state.records.filter(record => new Date(record.date + "T00:00:00") >= start);
       const source = recent.length ? recent : state.records;
       const eventCount = source.filter(record => (record.mode || "routine") === "event").length;
-      const actionCount = source.filter(record => Number(record.action || 0) > 0).length;
+      const actionCount = source.filter(record => actionLevelFromRecord(record) >= 2).length;
+      const averageActionLevel = source.reduce((sum, record) => sum + actionLevelFromRecord(record), 0) / source.length;
       const highUrgeCount = source.filter(record => Number(record.urge || 0) >= 8).length;
-      const resistedCount = source.filter(record => Number(record.urge || 0) >= 5 && Number(record.action || 0) === 0).length;
+      const resistedCount = source.filter(record => Number(record.urge || 0) >= 5 && actionLevelFromRecord(record) <= 1).length;
+      const gratitudeCount = source.filter(record => record.gratitudeOther || record.gratitudeSelf).length;
+      const reflectionCount = source.filter(record => record.reflectionInsight || record.reflectionNext).length;
       const groups = groupByWeekdayPeriod(source);
       const highestUrge = highestByMetric(groups, "urge");
+      const highestActionLevel = highestByMetric(groups, "actionLevel");
       const helpfulNotes = source
-        .filter(record => Number(record.action || 0) === 0 && Number(record.urge || 0) >= 5 && record.note)
+        .filter(record => actionLevelFromRecord(record) <= 1 && Number(record.urge || 0) >= 5 && record.note)
         .slice(0, 3)
         .map(record => record.note);
       const emotionCounts = source.reduce((counts, record) => {
@@ -1778,10 +1870,13 @@
       box.innerHTML = `
         <div><strong>기록 수:</strong> ${source.length}건 / 충동 발생 기록 ${eventCount}건</div>
         <div><strong>평균 강도:</strong> ${averageLevel(source).toFixed(1)}점 / 10점</div>
-        <div><strong>고위험 신호:</strong> 충동 8점 이상 ${highUrgeCount}건, 중독행동 ${actionCount}건</div>
+        <div><strong>행동 수준:</strong> 평균 ${averageActionLevel.toFixed(1)}점 / 5점, 행동 발생 ${actionCount}건</div>
+        <div><strong>고위험 신호:</strong> 충동 8점 이상 ${highUrgeCount}건, 행동수준 4점 이상 ${source.filter(record => actionLevelFromRecord(record) >= 4).length}건</div>
         <div><strong>주요 감정:</strong> ${topEmotion ? `${topEmotion[0]} ${topEmotion[1]}건` : "아직 기록 없음"}</div>
         <div><strong>충동을 넘긴 기록:</strong> ${resistedCount}건</div>
         <div><strong>취약 시간대:</strong> ${highestUrge ? `${highestUrge.label} 충동 평균 ${highestUrge.urge.toFixed(1)}점` : "아직 없음"}</div>
+        <div><strong>행동 연결:</strong> ${highestActionLevel ? `${highestActionLevel.label} 행동수준 평균 ${highestActionLevel.actionLevel.toFixed(1)}점` : "아직 없음"}</div>
+        <div><strong>회복 자원:</strong> 감사기록 ${gratitudeCount}건, 성찰기록 ${reflectionCount}건</div>
         <div><strong>도움 된 대처:</strong> ${helpfulNotes.length ? helpfulNotes.join(" · ") : "아직 기록 없음"}</div>
       `;
     }
@@ -1808,9 +1903,14 @@
         thought: Number($("#thoughtInput").value),
         emotion: Number($("#emotionInput").value),
         urge: Number($("#urgeInput").value),
-        action: Number($("#actionInput").value) > 0 ? 1 : 0,
+        action: Number($("#actionInput").value) > 0 || Number($("#actionLevelInput").value) >= 2 ? 1 : 0,
+        actionLevel: Number($("#actionLevelInput").value),
         note: $("#noteInput").value.trim(),
         copingEffect: Number($("#copingEffectInput").value),
+        gratitudeOther: $("#gratitudeOtherInput").value.trim(),
+        gratitudeSelf: $("#gratitudeSelfInput").value.trim(),
+        reflectionInsight: $("#reflectionInsightInput").value.trim(),
+        reflectionNext: $("#reflectionNextInput").value.trim(),
         updatedAt: options.keepUpdatedAt ? ($("#editId").value ? (state.records.find(record => record.id === $("#editId").value)?.updatedAt || "") : "") : new Date().toISOString()
       };
     }
@@ -1896,7 +1996,7 @@
     }
 
     function buildCSVExport() {
-      const header = ["날짜", "시간대", "기록저장시각", "중독 유형", "감정 종류", "충동 시작", "상황", "그때 든 생각", "중독 관련 생각", "불편한 감정", "하고 싶은 마음", "행동 여부", "사고감정충동합계", "대처행동", "대처 후 도움 정도", "기록구분"];
+      const header = ["날짜", "시간대", "기록저장시각", "중독 유형", "감정 종류", "충동 시작", "상황", "그때 든 생각", "중독 관련 생각", "불편한 감정", "하고 싶은 마음", "행동 여부", "행동 수준", "행동 수준 설명", "사고감정충동합계", "대처행동", "대처 후 도움 정도", "오늘 고마웠던 사람/일", "오늘 나에게 고마운 점", "오늘 기록을 보며 알아차린 점", "내일 시도할 작은 행동", "기록구분"];
       const exportRecords = recordsForExport();
       const rows = exportRecords
         .slice()
@@ -1914,9 +2014,15 @@
           record.emotion,
           record.urge,
           record.action,
+          actionLevelFromRecord(record),
+          actionLevelLabel(actionLevelFromRecord(record)),
           intensityScore(record),
           record.note,
           record.copingEffect || 0,
+          record.gratitudeOther || "",
+          record.gratitudeSelf || "",
+          record.reflectionInsight || "",
+          record.reflectionNext || "",
           (record.mode || "routine") === "event" ? "충동 발생" : "하루 3회"
         ]);
       const csv = [header, ...rows].map(row => row.map(csvEscape).join(",")).join("\n");
@@ -2057,8 +2163,13 @@
           emotion: indexOf("불편한 감정") >= 0 ? indexOf("불편한 감정") : indexOf("감정"),
           urge: indexOf("하고 싶은 마음") >= 0 ? indexOf("하고 싶은 마음") : indexOf("충동"),
           action: indexOf("행동 여부") >= 0 ? indexOf("행동 여부") : indexOf("중독행동"),
+          actionLevel: indexOf("행동 수준"),
           note: indexOf("대처행동"),
           copingEffect: indexOf("대처 후 도움 정도"),
+          gratitudeOther: indexOf("오늘 고마웠던 사람/일"),
+          gratitudeSelf: indexOf("오늘 나에게 고마운 점"),
+          reflectionInsight: indexOf("오늘 기록을 보며 알아차린 점"),
+          reflectionNext: indexOf("내일 시도할 작은 행동"),
           mode: indexOf("기록구분")
         };
         const get = (cols, key, fallback = "") => idx[key] >= 0 ? (cols[idx[key]] || fallback) : fallback;
@@ -2078,8 +2189,13 @@
           emotion: Number(get(cols, "emotion", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 7 : 6] : cols[legacyHasSavedTime ? 6 : 5]) || 0)),
           urge: Number(get(cols, "urge", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 8 : 7] : cols[legacyHasSavedTime ? 7 : 6]) || 0)),
           action: Number(get(cols, "action", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 9 : 8] : cols[legacyHasSavedTime ? 8 : 7]) || 0)) > 0 ? 1 : 0,
+          actionLevel: Number(get(cols, "actionLevel", "")) || (Number(get(cols, "action", 0)) > 0 ? 4 : 0),
           note: get(cols, "note", (legacyHasThoughtText ? cols[legacyHasSavedTime ? 11 : 10] : cols[legacyHasSavedTime ? 10 : 9]) || ""),
           copingEffect: Number(get(cols, "copingEffect", 0)),
+          gratitudeOther: get(cols, "gratitudeOther", ""),
+          gratitudeSelf: get(cols, "gratitudeSelf", ""),
+          reflectionInsight: get(cols, "reflectionInsight", ""),
+          reflectionNext: get(cols, "reflectionNext", ""),
           mode: get(cols, "mode", cols[12] || "") === "충동 발생" ? "event" : "routine",
           updatedAt: new Date().toISOString()
         }));
@@ -2129,7 +2245,7 @@
     function bindEvents() {
       $$(".tab").forEach(tab => tab.addEventListener("click", () => setView(tab.dataset.view)));
       $("#dateInput").addEventListener("change", markFormChanged);
-      ["situationInput", "thoughtTextInput", "noteInput"].forEach(id => $("#" + id).addEventListener("input", markFormChanged));
+      ["situationInput", "thoughtTextInput", "noteInput", "gratitudeOtherInput", "gratitudeSelfInput", "reflectionInsightInput", "reflectionNextInput"].forEach(id => $("#" + id).addEventListener("input", markFormChanged));
       $$("#periodButtons button").forEach(button => button.addEventListener("click", () => {
         setPeriod(button.dataset.period);
         markFormChanged();
@@ -2161,7 +2277,7 @@
         markFormChanged();
         showToast("대처행동에 추가했습니다.");
       }));
-      ["thoughtInput", "emotionInput", "urgeInput", "copingEffectInput"].forEach(id => $("#" + id).addEventListener("input", () => {
+      ["thoughtInput", "emotionInput", "urgeInput", "actionLevelInput", "copingEffectInput"].forEach(id => $("#" + id).addEventListener("input", () => {
         updateSliderLabels();
         markFormChanged();
       }));
