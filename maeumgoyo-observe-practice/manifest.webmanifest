@@ -1,0 +1,28 @@
+{
+  "name": "마음고요 관찰과 실천",
+  "short_name": "관찰과 실천",
+  "description": "상담실 밖 6일 동안 관찰하고 가치 기반 작은 실천행동을 기록하는 변화 기록 앱입니다.",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7f4",
+  "theme_color": "#2f7567",
+  "categories": ["health", "productivity"],
+  "icons": [
+    {
+      "src": "./app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
