@@ -208,7 +208,10 @@
       <input id="unlockPin" type="password" inputmode="numeric" placeholder="PIN 입력">
       <div style="height:10px"></div>
       <button class="solid-btn full" id="unlockButton">열기</button>
+      <div style="height:8px"></div>
+      <button class="danger-btn full" id="resetLockedApp" type="button">기록 삭제 후 잠금 초기화</button>
       <p class="small" id="unlockMessage"></p>
+      <p class="small">PIN을 잊은 경우 보호를 위해 기록을 보존한 채 우회할 수 없습니다. 복구코드가 있으면 PIN 입력칸에 복구코드를 입력하세요.</p>
     </div>
   </div>
 
@@ -219,7 +222,7 @@
           <img src="./maeumgoyo_logo_large_subtitle.png" alt="마음고요 심리상담센터">
           <div class="brand-title">
             <h1>마음고요 관찰과 실천</h1>
-            <p class="subtitle">말로 이해하고, 생활에서 실천하고, 다시 상담에서 다듬습니다.</p>
+            <p class="subtitle">상담에서 마음과 행동을 이해하고, 일상에서 실천하며, 다시 상담에서 다듬습니다.</p>
           </div>
         </div>
         <div class="contact">메일 respectuu@naver.com</div>
@@ -318,10 +321,11 @@
               </div>
             </div>
             <div class="form-row">
-              <label>문제 행동 유형</label>
+              <label>문제 행동 영역</label>
               <div class="chip-row" id="behaviorChips"></div>
               <div style="height:8px"></div>
               <input id="behaviorCustom" placeholder="직접 입력 또는 안전한 별칭 입력">
+              <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 실제 행동 여부와 정도는 아래 문제 행동 수준에서 기록합니다.</div>
             </div>
             <div class="form-row">
               <label for="situation">상황</label>
@@ -471,8 +475,13 @@
 
           <div class="card">
             <div class="section-head" style="margin-top:0">
-              <h2>실천 기록</h2>
+              <h2>오늘 실천 수행도 기록</h2>
               <button class="ghost-btn" id="clearPracticeForm" type="button">새 실천</button>
+            </div>
+            <p class="small">설정한 행동을 오늘 실제로 어느 정도 했는지 0~10점으로 기록합니다.</p>
+            <div id="practiceLogList" class="list"></div>
+            <div class="section-head">
+              <h2>설정된 실천행동</h2>
             </div>
             <div id="practiceList" class="list"></div>
           </div>
@@ -534,6 +543,14 @@
             <h2>미리보기</h2>
             <div id="sharePreview" class="summary-box"></div>
           </div>
+          <div class="card">
+            <h2>CSV 가져오기</h2>
+            <p class="small">이 앱에서 저장한 CSV를 다시 불러옵니다. 같은 기기나 새 기기에서 기록을 옮길 때 사용할 수 있습니다.</p>
+            <input class="file-input" id="importFile" type="file" accept=".csv,text/csv">
+            <div style="height:10px"></div>
+            <button class="ghost-btn full" id="importCsv" type="button">CSV 가져오기</button>
+            <p class="small" id="importInfo"></p>
+          </div>
         </div>
       </section>
 
@@ -547,8 +564,11 @@
               <input id="pinInput" type="password" inputmode="numeric" placeholder="4자리 이상">
             </div>
             <button class="solid-btn full" id="savePin" type="button">PIN 저장</button>
+            <p class="small" id="recoveryInfo"></p>
             <div style="height:10px"></div>
             <button class="ghost-btn full" id="lockNow" type="button">지금 잠그기</button>
+            <div style="height:10px"></div>
+            <button class="ghost-btn full" id="updateApp" type="button">앱 업데이트 새로 적용</button>
             <p class="small">알림 문구는 중립적으로 유지하세요. 예: “오늘의 관찰과 실천을 기록할 시간입니다.”</p>
           </div>
           <div class="card">
@@ -573,18 +593,19 @@
   <script>
     const STORAGE_KEY = "maeumgoyo.observePractice.v1";
     const PIN_KEY = "maeumgoyo.observePractice.pin";
+    const RECOVERY_KEY = "maeumgoyo.observePractice.recovery";
     const AUTO_LOCK_MS = 5 * 60 * 1000;
     const values = ["건강", "관계", "정직", "책임", "자기존중", "성장", "안정", "회복", "자유", "배움", "돌봄", "신뢰", "절제", "용기", "의미"];
     const emotions = ["불안", "외로움", "분노", "공허함", "수치심", "우울", "초조", "지루함", "피곤함", "무기력"];
     const bodies = ["가슴 답답함", "두근거림", "근육 긴장", "열감", "손 떨림", "시선 고정", "멍함", "얼어붙음", "호흡 짧음"];
-    const defaultBehaviors = ["A행동", "관계 위험 신호", "음주", "게임", "스마트폰/인터넷", "회피/미루기", "분노표출", "과식", "자기비난", "무기력"];
+    const defaultBehaviors = ["도박", "성행동", "쇼핑", "음주", "게임", "스마트폰/인터넷", "회피/미루기", "분노표출", "과식", "자기비난", "무기력"];
     const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => Array.from(document.querySelectorAll(selector));
     const state = {
       view: "today",
       observeMode: "저녁",
-      behavior: "A행동",
+      behavior: "도박",
       emotion: "",
       body: [],
       value: "",
@@ -592,7 +613,7 @@
       shareRange: 7,
       shareMode: "counselorDetail",
       redactions: { thoughts: true, details: true, private: true },
-      data: { observations: [], practices: [], logs: [], settings: { alias: "A행동" } },
+      data: { observations: [], practices: [], logs: [], settings: { alias: "" } },
       lastActive: Date.now()
     };
 
@@ -617,7 +638,7 @@
           observations: Array.isArray(parsed.observations) ? parsed.observations : [],
           practices: Array.isArray(parsed.practices) ? parsed.practices : [],
           logs: Array.isArray(parsed.logs) ? parsed.logs : [],
-          settings: { alias: "A행동", ...(parsed.settings || {}) }
+          settings: { alias: "", ...(parsed.settings || {}) }
         };
       } catch {
         saveData();
@@ -658,7 +679,10 @@
       });
     }
     function initPickers() {
-      setChipGroup("#behaviorChips", [state.data.settings.alias || "A행동", ...defaultBehaviors.filter(v => v !== (state.data.settings.alias || "A행동"))], "behavior", state.behavior);
+      const alias = state.data.settings.alias || "";
+      const aliasItems = alias && !["도박", "성행동", "쇼핑"].includes(alias) ? [alias] : [];
+      const behaviorItems = ["도박", "성행동", ...aliasItems, ...defaultBehaviors.filter(v => !["도박", "성행동"].includes(v))];
+      setChipGroup("#behaviorChips", behaviorItems, "behavior", state.behavior);
       setChipGroup("#emotionChips", emotions, "emotion");
       setChipGroup("#bodyChips", bodies, "body");
       setChipGroup("#valueChips", values, "value");
@@ -814,6 +838,13 @@
         renderAll();
       }));
     }
+    function renderPracticeLogList() {
+      const box = $("#practiceLogList");
+      if (!box) return;
+      const practices = activePractices();
+      box.innerHTML = practices.length ? practices.map(p => renderPracticeToday(p)).join("") : `<div class="empty">먼저 가치 기반 작은 실천행동을 설정해주세요.</div>`;
+      bindTodayLogButtons();
+    }
     function frequencyLabel(value) {
       return { daily: "매일", "3week": "주 3일", "1week": "주 1일", custom: "맞춤 요일" }[value] || value;
     }
@@ -932,7 +963,7 @@
       const rows = [["구분","날짜","항목","값","비고"]];
       observations.forEach(o => {
         rows.push(["관찰", o.date, "시간대", o.mode, ""]);
-        rows.push(["관찰", o.date, "문제 행동 유형", state.shareMode === "family" || state.redactions.details ? "민감 내용 제외" : o.behavior, ""]);
+        rows.push(["관찰", o.date, "문제 행동 영역", state.shareMode === "family" || state.redactions.details ? "민감 내용 제외" : o.behavior, ""]);
         rows.push(["관찰", o.date, "감정", o.emotion || "", ""]);
         rows.push(["관찰", o.date, "사고/감정/충동", `${o.thoughtScore}/${o.emotionScore}/${o.urgeScore}`, ""]);
         rows.push(["관찰", o.date, "문제 행동 수준", o.actionLevel, "0~5"]);
@@ -954,6 +985,124 @@
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
       const nameMode = state.shareMode === "family" ? "가족회복요약" : state.shareMode === "counselorSummary" ? "상담자요약" : "상담자상세";
       return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
+    }
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let quoted = false;
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (quoted) {
+          if (char === '"' && next === '"') {
+            cell += '"';
+            i++;
+          } else if (char === '"') {
+            quoted = false;
+          } else {
+            cell += char;
+          }
+        } else if (char === '"') {
+          quoted = true;
+        } else if (char === ",") {
+          row.push(cell);
+          cell = "";
+        } else if (char === "\n") {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else if (char !== "\r") {
+          cell += char;
+        }
+      }
+      row.push(cell);
+      rows.push(row);
+      return rows.filter(r => r.some(c => String(c).trim()));
+    }
+    function importCsvFile(file) {
+      if (!file) {
+        showToast("가져올 CSV 파일을 선택해주세요.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const rows = parseCsv(String(reader.result || "").replace(/^\ufeff/, ""));
+        const header = rows.shift() || [];
+        if (header[0] !== "구분") {
+          $("#importInfo").textContent = "이 앱에서 저장한 CSV 형식이 아닙니다.";
+          return;
+        }
+        const before = {
+          observations: state.data.observations.length,
+          practices: state.data.practices.length,
+          logs: state.data.logs.length
+        };
+        const tempObs = new Map();
+        rows.forEach(row => {
+          const [kind, date, item, value, note] = row;
+          if (kind === "관찰" && date) {
+            const key = date;
+            if (!tempObs.has(key)) {
+              tempObs.set(key, {
+                id: uid(),
+                date,
+                mode: "가져오기",
+                behavior: "",
+                situation: "",
+                thoughtText: "",
+                emotion: "",
+                body: [],
+                thoughtScore: 0,
+                emotionScore: 0,
+                urgeScore: 0,
+                actionLevel: 0,
+                coping: "",
+                copingScore: 0,
+                gratitude: "",
+                insight: "",
+                value: "",
+                valueActionDraft: "",
+                updatedAt: new Date().toISOString()
+              });
+            }
+            const obs = tempObs.get(key);
+            if (item === "시간대") obs.mode = value;
+            if (item === "문제 행동 영역" || item === "문제 행동 유형") obs.behavior = value;
+            if (item === "감정") obs.emotion = value;
+            if (item === "사고/감정/충동") {
+              const parts = String(value).split("/").map(Number);
+              obs.thoughtScore = parts[0] || 0;
+              obs.emotionScore = parts[1] || 0;
+              obs.urgeScore = parts[2] || 0;
+            }
+            if (item === "문제 행동 수준") obs.actionLevel = Number(value) || 0;
+            if (item === "가치") obs.value = value;
+            if (item === "상황" && value !== "민감 내용 제외") obs.situation = value;
+            if (item === "생각" && value !== "민감 내용 제외") obs.thoughtText = value;
+            if (item === "대처행동") obs.coping = value;
+            if (item === "성찰" && value !== "민감 내용 제외") obs.insight = value;
+          }
+          if (kind === "실천" && date && item && value) {
+            let practice = state.data.practices.find(p => p.value === item && p.name === value);
+            if (!practice) {
+              practice = { id: uid(), value: item, name: value, reason: "CSV에서 가져온 실천행동", frequency: "daily", customDays: [], startDate: date, barriers: "", smallVersion: "", archived: false, updatedAt: new Date().toISOString() };
+              state.data.practices.push(practice);
+            }
+            const scoreMatch = String(note || "").match(/수행도\s*(\d+)/);
+            if (scoreMatch && !logFor(practice.id, date)) {
+              state.data.logs.push({ id: uid(), practiceId: practice.id, date, score: Number(scoreMatch[1]), note: "", updatedAt: new Date().toISOString() });
+            }
+          }
+        });
+        tempObs.forEach(obs => state.data.observations.push(obs));
+        saveData();
+        renderAll();
+        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 ${state.data.observations.length - before.observations}개, 실천행동 ${state.data.practices.length - before.practices}개, 수행도 ${state.data.logs.length - before.logs}개`;
+        showToast("CSV를 가져왔습니다.");
+      };
+      reader.readAsText(file, "utf-8");
     }
     function downloadBlob(blob, fileName) {
       const url = URL.createObjectURL(blob);
@@ -1083,6 +1232,7 @@
     function renderAll() {
       if (state.view === "today") renderToday();
       renderObserveList();
+      renderPracticeLogList();
       renderPracticeList();
       if (state.view === "trend") renderTrend();
       if (state.view === "share") renderSharePreview();
@@ -1093,13 +1243,43 @@
     }
     function unlock() {
       const pin = localStorage.getItem(PIN_KEY);
-      if ($("#unlockPin").value === pin) {
+      const recovery = localStorage.getItem(RECOVERY_KEY);
+      if ($("#unlockPin").value === pin || (recovery && $("#unlockPin").value === recovery)) {
         $("#lockScreen").classList.remove("active");
         $("#unlockPin").value = "";
         $("#unlockMessage").textContent = "";
       } else {
         $("#unlockMessage").textContent = "PIN이 맞지 않습니다.";
       }
+    }
+    function generateRecoveryCode() {
+      if (crypto.getRandomValues) {
+        return Array.from(crypto.getRandomValues(new Uint32Array(2)))
+          .map(n => n.toString(36).slice(0, 4).toUpperCase())
+          .join("-");
+      }
+      return `${Math.random().toString(36).slice(2, 6)}-${Date.now().toString(36).slice(-4)}`.toUpperCase();
+    }
+    async function applyAppUpdate() {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(reg => reg.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+      } finally {
+        window.location.reload();
+      }
+    }
+    function resetLockedApp() {
+      if (!confirm("PIN을 잊은 경우 기록 보호를 위해 모든 기록과 PIN을 삭제한 뒤 초기화합니다. 계속할까요?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(PIN_KEY);
+      localStorage.removeItem(RECOVERY_KEY);
+      window.location.reload();
     }
     function touchActivity() { state.lastActive = Date.now(); }
     function setupEvents() {
@@ -1164,16 +1344,22 @@
         const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 기록을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`);
         window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
       });
+      $("#importCsv").addEventListener("click", () => importCsvFile($("#importFile").files[0]));
       $("#savePin").addEventListener("click", () => {
         const pin = $("#pinInput").value.trim();
         if (pin.length < 4) return showToast("PIN은 4자리 이상으로 설정해주세요.");
+        const recovery = generateRecoveryCode();
         localStorage.setItem(PIN_KEY, pin);
+        localStorage.setItem(RECOVERY_KEY, recovery);
         $("#pinInput").value = "";
+        $("#recoveryInfo").textContent = `복구코드: ${recovery}  이 코드는 PIN을 잊었을 때 사용합니다. 안전한 곳에 따로 적어두세요.`;
         showToast("PIN을 저장했습니다.");
       });
       $("#lockNow").addEventListener("click", () => $("#lockScreen").classList.add("active"));
+      $("#updateApp").addEventListener("click", applyAppUpdate);
       $("#unlockButton").addEventListener("click", unlock);
       $("#unlockPin").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+      $("#resetLockedApp").addEventListener("click", resetLockedApp);
       $("#saveAlias").addEventListener("click", () => {
         const alias = $("#aliasInput").value.trim();
         if (!alias) return showToast("별칭을 입력해주세요.");
