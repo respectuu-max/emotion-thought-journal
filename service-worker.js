@@ -1,6 +1,5 @@
-const CACHE_NAME = "emotion-thought-journal-v8";
+const CACHE_NAME = "emotion-thought-journal-v9";
 const APP_SHELL = [
-  "./",
   "./index.html",
   "./manifest.webmanifest",
   "./app-icon-192.png",
@@ -41,7 +40,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match("./index.html"))
+        .catch(() => caches.match("./addiction_behavior_journal_app.html"))
     );
     return;
   }
