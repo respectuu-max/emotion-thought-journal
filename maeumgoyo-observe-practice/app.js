@@ -45,6 +45,10 @@ const TEXT_LIMITS = {
     }
     function dateObj(iso) { return new Date(iso + "T00:00:00"); }
     function daysAgo(n) { const d = dateObj(todayISO()); d.setDate(d.getDate() - n); return d; }
+    function dateToISO(date) {
+      const offset = date.getTimezoneOffset() * 60000;
+      return new Date(date - offset).toISOString().slice(0, 10);
+    }
     function formatSavedTime(value) {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return "-";
@@ -403,7 +407,7 @@ const TEXT_LIMITS = {
       let achievedCount = 0;
       activePractices().forEach(p => {
         for (let i = 0; i < 7; i++) {
-          const d = daysAgo(i).toISOString().slice(0, 10);
+          const d = dateToISO(daysAgo(i));
           if (isPracticeDue(p, d)) {
             const target = targetCount(p);
             dueCount += target;
@@ -750,7 +754,8 @@ const TEXT_LIMITS = {
       notify("오늘 아직 관찰 기록과 실천 기록이 없습니다. 짧게라도 오늘의 마음과 작은 실천을 남겨보세요.");
     }
     function renderTrend() {
-      drawTrend();
+      try { drawTrend(); } catch (error) { console.warn("Trend canvas draw failed", error); }
+      renderTrendBars();
       $("#patternSummary").textContent = buildReflectionSummary();
     }
     function topItems(values, limit = 3) {
@@ -795,6 +800,50 @@ const TEXT_LIMITS = {
         "3. 다음 24시간 안에 가능한 가장 작은 가치 행동은 무엇인가요?"
       ].join("\n");
     }
+    function trendSeriesData() {
+      const days = Array.from({ length: 14 }, (_, i) => {
+        const d = daysAgo(13 - i);
+        return dateToISO(d);
+      });
+      return days.map(day => ({
+        day,
+        label: day.slice(5).replace("-", "/"),
+        observation: avg(activeObservations().filter(o => o.date === day), observationIntensity),
+        practice: averageDailyLogScore(activeLogs().filter(l => l.date === day)),
+        action: avg(activeObservations().filter(o => o.date === day), o => Number(o.actionLevel) * 2),
+        observationCount: activeObservations().filter(o => o.date === day).length,
+        logCount: activeLogs().filter(l => l.date === day).length
+      }));
+    }
+    function renderTrendBars() {
+      const box = $("#trendBars");
+      if (!box) return;
+      const data = trendSeriesData();
+      const hasData = data.some(day => day.observationCount || day.logCount);
+      if (!hasData) {
+        box.innerHTML = `<div class="empty">아직 그래프로 볼 관찰 또는 실천 기록이 없습니다.</div>`;
+        return;
+      }
+      box.innerHTML = `
+        <div class="trend-legend">
+          <span><i class="legend-dot obs"></i>관찰강도</span>
+          <span><i class="legend-dot practice"></i>실천수행도</span>
+          <span><i class="legend-dot action"></i>행동수준</span>
+        </div>
+        <div class="trend-bar-list">
+          ${data.map(day => `
+            <div class="trend-day">
+              <div class="trend-date">${escapeHtml(day.label)}</div>
+              <div class="trend-bar-stack" aria-label="${escapeHtml(day.day)} 추세">
+                <div class="trend-line obs" style="width:${Math.round(Math.max(0, Math.min(10, day.observation)) * 10)}%"><span>${day.observation ? day.observation.toFixed(1) : ""}</span></div>
+                <div class="trend-line practice" style="width:${Math.round(Math.max(0, Math.min(10, day.practice)) * 10)}%"><span>${day.practice ? day.practice.toFixed(1) : ""}</span></div>
+                <div class="trend-line action" style="width:${Math.round(Math.max(0, Math.min(10, day.action)) * 10)}%"><span>${day.action ? day.action.toFixed(1) : ""}</span></div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
     function drawTrend() {
       const canvas = $("#trendCanvas");
       if (!canvas) return;
@@ -817,13 +866,10 @@ const TEXT_LIMITS = {
         ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + width, y); ctx.stroke();
         ctx.fillStyle = "#64736d"; ctx.font = "12px sans-serif"; ctx.fillText(String(i * 2), 8, y + 4);
       }
-      const days = Array.from({ length: 14 }, (_, i) => {
-        const d = daysAgo(13 - i);
-        return d.toISOString().slice(0, 10);
-      });
-      const obsSeries = days.map(day => avg(activeObservations().filter(o => o.date === day), observationIntensity));
-      const logSeries = days.map(day => averageDailyLogScore(activeLogs().filter(l => l.date === day)));
-      const actionSeries = days.map(day => avg(activeObservations().filter(o => o.date === day), o => Number(o.actionLevel) * 2));
+      const trendData = trendSeriesData();
+      const obsSeries = trendData.map(day => day.observation);
+      const logSeries = trendData.map(day => day.practice);
+      const actionSeries = trendData.map(day => day.action);
       drawLine(ctx, obsSeries, "#2f7567", pad, width, height);
       drawLine(ctx, logSeries, "#c1842f", pad, width, height);
       drawLine(ctx, actionSeries, "#b64a45", pad, width, height);
