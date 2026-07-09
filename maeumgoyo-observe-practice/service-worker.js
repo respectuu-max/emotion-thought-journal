@@ -1,15 +1,21 @@
-const CACHE_NAME = "maeumgoyo-observe-practice-v10";
-const ASSETS = [
+const CACHE_NAME = "maeumgoyo-observe-practice-v16";
+const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest",
+  "./style.css",
+  "./app.js",
+  "./manifest.webmanifest"
+];
+const STATIC_ASSETS = [
   "./app-icon-192.png",
   "./app-icon-512.png",
   "./maeumgoyo_logo_large_subtitle.png"
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll([...APP_SHELL, ...STATIC_ASSETS]))
+  );
   self.skipWaiting();
 });
 
@@ -22,16 +28,38 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) cache.put(request, response.clone());
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("Network request failed and no cache is available.");
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response && response.ok) cache.put(request, response.clone());
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
-    })
-  );
+  const url = new URL(event.request.url);
+  const path = url.pathname.split("/").pop() || "index.html";
+  const freshFiles = ["", "index.html", "app.js", "style.css", "manifest.webmanifest"];
+
+  if (event.request.mode === "navigate" || freshFiles.includes(path)) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(event.request));
 });

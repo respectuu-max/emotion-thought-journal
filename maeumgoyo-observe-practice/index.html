@@ -9,197 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./app-icon-192.png">
   <title>마음고요 관찰과 실천</title>
-  <style>
-    :root {
-      --bg: #f5f7f4;
-      --surface: #ffffff;
-      --surface-2: #eef4ef;
-      --ink: #1d2924;
-      --muted: #64736d;
-      --line: #d9e2dd;
-      --brand: #2f7567;
-      --brand-dark: #23594f;
-      --accent: #c1842f;
-      --danger: #b64a45;
-      --good: #3d7d4d;
-      --shadow: 0 16px 38px rgba(28, 50, 42, .11);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
-    }
-
-    * { box-sizing: border-box; }
-    html { background: var(--bg); color: var(--ink); }
-    body { margin: 0; min-height: 100vh; background: linear-gradient(180deg, #f8faf7 0%, var(--bg) 42%); }
-    button, input, textarea, select { font: inherit; }
-    button { cursor: pointer; }
-    .app { max-width: 1180px; margin: 0 auto; padding: 14px 14px 88px; }
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      margin: -14px -14px 16px;
-      padding: 12px 14px 10px;
-      background: rgba(245, 247, 244, .94);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(217, 226, 221, .8);
-    }
-    .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .brand img { width: 136px; height: auto; display: block; }
-    .brand-title { min-width: 0; }
-    h1 { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: 0; color: var(--ink); }
-    .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
-    .contact { color: var(--muted); font-size: 12px; white-space: nowrap; }
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 6px;
-      margin-top: 12px;
-    }
-    .tab {
-      min-height: 42px;
-      border: 1px solid var(--line);
-      background: var(--surface);
-      border-radius: 8px;
-      color: var(--muted);
-      font-weight: 700;
-    }
-    .tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
-    .view { display: none; }
-    .view.active { display: block; }
-    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    .triple { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-    }
-    .plain-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-    .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin: 18px 0 10px; }
-    h2 { margin: 0; font-size: 18px; line-height: 1.3; letter-spacing: 0; }
-    h3 { margin: 0 0 8px; font-size: 15px; line-height: 1.35; letter-spacing: 0; }
-    p { line-height: 1.6; }
-    .small { color: var(--muted); font-size: 13px; line-height: 1.55; }
-    .lead {
-      background: var(--surface-2);
-      border-left: 4px solid var(--brand);
-      padding: 12px 14px;
-      border-radius: 8px;
-      color: #263b34;
-      line-height: 1.6;
-    }
-    .metric { display: flex; flex-direction: column; gap: 4px; min-height: 100px; }
-    .metric-label { color: var(--muted); font-size: 13px; font-weight: 700; }
-    .metric-value { font-size: 30px; line-height: 1.1; font-weight: 800; color: var(--brand-dark); }
-    .metric-note { color: var(--muted); font-size: 12px; line-height: 1.35; }
-    .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .solid-btn, .ghost-btn, .danger-btn {
-      min-height: 42px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      padding: 0 14px;
-      font-weight: 800;
-    }
-    .solid-btn { background: var(--brand); color: #fff; border-color: var(--brand); }
-    .ghost-btn { background: var(--surface); color: var(--brand-dark); border-color: var(--line); }
-    .danger-btn { background: #fff5f4; color: var(--danger); border-color: #edcac7; }
-    .full { width: 100%; }
-    .form-row { margin-bottom: 14px; }
-    label { display: block; margin-bottom: 7px; font-weight: 800; color: #24342e; }
-    input, textarea, select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      color: var(--ink);
-      min-height: 42px;
-      padding: 10px 11px;
-    }
-    textarea { resize: vertical; min-height: 86px; line-height: 1.5; }
-    input[type="range"] { padding: 0; accent-color: var(--brand); }
-    .segmented, .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
-    .segmented button, .chip {
-      border: 1px solid var(--line);
-      background: #fff;
-      border-radius: 8px;
-      min-height: 38px;
-      padding: 0 11px;
-      color: var(--muted);
-      font-weight: 750;
-    }
-    .segmented button.active, .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
-    .chip input[type="checkbox"] { width: auto; min-height: 0; margin: 0 6px 0 0; accent-color: var(--brand); }
-    .slider-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 9px; background: #fbfdfb; }
-    .slider-top { display: flex; justify-content: space-between; gap: 10px; font-weight: 800; margin-bottom: 6px; }
-    .slider-value { color: var(--brand-dark); }
-    .range-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 2px; }
-    .list { display: grid; gap: 10px; }
-    .record-item {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      background: #fff;
-    }
-    .record-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-    .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 999px; background: var(--surface-2); color: var(--brand-dark); font-size: 12px; font-weight: 800; }
-    .tag.warn { background: #fff3df; color: #815418; }
-    .tag.danger { background: #fff0ef; color: var(--danger); }
-    .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 16px; background: rgba(255,255,255,.65); }
-    .chart-wrap { height: 320px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 8px; }
-    canvas { width: 100%; height: 100%; display: block; }
-    .summary-box {
-      white-space: pre-wrap;
-      background: #fbfdfb;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      line-height: 1.6;
-      min-height: 180px;
-    }
-    .toast {
-      position: fixed;
-      left: 50%;
-      bottom: 24px;
-      transform: translateX(-50%);
-      background: #1f2d28;
-      color: #fff;
-      padding: 11px 14px;
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .18s, bottom .18s;
-      z-index: 60;
-      max-width: min(560px, calc(100% - 28px));
-      text-align: center;
-    }
-    .toast.show { opacity: 1; bottom: 34px; }
-    .lock-screen {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      background: rgba(245,247,244,.98);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-    }
-    .lock-screen.active { display: flex; }
-    .lock-box { width: min(420px, 100%); }
-    @media (max-width: 820px) {
-      .app { padding-left: 10px; padding-right: 10px; }
-      .topbar { margin-left: -10px; margin-right: -10px; }
-      .brand-row { align-items: flex-start; }
-      .brand { align-items: flex-start; }
-      .brand img { width: 96px; }
-      h1 { font-size: 21px; }
-      .contact { display: none; }
-      .tabs { grid-template-columns: repeat(3, 1fr); }
-      .grid, .triple { grid-template-columns: 1fr; }
-      .chart-wrap { height: 280px; }
-    }
-  </style>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <div class="lock-screen" id="lockScreen">
@@ -248,6 +58,14 @@
           <p class="small">1. 오늘 마음과 행동을 관찰합니다.</p>
           <p class="small">2. 내가 중요하게 여기는 가치에서 작은 실천행동을 정합니다.</p>
           <p class="small">3. 기록을 상담에서 함께 보고 조정합니다.</p>
+        </div>
+        <div class="plain-card" style="margin-top:10px;">
+          <h3>빠른 시작</h3>
+          <div class="quick-actions">
+            <button class="solid-btn" type="button" id="quickObserve">30초 관찰하기</button>
+            <button class="ghost-btn" type="button" id="quickRisk">고위험 신호 남기기</button>
+            <button class="ghost-btn" type="button" id="quickBackup">CSV 백업하기</button>
+          </div>
         </div>
         <p class="small" id="notificationStatus"></p>
         <div class="plain-card" id="todayTaskSummary" style="margin-top:10px;"></div>
@@ -319,6 +137,19 @@
             <div class="lead">
               지금 혼자 버티기 어렵다면 기록을 마치려고 애쓰기보다 가까운 사람이나 상담자에게 먼저 연락하세요.
             </div>
+            <div style="height:10px"></div>
+            <div class="safety-card">
+              <h3>고위험일 때 먼저 할 일</h3>
+              <p class="small">1. 지금 있는 장소를 조금 더 안전한 곳으로 옮깁니다.</p>
+              <p class="small">2. 10분만 행동을 늦추고, 물 한 컵이나 천천히 호흡을 먼저 합니다.</p>
+              <p class="small">3. 혼자 버티기 어렵다면 가까운 사람, 상담자, 지역 응급 도움에 연락합니다.</p>
+            </div>
+            <div class="safety-card hidden" id="riskFollowup">
+              <h3>지금 확인할 안전 행동</h3>
+              <label class="checkline"><input type="checkbox"> 조금 더 안전한 장소로 이동했습니다.</label>
+              <label class="checkline"><input type="checkbox"> 10분만 늦추고 물 또는 호흡을 먼저 했습니다.</label>
+              <label class="checkline"><input type="checkbox"> 혼자 버티기 어렵다면 연락할 사람을 떠올렸습니다.</label>
+            </div>
             <div style="height:12px"></div>
             <div class="form-row">
               <label for="observeDate">날짜</label>
@@ -337,16 +168,16 @@
               <label>문제 행동 영역</label>
               <div class="chip-row" id="behaviorChips"></div>
               <div style="height:8px"></div>
-              <input id="behaviorCustom" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
+              <input id="behaviorCustom" maxlength="160" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
               <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 여러 영역을 함께 선택할 수 있고, 실제 행동 여부와 정도는 아래 문제 행동 수준에서 기록합니다.</div>
             </div>
             <div class="form-row">
               <label for="situation">상황</label>
-              <textarea id="situation" placeholder="언제, 어디서, 어떤 상황이었나요?"></textarea>
+              <textarea id="situation" maxlength="600" placeholder="언제, 어디서, 어떤 상황이었나요?"></textarea>
             </div>
             <div class="form-row">
               <label for="thoughtText">그때 든 생각</label>
-              <textarea id="thoughtText" placeholder="자동적으로 떠오른 생각을 한두 문장으로 적습니다."></textarea>
+              <textarea id="thoughtText" maxlength="600" placeholder="자동적으로 떠오른 생각을 한두 문장으로 적습니다."></textarea>
             </div>
             <div class="form-row">
               <label>감정 종류</label>
@@ -385,7 +216,7 @@
             </div>
             <div class="form-row">
               <label for="coping">대처행동</label>
-              <textarea id="coping" placeholder="멈춤, 한 걸음 뒤로, 호흡, 장소 바꾸기, 연락하기 등"></textarea>
+              <textarea id="coping" maxlength="600" placeholder="멈춤, 한 걸음 뒤로, 호흡, 장소 바꾸기, 연락하기 등"></textarea>
             </div>
             <div class="form-row">
               <label>대처 후 도움 정도</label>
@@ -396,21 +227,21 @@
             </div>
             <div class="form-row">
               <label for="gratitude">감사 기록</label>
-              <textarea id="gratitude" placeholder="오늘 고마웠던 사람, 일, 또는 나에게 고마운 점"></textarea>
+              <textarea id="gratitude" maxlength="160" placeholder="오늘 고마웠던 사람, 일, 또는 나에게 고마운 점"></textarea>
             </div>
             <div class="form-row">
               <label for="insight">오늘 알아차린 점</label>
-              <textarea id="insight" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
+              <textarea id="insight" maxlength="800" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
             </div>
             <div class="form-row">
               <label>오늘 지키고 싶은 가치</label>
               <div class="chip-row" id="valueChips"></div>
               <div style="height:8px"></div>
-              <input id="valueCustom" placeholder="직접 입력">
+              <input id="valueCustom" maxlength="40" placeholder="직접 입력">
             </div>
             <div class="form-row">
               <label for="valueActionDraft">그 가치를 위한 아주 작은 행동</label>
-              <textarea id="valueActionDraft" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
+              <textarea id="valueActionDraft" maxlength="160" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
             </div>
             <div class="button-row">
               <button class="solid-btn" type="submit">관찰 저장</button>
@@ -445,15 +276,15 @@
             <p class="small">가치 기반 작은 실천행동은 평소의 자동반응, 회피, 충동이 좁혀놓은 삶에서 벗어나 내가 중요하게 여기는 방향으로 경험을 조금 넓히는 행동입니다.</p>
             <div class="form-row">
               <label for="practiceValue">연결된 가치</label>
-              <input id="practiceValue" placeholder="예: 건강, 관계, 자기존중">
+              <input id="practiceValue" maxlength="40" placeholder="예: 건강, 관계, 자기존중">
             </div>
             <div class="form-row">
               <label for="practiceName">실천행동 이름</label>
-              <textarea id="practiceName" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
+              <textarea id="practiceName" maxlength="160" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
             </div>
             <div class="form-row">
               <label for="practiceReason">이 행동이 내 경험을 넓혀주는 이유</label>
-              <textarea id="practiceReason" placeholder="문제 행동이 좁힌 삶에서 어느 방향으로 한 걸음 넓어지나요?"></textarea>
+              <textarea id="practiceReason" maxlength="600" placeholder="문제 행동이 좁힌 삶에서 어느 방향으로 한 걸음 넓어지나요?"></textarea>
             </div>
             <div class="form-row">
               <label>빈도</label>
@@ -483,7 +314,7 @@
             </div>
             <div class="form-row" id="reminderTimesRow" style="display:none">
               <label for="reminderTimes">알림 시간</label>
-              <input id="reminderTimes" placeholder="예: 08:00, 20:00">
+              <input id="reminderTimes" maxlength="48" placeholder="예: 08:00, 20:00">
               <div class="small">하루 여러 번 실천하기로 했다면 시간도 여러 개 입력할 수 있습니다.</div>
             </div>
             <div class="form-row">
@@ -496,11 +327,11 @@
             </div>
             <div class="form-row">
               <label for="barriers">예상 방해요인</label>
-              <textarea id="barriers" placeholder="피곤함, 불안, 갈망, 혼자 있음, 스마트폰 등"></textarea>
+              <textarea id="barriers" maxlength="600" placeholder="피곤함, 불안, 갈망, 혼자 있음, 스마트폰 등"></textarea>
             </div>
             <div class="form-row">
               <label for="smallVersion">30% 버전의 최소 행동</label>
-              <textarea id="smallVersion" placeholder="실천이 어려운 날에도 가능한 가장 작은 버전"></textarea>
+              <textarea id="smallVersion" maxlength="160" placeholder="실천이 어려운 날에도 가능한 가장 작은 버전"></textarea>
             </div>
             <div class="plain-card">
               <h3>좋은 실천행동 점검</h3>
@@ -589,6 +420,7 @@
             <div class="button-row">
               <button class="solid-btn" id="buildPreview" type="button">공유 미리보기</button>
               <button class="ghost-btn" id="downloadCsv" type="button">CSV 저장</button>
+              <button class="ghost-btn" id="verifyCsv" type="button">CSV 복원 점검</button>
               <button class="ghost-btn" id="shareFile" type="button">CSV 공유/메일</button>
             </div>
             <p class="small" id="shareInfo"></p>
@@ -615,7 +447,7 @@
             <p class="small">정직한 기록이 가능하려면 기록이 안전하다고 느껴져야 합니다. 이 기능은 강한 보안 시스템은 아니지만, 일상적인 노출을 줄이는 데 도움을 줍니다.</p>
             <div class="form-row">
               <label for="pinInput">PIN 설정 또는 변경</label>
-              <input id="pinInput" type="password" inputmode="numeric" placeholder="4자리 이상">
+              <input id="pinInput" type="password" inputmode="numeric" maxlength="32" placeholder="4자리 이상">
             </div>
             <button class="solid-btn full" id="savePin" type="button">PIN 저장</button>
             <p class="small" id="recoveryInfo"></p>
@@ -632,13 +464,19 @@
             <button class="ghost-btn full" id="saveNoRecordReminderTime" type="button">미기록 알림 시간 저장</button>
             <p class="small">알림 문구는 중립적으로 유지하세요. 예: “오늘의 관찰과 실천을 기록할 시간입니다.”</p>
             <p class="small">알림은 앱 설치 상태, 브라우저, 스마트폰 설정에 따라 작동이 제한될 수 있습니다.</p>
+            <div style="height:14px"></div>
+            <div class="plain-card">
+              <h3>숨긴 기록</h3>
+              <p class="small" id="hiddenRecordInfo">숨긴 기록이 없습니다.</p>
+              <button class="ghost-btn full" id="restoreHiddenRecords" type="button">숨긴 기록 모두 복원</button>
+            </div>
           </div>
           <div class="card">
             <h2>안전한 언어 설정</h2>
             <p class="small">민감한 문제행동 명칭은 사용자가 안전하게 느끼는 별칭으로 바꿀 수 있습니다. 이는 숨기기 위한 기능이 아니라 정직한 기록을 가능하게 하는 언어 설정입니다.</p>
             <div class="form-row">
               <label for="aliasInput">문제 행동 별칭</label>
-              <input id="aliasInput" placeholder="예: A행동, 자동반응, 관계 위험 신호">
+              <input id="aliasInput" maxlength="40" placeholder="예: A행동, 자동반응, 관계 위험 신호">
             </div>
             <button class="ghost-btn full" id="saveAlias" type="button">별칭 저장</button>
             <div style="height:12px"></div>
@@ -652,1108 +490,6 @@
   </div>
   <div class="toast" id="toast"></div>
 
-  <script>
-    const STORAGE_KEY = "maeumgoyo.observePractice.v1";
-    const PIN_KEY = "maeumgoyo.observePractice.pin";
-    const RECOVERY_KEY = "maeumgoyo.observePractice.recovery";
-    const AUTO_LOCK_MS = 5 * 60 * 1000;
-    const values = ["건강", "관계", "정직", "책임", "자기존중", "성장", "안정", "회복", "자유", "배움", "돌봄", "신뢰", "절제", "용기", "의미"];
-    const emotions = ["불안", "외로움", "분노", "공허함", "수치심", "우울", "초조", "지루함", "피곤함", "무기력"];
-    const bodies = ["가슴 답답함", "두근거림", "근육 긴장", "열감", "손 떨림", "시선 고정", "멍함", "얼어붙음", "호흡 짧음"];
-    const defaultBehaviors = ["도박", "성행동", "쇼핑", "음주", "게임", "스마트폰/인터넷", "회피/미루기", "분노표출", "과식", "자기비난", "무기력"];
-    const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-    const $ = (selector) => document.querySelector(selector);
-    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-    const state = {
-      view: "today",
-      observeMode: "저녁",
-      behavior: "",
-      behaviorAreas: [],
-      emotion: "",
-      emotionCustom: "",
-      body: [],
-      bodyCustom: "",
-      value: "",
-      customDays: [],
-      shareRange: 7,
-      shareMode: "counselorDetail",
-      redactions: { thoughts: true, details: true, private: true },
-      data: { observations: [], practices: [], logs: [], settings: { alias: "", noRecordReminderTime: "20:00" } },
-      lastActive: Date.now()
-    };
-
-    function todayISO() {
-      const now = new Date();
-      const offset = now.getTimezoneOffset() * 60000;
-      return new Date(now - offset).toISOString().slice(0, 10);
-    }
-    function dateObj(iso) { return new Date(iso + "T00:00:00"); }
-    function daysAgo(n) { const d = dateObj(todayISO()); d.setDate(d.getDate() - n); return d; }
-    function escapeCsv(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
-    function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-    }
-    function shortCustomValue(selector) {
-      return String($(selector)?.value || "").trim().slice(0, 10);
-    }
-    function compactList(values) {
-      return values.map(value => String(value || "").trim()).filter(Boolean);
-    }
-    function emotionText(record) {
-      return compactList([record.emotion, record.emotionCustom]).join(", ") || "-";
-    }
-    function bodyText(record) {
-      return compactList([...(Array.isArray(record.body) ? record.body : []), record.bodyCustom]).join(", ") || "-";
-    }
-    function selectorEscape(value) {
-      if (window.CSS && typeof CSS.escape === "function") return CSS.escape(value);
-      return String(value).replace(/["\\]/g, "\\$&");
-    }
-    function uid() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()); }
-    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data)); }
-    function loadData() {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-        state.data = {
-          observations: Array.isArray(parsed.observations) ? parsed.observations : [],
-          practices: Array.isArray(parsed.practices) ? parsed.practices : [],
-          logs: Array.isArray(parsed.logs) ? parsed.logs : [],
-          settings: { alias: "", noRecordReminderTime: "20:00", ...(parsed.settings || {}) }
-        };
-      } catch {
-        saveData();
-      }
-    }
-    function showToast(message) {
-      const toast = $("#toast");
-      toast.textContent = message;
-      toast.classList.add("show");
-      clearTimeout(showToast.timer);
-      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2200);
-    }
-    function setView(view) {
-      state.view = view;
-      $$(".view").forEach(v => v.classList.toggle("active", v.id === `${view}View`));
-      $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
-      renderAll();
-    }
-    function setChipGroup(containerId, items, key, activeValue = "") {
-      const oldBox = $(containerId);
-      const freshBox = oldBox.cloneNode(false);
-      oldBox.replaceWith(freshBox);
-      const box = $(containerId);
-      box.innerHTML = items.map((item, index) => `<button type="button" class="chip ${item === activeValue || (!activeValue && index === 0 && key === "behavior") ? "active" : ""}" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("");
-      box.addEventListener("click", (event) => {
-        const button = event.target.closest("button");
-        if (!button) return;
-        if (key === "body") {
-          button.classList.toggle("active");
-          const value = button.dataset.value;
-          if (state.body.includes(value)) state.body = state.body.filter(v => v !== value);
-          else state.body.push(value);
-          return;
-        }
-        $$("#" + box.id + " button").forEach(b => b.classList.remove("active"));
-        button.classList.add("active");
-        state[key] = button.dataset.value;
-      });
-    }
-    function setBehaviorGroup(items) {
-      const oldBox = $("#behaviorChips");
-      const freshBox = oldBox.cloneNode(false);
-      oldBox.replaceWith(freshBox);
-      const box = $("#behaviorChips");
-      const selected = new Set(state.behaviorAreas || []);
-      box.innerHTML = items.map(item => `
-        <label class="chip ${selected.has(item) ? "active" : ""}">
-          <input type="checkbox" value="${escapeHtml(item)}" ${selected.has(item) ? "checked" : ""}>
-          ${escapeHtml(item)}
-        </label>
-      `).join("");
-      box.addEventListener("change", () => {
-        state.behaviorAreas = $$("#behaviorChips input[type='checkbox']:checked").map(input => input.value);
-        $$("#behaviorChips .chip").forEach(label => {
-          const input = label.querySelector("input");
-          label.classList.toggle("active", Boolean(input && input.checked));
-        });
-      });
-    }
-    function initPickers() {
-      const alias = state.data.settings.alias || "";
-      const aliasItems = alias && !["도박", "성행동", "쇼핑"].includes(alias) ? [alias] : [];
-      const behaviorItems = ["도박", "성행동", ...aliasItems, ...defaultBehaviors.filter(v => !["도박", "성행동"].includes(v))];
-      setBehaviorGroup(behaviorItems);
-      setChipGroup("#emotionChips", emotions, "emotion");
-      setChipGroup("#bodyChips", bodies, "body");
-      setChipGroup("#valueChips", values, "value");
-      const oldDayBox = $("#weekdayChips");
-      const freshDayBox = oldDayBox.cloneNode(false);
-      oldDayBox.replaceWith(freshDayBox);
-      const dayBox = $("#weekdayChips");
-      dayBox.innerHTML = weekdays.map((d, i) => `<button type="button" class="chip" data-day="${i}">${d}</button>`).join("");
-      dayBox.addEventListener("click", (event) => {
-        const button = event.target.closest("button");
-        if (!button) return;
-        const day = Number(button.dataset.day);
-        button.classList.toggle("active");
-        if (state.customDays.includes(day)) state.customDays = state.customDays.filter(v => v !== day);
-        else state.customDays.push(day);
-      });
-    }
-    function bindSliders() {
-      [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"]].forEach(([input, label]) => {
-        $("#" + input).addEventListener("input", () => $("#" + label).textContent = $("#" + input).value);
-      });
-    }
-    function rangeRecords(items, field = "date") {
-      if (state.shareRange === "all") return items.slice();
-      const start = daysAgo(Number(state.shareRange) - 1);
-      return items.filter(item => dateObj(item[field]) >= start);
-    }
-    function isPracticeDue(practice, iso) {
-      const day = dateObj(iso).getDay();
-      if (practice.frequency === "daily") return true;
-      if (practice.frequency === "1week") return day === dateObj(practice.startDate || todayISO()).getDay();
-      if (practice.frequency === "3week") return [1, 3, 5].includes(day);
-      if (practice.frequency === "custom") return (practice.customDays || []).includes(day);
-      return true;
-    }
-    function activePractices() { return state.data.practices.filter(p => !p.archived); }
-    function splitBehaviorCustom(text) {
-      return String(text || "").split(/[,\n]/).map(value => value.trim()).filter(Boolean);
-    }
-    function selectedBehaviorAreas() {
-      const checked = $$("#behaviorChips input[type='checkbox']:checked").map(input => input.value);
-      return Array.from(new Set([...checked, ...splitBehaviorCustom($("#behaviorCustom").value)]));
-    }
-    function behaviorAreasFromRecord(record) {
-      if (Array.isArray(record.behaviorAreas) && record.behaviorAreas.length) return record.behaviorAreas;
-      if (record.behavior) return [record.behavior];
-      return [];
-    }
-    function behaviorAreaText(record) {
-      const areas = behaviorAreasFromRecord(record);
-      return areas.length ? areas.join(", ") : "-";
-    }
-    function behaviorCustomText(record) {
-      return Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.join(", ") : "";
-    }
-    function targetCount(practice) {
-      return Math.max(1, Math.min(12, Number(practice.targetCount || 1) || 1));
-    }
-    function logsFor(practiceId, iso) {
-      return state.data.logs
-        .filter(l => l.practiceId === practiceId && l.date === iso)
-        .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
-    }
-    function logFor(practiceId, iso) { return logsFor(practiceId, iso)[0]; }
-    function recentObservations(days = 7) { return state.data.observations.filter(o => dateObj(o.date) >= daysAgo(days - 1)); }
-    function recentLogs(days = 7) { return state.data.logs.filter(l => dateObj(l.date) >= daysAgo(days - 1)); }
-    function avg(items, getter) { return items.length ? items.reduce((sum, item) => sum + getter(item), 0) / items.length : 0; }
-    function averageDailyLogScore(logs) {
-      const groups = {};
-      logs.forEach(log => {
-        const key = `${log.practiceId}|${log.date}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(log);
-      });
-      const dayPracticeAverages = Object.values(groups).map(group => avg(group, item => Number(item.score)));
-      return avg(dayPracticeAverages, value => value);
-    }
-    function observationIntensity(o) { return (Number(o.thoughtScore) + Number(o.emotionScore) + Number(o.urgeScore)) / 3; }
-    function updateMetrics() {
-      const today = todayISO();
-      const todayObs = state.data.observations.filter(o => o.date === today);
-      const weekObs = recentObservations(7);
-      const weekLogs = recentLogs(7);
-      let dueCount = 0;
-      let achievedCount = 0;
-      activePractices().forEach(p => {
-        for (let i = 0; i < 7; i++) {
-          const d = daysAgo(i).toISOString().slice(0, 10);
-          if (isPracticeDue(p, d)) {
-            const target = targetCount(p);
-            dueCount += target;
-            achievedCount += Math.min(logsFor(p.id, d).length, target);
-          }
-        }
-      });
-      const restart = weekLogs.filter(l => Number(l.score) > 0).filter(l => {
-        const prev = state.data.logs
-          .filter(x => x.practiceId === l.practiceId && dateObj(x.date) < dateObj(l.date))
-          .sort((a,b) => b.date.localeCompare(a.date))[0];
-        return prev && Number(prev.score) === 0;
-      }).length;
-      $("#todayLabel").textContent = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
-      $("#todayObserveCount").textContent = todayObs.length;
-      $("#weekIntensity").textContent = avg(weekObs, observationIntensity).toFixed(1);
-      $("#riskCount").textContent = weekObs.filter(o => Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4).length;
-      $("#activePracticeCount").textContent = activePractices().length;
-      $("#practiceRate").textContent = dueCount ? `${Math.round(achievedCount / dueCount * 100)}%` : "0%";
-      $("#restartDays").textContent = restart;
-    }
-    function renderTodayTaskSummary() {
-      const box = $("#todayTaskSummary");
-      if (!box) return;
-      const today = todayISO();
-      const observationCount = state.data.observations.filter(o => o.date === today).length;
-      let dueTargets = 0;
-      let loggedCount = 0;
-      activePractices().forEach(practice => {
-        if (!isPracticeDue(practice, today)) return;
-        const target = targetCount(practice);
-        dueTargets += target;
-        loggedCount += Math.min(logsFor(practice.id, today).length, target);
-      });
-      const remaining = Math.max(0, dueTargets - loggedCount);
-      box.innerHTML = `
-        <h3>오늘 할 일</h3>
-        <p class="small">관찰 기록: ${observationCount > 0 ? `완료 ${observationCount}건` : "아직 없음"}</p>
-        <p class="small">실천 기록: ${dueTargets ? `${loggedCount}/${dueTargets}회` : "오늘 예정된 실천 없음"}</p>
-        <p class="small">오늘 남은 실천: ${remaining}회</p>
-        <p class="small">미기록 알림: ${noRecordReminderTime()}</p>
-      `;
-    }
-    function renderToday() {
-      updateMetrics();
-      renderNotificationStatus();
-      renderTodayTaskSummary();
-      const today = todayISO();
-      const obs = state.data.observations.filter(o => o.date === today).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
-      $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
-      const practices = activePractices();
-      $("#todayPracticeList").innerHTML = practices.length ? practices.map(p => renderPracticeToday(p)).join("") : `<div class="empty">아직 설정된 작은 실천행동이 없습니다.</div>`;
-      bindTodayLogButtons();
-    }
-    function renderObservationItem(o) {
-      const risk = Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4;
-      return `<div class="record-item">
-        <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
-        <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
-        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 행동수준 ${o.actionLevel}/5</div>
-        ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${escapeHtml(o.valueActionDraft)}</div>` : ""}
-      </div>`;
-    }
-    function renderPracticeToday(p) {
-      const today = todayISO();
-      const due = isPracticeDue(p, today);
-      const todayLogs = logsFor(p.id, today);
-      const log = todayLogs[0];
-      const target = targetCount(p);
-      const todayAverage = averageDailyLogScore(todayLogs);
-      const logHistory = todayLogs.length ? `
-        <div style="height:8px"></div>
-        <div class="small"><strong>오늘 기록 ${todayLogs.length}/${target}회 · 하루 평균 ${todayAverage.toFixed(1)}점</strong></div>
-        <div class="list">
-          ${todayLogs.slice(0, 4).map(item => `<div class="plain-card small">수행도 ${escapeHtml(item.score)}/10 · ${escapeHtml(formatSavedTime(item.updatedAt))}${item.note ? `<br>${escapeHtml(item.note)}` : ""}</div>`).join("")}
-        </div>
-      ` : "";
-      return `<div class="record-item">
-        <div class="record-top"><strong>${escapeHtml(p.value || "가치")} · ${escapeHtml(p.name)}</strong><span class="tag ${due ? "" : "warn"}">${due ? "오늘 실천일" : "선택 기록"}</span></div>
-        <div class="small">오늘 약속: ${target}회 · 현재 ${todayLogs.length}회 기록</div>
-        <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
-        <div style="height:8px"></div>
-        <div class="slider-card">
-          <div class="slider-top"><span>오늘 수행도</span><span class="slider-value" id="todayLogValue-${escapeHtml(p.id)}">${log ? escapeHtml(log.score) : 0}</span></div>
-          <input data-practice-score="${escapeHtml(p.id)}" type="range" min="0" max="10" value="${log ? escapeHtml(log.score) : 0}">
-        </div>
-        <textarea data-practice-note="${escapeHtml(p.id)}" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
-        <div style="height:8px"></div>
-        <button class="solid-btn full" data-save-log="${escapeHtml(p.id)}" type="button">오늘 실천 추가 기록</button>
-        ${logHistory}
-      </div>`;
-    }
-    function bindTodayLogButtons() {
-      $$("[data-practice-score]").forEach(input => {
-        input.addEventListener("input", () => {
-          const id = input.dataset.practiceScore;
-          $(`#todayLogValue-${selectorEscape(id)}`).textContent = input.value;
-        });
-      });
-      $$("[data-save-log]").forEach(button => {
-        button.addEventListener("click", () => {
-          const id = button.dataset.saveLog;
-          const escapedId = selectorEscape(id);
-          const score = Number($(`[data-practice-score="${escapedId}"]`).value);
-          const note = $(`[data-practice-note="${escapedId}"]`).value.trim();
-          const entry = { id: uid(), practiceId: id, date: todayISO(), score, note, updatedAt: new Date().toISOString() };
-          state.data.logs.push(entry);
-          saveData();
-          renderAll();
-          showToast("오늘의 실천 기록을 저장했습니다.");
-        });
-      });
-    }
-    function renderObserveList() {
-      const records = state.data.observations.slice().sort((a,b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12);
-      $("#observeList").innerHTML = records.length ? records.map(renderObservationItem).join("") : `<div class="empty">저장된 관찰 기록이 없습니다.</div>`;
-    }
-    function renderPracticeList() {
-      const practices = state.data.practices.slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
-      $("#practiceList").innerHTML = practices.length ? practices.map(p => {
-        const logs = state.data.logs.filter(l => l.practiceId === p.id);
-        return `<div class="record-item">
-          <div class="record-top"><strong>${escapeHtml(p.value || "가치")} · ${escapeHtml(p.name)}</strong><span class="tag">${escapeHtml(frequencyLabel(p.frequency))}</span></div>
-          <div class="small">이유: ${escapeHtml(p.reason || "-")}</div>
-          <div class="small">약속: ${escapeHtml(frequencyLabel(p.frequency))} · 실천일마다 ${targetCount(p)}회</div>
-          <div class="small">알림: ${escapeHtml(reminderLabel(p))}</div>
-          <div class="small">방해요인: ${escapeHtml(p.barriers || "-")}</div>
-          <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
-          <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)}</div>
-          <div style="height:8px"></div>
-          <div class="button-row">
-            <button class="ghost-btn" type="button" data-edit-practice="${escapeHtml(p.id)}">수정</button>
-            <button class="danger-btn" type="button" data-archive-practice="${escapeHtml(p.id)}">${p.archived ? "복원" : "보관"}</button>
-          </div>
-        </div>`;
-      }).join("") : `<div class="empty">가치 기반 작은 실천행동을 1개 이상 설정해보세요.</div>`;
-      $$("[data-edit-practice]").forEach(b => b.addEventListener("click", () => editPractice(b.dataset.editPractice)));
-      $$("[data-archive-practice]").forEach(b => b.addEventListener("click", () => {
-        const p = state.data.practices.find(x => x.id === b.dataset.archivePractice);
-        p.archived = !p.archived;
-        p.updatedAt = new Date().toISOString();
-        saveData();
-        renderAll();
-      }));
-    }
-    function renderPracticeLogList() {
-      const box = $("#practiceLogList");
-      if (!box) return;
-      const practices = activePractices();
-      box.innerHTML = practices.length ? practices.map(p => renderPracticeToday(p)).join("") : `<div class="empty">먼저 가치 기반 작은 실천행동을 설정해주세요.</div>`;
-      bindTodayLogButtons();
-    }
-    function frequencyLabel(value) {
-      return { daily: "매일", "3week": "주 3일", "1week": "주 1일", custom: "맞춤 요일" }[value] || value;
-    }
-    function reminderTimesForPractice(practice) {
-      if ((practice.reminderMode || "morning") === "none") return [];
-      if ((practice.reminderMode || "morning") === "times") {
-        return String(practice.reminderTimes || "")
-          .split(",")
-          .map(v => v.trim())
-          .filter(v => /^\d{1,2}:\d{2}$/.test(v))
-          .map(v => {
-            const [h, m] = v.split(":");
-            return `${String(Number(h)).padStart(2, "0")}:${m}`;
-          });
-      }
-      return ["08:00"];
-    }
-    function reminderLabel(practice) {
-      if ((practice.reminderMode || "morning") === "none") return "사용 안 함";
-      const times = reminderTimesForPractice(practice);
-      if ((practice.reminderMode || "morning") === "times") return times.length ? times.join(", ") : "시간 미설정";
-      return "매일 아침 하루 일정 알림";
-    }
-    function notify(message) {
-      if (!("Notification" in window) || Notification.permission !== "granted") return;
-      navigator.serviceWorker?.ready
-        .then(reg => reg.showNotification("마음고요 관찰과 실천", { body: message, icon: "./app-icon-192.png" }))
-        .catch(() => new Notification("마음고요 관찰과 실천", { body: message, icon: "./app-icon-192.png" }));
-    }
-    function noRecordReminderTime() {
-      return state.data.settings.noRecordReminderTime || "20:00";
-    }
-    function renderNotificationStatus() {
-      const box = $("#notificationStatus");
-      if (!box) return;
-      if (!("Notification" in window)) {
-        box.textContent = "이 브라우저는 기록 알림을 지원하지 않습니다.";
-        return;
-      }
-      if (Notification.permission !== "granted") {
-        box.textContent = "알림이 꺼져 있어 기록 알림을 받을 수 없습니다.";
-        return;
-      }
-      box.textContent = `알림이 켜져 있습니다. 미기록 알림 시간: ${noRecordReminderTime()}`;
-    }
-    function checkPracticeReminders() {
-      if (!("Notification" in window) || Notification.permission !== "granted") return;
-      const now = new Date();
-      const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const today = todayISO();
-      activePractices().forEach(practice => {
-        if (!isPracticeDue(practice, today)) return;
-        if (!reminderTimesForPractice(practice).includes(time)) return;
-        const key = `maeumgoyo.reminded.${practice.id}.${today}.${time}`;
-        if (localStorage.getItem(key)) return;
-        localStorage.setItem(key, "1");
-        notify(`${practice.name} · 오늘 약속 ${targetCount(practice)}회입니다.`);
-      });
-    }
-    function checkNoRecordReminder() {
-      if (!("Notification" in window) || Notification.permission !== "granted") return;
-      const now = new Date();
-      const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      if (time !== noRecordReminderTime()) return;
-      const today = todayISO();
-      const hasObservation = state.data.observations.some(record => record.date === today);
-      const hasPracticeLog = state.data.logs.some(record => record.date === today);
-      if (hasObservation || hasPracticeLog) return;
-      const key = `maeumgoyo.noRecordReminder.${today}`;
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, "1");
-      notify("오늘 아직 관찰 기록과 실천 기록이 없습니다. 짧게라도 오늘의 마음과 작은 실천을 남겨보세요.");
-    }
-    function renderTrend() {
-      drawTrend();
-      $("#patternSummary").textContent = buildSummary("counselorSummary");
-    }
-    function drawTrend() {
-      const canvas = $("#trendCanvas");
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-      const ctx = canvas.getContext("2d");
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      const pad = 38;
-      const width = rect.width - pad * 2;
-      const height = rect.height - pad * 2;
-      ctx.strokeStyle = "#d9e2dd";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 5; i++) {
-        const y = pad + height - (i / 5) * height;
-        ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + width, y); ctx.stroke();
-        ctx.fillStyle = "#64736d"; ctx.font = "12px sans-serif"; ctx.fillText(String(i * 2), 8, y + 4);
-      }
-      const days = Array.from({ length: 14 }, (_, i) => {
-        const d = daysAgo(13 - i);
-        return d.toISOString().slice(0, 10);
-      });
-      const obsSeries = days.map(day => avg(state.data.observations.filter(o => o.date === day), observationIntensity));
-      const logSeries = days.map(day => averageDailyLogScore(state.data.logs.filter(l => l.date === day)));
-      const actionSeries = days.map(day => avg(state.data.observations.filter(o => o.date === day), o => Number(o.actionLevel) * 2));
-      drawLine(ctx, obsSeries, "#2f7567", pad, width, height);
-      drawLine(ctx, logSeries, "#c1842f", pad, width, height);
-      drawLine(ctx, actionSeries, "#b64a45", pad, width, height);
-      ctx.fillStyle = "#1d2924"; ctx.font = "12px sans-serif";
-      ctx.fillText("관찰강도", pad, 16);
-      ctx.fillStyle = "#c1842f"; ctx.fillText("실천수행도", pad + 72, 16);
-      ctx.fillStyle = "#b64a45"; ctx.fillText("행동수준", pad + 158, 16);
-    }
-    function drawLine(ctx, values, color, pad, width, height) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = pad + (values.length === 1 ? 0 : i / (values.length - 1) * width);
-        const y = pad + height - (Math.max(0, Math.min(10, v)) / 10) * height;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.fillStyle = color;
-      values.forEach((v, i) => {
-        const x = pad + (values.length === 1 ? 0 : i / (values.length - 1) * width);
-        const y = pad + height - (Math.max(0, Math.min(10, v)) / 10) * height;
-        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
-      });
-    }
-    function buildSummary(mode = state.shareMode) {
-      const observations = rangeRecords(state.data.observations);
-      const logs = rangeRecords(state.data.logs);
-      const practices = state.data.practices;
-      const highRisk = observations.filter(o => Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4);
-      const resisted = observations.filter(o => Number(o.urgeScore) >= 5 && Number(o.actionLevel) <= 1);
-      const valueCounts = {};
-      observations.forEach(o => { if (o.value) valueCounts[o.value] = (valueCounts[o.value] || 0) + 1; });
-      practices.forEach(p => { if (p.value) valueCounts[p.value] = (valueCounts[p.value] || 0) + 1; });
-      const topValues = Object.entries(valueCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(v => v[0]).join(", ") || "아직 없음";
-      const barrierText = practices.map(p => p.barriers).filter(Boolean).slice(0, 4).join(" / ") || "아직 없음";
-      const helpful = observations.map(o => o.coping).filter(Boolean).slice(0, 4).join(" / ") || "아직 없음";
-      const keySummary = [
-        "핵심 요약:",
-        `- 이번 기간 가장 높았던 위험 신호: ${highRisk.length}건`,
-        `- 가장 많이 선택한 가치: ${topValues}`,
-        `- 실천행동 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
-        `- 다음 상담에서 조정할 점: 30% 버전, 고위험 시간대, 반복 방해요인`
-      ];
-      if (mode === "family") {
-        return [
-          "가족/배우자 회복 과정 요약",
-          "",
-          `기록 기간: ${rangeLabel()}`,
-          `관찰한 날/기록 수: ${new Set(observations.map(o => o.date)).size}일 / ${observations.length}건`,
-          `위험 신호를 알아차린 횟수: ${highRisk.length}건`,
-          `충동이 있었지만 문제 행동으로 이어지지 않은 기록: ${resisted.length}건`,
-          `가치 기반 실천 기록: ${logs.length}건`,
-          `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
-          `주요 가치: ${topValues}`,
-          "",
-          "가족이 도울 수 있는 방식: 비난보다 실천을 이어갈 환경을 함께 만들고, 구체적 원자료 공개보다 회복 노력과 다음 행동을 확인합니다."
-        ].join("\n");
-      }
-      return [
-        mode === "counselorDetail" ? "상담자 상세 공유 요약" : "상담자 요약 공유",
-        "",
-        ...keySummary,
-        "",
-        `기록 기간: ${rangeLabel()}`,
-        `관찰 기록: ${observations.length}건`,
-        `실천 기록: ${logs.length}건`,
-        `주요 가치: ${topValues}`,
-        `사고·감정·충동 평균: ${avg(observations, observationIntensity).toFixed(1)}점`,
-        `문제 행동 수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
-        `고위험 신호: ${highRisk.length}건`,
-        `충동이 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
-        `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
-        `반복 방해요인: ${barrierText}`,
-        `도움이 된 대처행동: ${helpful}`,
-        "",
-        "다음 상담 질문:",
-        "1. 실천행동의 30% 버전이 충분히 작았는지 점검하기",
-        "2. 고위험 시간대와 방해요인을 더 구체적으로 조정하기",
-        "3. 선택한 가치가 실제 행동으로 이어지는지 확인하기"
-      ].join("\n");
-    }
-    function rangeLabel() {
-      if (state.shareRange === "all") return "전체";
-      return `최근 ${Number(state.shareRange) === 7 ? "1주" : Number(state.shareRange) === 14 ? "2주" : "4주"}`;
-    }
-    function buildCsv() {
-      const summary = buildSummary(state.shareMode);
-      const observations = rangeRecords(state.data.observations);
-      const logs = rangeRecords(state.data.logs);
-      const header = [
-        "schema_version", "record_type", "id", "date", "updated_at", "time_slot",
-        "behavior_areas", "behavior_custom_areas", "emotion", "emotion_custom", "body_reactions", "body_custom",
-        "situation", "thought_text", "thought_score", "emotion_score", "urge_score", "action_level",
-        "coping", "coping_score", "gratitude", "insight", "value", "value_action_draft",
-        "practice_id", "practice_value", "practice_name", "practice_reason", "frequency", "target_count",
-        "custom_days", "reminder_mode", "reminder_times", "start_date", "barriers", "small_version",
-        "practice_score", "practice_note", "archived", "share_mode", "range_label"
-      ];
-      const rows = [header];
-      const redactDetails = state.shareMode === "family" || state.redactions.details;
-      const redactThoughts = state.shareMode === "family" || state.redactions.thoughts;
-      const redactPrivate = state.shareMode === "family" || state.redactions.private;
-
-      observations.forEach(o => {
-        rows.push([
-          "maeumgoyo_v2", "observation", o.id || "", o.date || "", o.updatedAt || "", o.mode || "",
-          redactDetails ? "민감 내용 제외" : behaviorAreaText(o),
-          redactDetails ? "민감 내용 제외" : behaviorCustomText(o),
-          o.emotion || "", o.emotionCustom || "", Array.isArray(o.body) ? o.body.join("; ") : "", o.bodyCustom || "",
-          redactDetails ? "민감 내용 제외" : (o.situation || ""),
-          redactThoughts ? "민감 내용 제외" : (o.thoughtText || ""),
-          o.thoughtScore ?? 0, o.emotionScore ?? 0, o.urgeScore ?? 0, o.actionLevel ?? 0,
-          o.coping || "", o.copingScore ?? 0, o.gratitude || "",
-          redactPrivate ? "민감 내용 제외" : (o.insight || ""),
-          o.value || "", o.valueActionDraft || "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-          state.shareMode, rangeLabel()
-        ]);
-      });
-
-      state.data.practices.forEach(p => {
-        rows.push([
-          "maeumgoyo_v2", "practice_definition", p.id || "", "", p.updatedAt || "", "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-          p.value || "", "",
-          p.id || "", p.value || "", p.name || "", p.reason || "", p.frequency || "daily", targetCount(p),
-          Array.isArray(p.customDays) ? p.customDays.join(";") : "", p.reminderMode || "morning", p.reminderTimes || "",
-          p.startDate || "", p.barriers || "", p.smallVersion || "",
-          "", "", p.archived ? "1" : "0", state.shareMode, rangeLabel()
-        ]);
-      });
-
-      logs.forEach(l => {
-        const p = state.data.practices.find(x => x.id === l.practiceId) || {};
-        rows.push([
-          "maeumgoyo_v2", "practice_log", l.id || "", l.date || "", l.updatedAt || "", "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-          p.value || "", "",
-          l.practiceId || "", p.value || "", p.name || "", "", "", targetCount(p),
-          "", "", "", "", "", "",
-          l.score ?? 0, redactPrivate ? "민감 내용 제외" : (l.note || ""), "", state.shareMode, rangeLabel()
-        ]);
-      });
-
-      const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
-      const nameMode = state.shareMode === "family" ? "가족회복요약" : state.shareMode === "counselorSummary" ? "상담자요약" : "상담자상세";
-      return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
-    }
-    function parseCsv(text) {
-      const rows = [];
-      let row = [];
-      let cell = "";
-      let quoted = false;
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const next = text[i + 1];
-        if (quoted) {
-          if (char === '"' && next === '"') {
-            cell += '"';
-            i++;
-          } else if (char === '"') {
-            quoted = false;
-          } else {
-            cell += char;
-          }
-        } else if (char === '"') {
-          quoted = true;
-        } else if (char === ",") {
-          row.push(cell);
-          cell = "";
-        } else if (char === "\n") {
-          row.push(cell);
-          rows.push(row);
-          row = [];
-          cell = "";
-        } else if (char !== "\r") {
-          cell += char;
-        }
-      }
-      row.push(cell);
-      rows.push(row);
-      return rows.filter(r => r.some(c => String(c).trim()));
-    }
-    function importCsvFile(file) {
-      if (!file) {
-        showToast("가져올 CSV 파일을 선택해주세요.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const rows = parseCsv(String(reader.result || "").replace(/^\ufeff/, ""));
-        const header = rows.shift() || [];
-        if (header[0] !== "schema_version" || header[1] !== "record_type") {
-          $("#importInfo").textContent = "새 CSV 구조(maeumgoyo_v2)로 저장한 파일만 가져올 수 있습니다.";
-          return;
-        }
-        const index = {};
-        header.forEach((name, i) => index[name] = i);
-        const cell = (row, name) => row[index[name]] ?? "";
-        const before = {
-          observations: state.data.observations.length,
-          practices: state.data.practices.length,
-          logs: state.data.logs.length
-        };
-        rows.forEach(row => {
-          if (cell(row, "schema_version") !== "maeumgoyo_v2") return;
-          const type = cell(row, "record_type");
-          if (type === "observation") {
-            const id = cell(row, "id") || uid();
-            if (state.data.observations.some(o => o.id === id)) return;
-            const behaviorAreas = splitBehaviorCustom(cell(row, "behavior_areas"));
-            const behaviorCustomAreas = splitBehaviorCustom(cell(row, "behavior_custom_areas"));
-            state.data.observations.push({
-              id,
-              date: cell(row, "date") || todayISO(),
-              mode: cell(row, "time_slot") || "가져오기",
-              behavior: behaviorAreas.join(", "),
-              behaviorAreas,
-              behaviorCustomAreas,
-              situation: cell(row, "situation") === "민감 내용 제외" ? "" : cell(row, "situation"),
-              thoughtText: cell(row, "thought_text") === "민감 내용 제외" ? "" : cell(row, "thought_text"),
-              emotion: cell(row, "emotion"),
-              emotionCustom: cell(row, "emotion_custom"),
-              body: splitBehaviorCustom(cell(row, "body_reactions").replace(/;/g, ",")),
-              bodyCustom: cell(row, "body_custom"),
-              thoughtScore: Number(cell(row, "thought_score")) || 0,
-              emotionScore: Number(cell(row, "emotion_score")) || 0,
-              urgeScore: Number(cell(row, "urge_score")) || 0,
-              actionLevel: Number(cell(row, "action_level")) || 0,
-              coping: cell(row, "coping"),
-              copingScore: Number(cell(row, "coping_score")) || 0,
-              gratitude: cell(row, "gratitude"),
-              insight: cell(row, "insight") === "민감 내용 제외" ? "" : cell(row, "insight"),
-              value: cell(row, "value"),
-              valueActionDraft: cell(row, "value_action_draft"),
-              updatedAt: cell(row, "updated_at") || new Date().toISOString()
-            });
-          }
-          if (type === "practice_definition") {
-            const id = cell(row, "practice_id") || cell(row, "id") || uid();
-            if (state.data.practices.some(p => p.id === id)) return;
-            state.data.practices.push({
-              id,
-              value: cell(row, "practice_value") || cell(row, "value"),
-              name: cell(row, "practice_name"),
-              reason: cell(row, "practice_reason"),
-              frequency: cell(row, "frequency") || "daily",
-              customDays: String(cell(row, "custom_days") || "").split(";").map(Number).filter(n => !Number.isNaN(n)),
-              targetCount: Number(cell(row, "target_count")) || 1,
-              reminderMode: cell(row, "reminder_mode") || "morning",
-              reminderTimes: cell(row, "reminder_times"),
-              startDate: cell(row, "start_date") || todayISO(),
-              barriers: cell(row, "barriers"),
-              smallVersion: cell(row, "small_version"),
-              archived: cell(row, "archived") === "1",
-              updatedAt: cell(row, "updated_at") || new Date().toISOString()
-            });
-          }
-          if (type === "practice_log") {
-            const id = cell(row, "id") || uid();
-            if (state.data.logs.some(log => log.id === id)) return;
-            const practiceId = cell(row, "practice_id");
-            if (practiceId && !state.data.practices.some(p => p.id === practiceId)) {
-              state.data.practices.push({
-                id: practiceId,
-                value: cell(row, "practice_value"),
-                name: cell(row, "practice_name"),
-                reason: "CSV에서 가져온 실천행동",
-                frequency: "daily",
-                customDays: [],
-                targetCount: Number(cell(row, "target_count")) || 1,
-                reminderMode: "morning",
-                reminderTimes: "",
-                startDate: cell(row, "date") || todayISO(),
-                barriers: "",
-                smallVersion: "",
-                archived: false,
-                updatedAt: new Date().toISOString()
-              });
-            }
-            state.data.logs.push({
-              id,
-              practiceId,
-              date: cell(row, "date") || todayISO(),
-              score: Number(cell(row, "practice_score")) || 0,
-              note: cell(row, "practice_note") === "민감 내용 제외" ? "" : cell(row, "practice_note"),
-              updatedAt: cell(row, "updated_at") || new Date().toISOString()
-            });
-          }
-        });
-        saveData();
-        renderAll();
-        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 ${state.data.observations.length - before.observations}개, 실천행동 ${state.data.practices.length - before.practices}개, 수행도 ${state.data.logs.length - before.logs}개`;
-        showToast("CSV를 가져왔습니다.");
-      };
-      reader.readAsText(file, "utf-8");
-    }
-    function downloadBlob(blob, fileName) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-    function observeSubmit(event) {
-      event.preventDefault();
-      const value = ($("#valueCustom").value.trim() || state.value || "");
-      const behaviorAreas = selectedBehaviorAreas();
-      const behaviorCustomAreas = splitBehaviorCustom($("#behaviorCustom").value);
-      const behavior = behaviorAreas.join(", ");
-      const id = $("#observeId").value || uid();
-      const entry = {
-        id,
-        date: $("#observeDate").value || todayISO(),
-        mode: state.observeMode,
-        behavior,
-        behaviorAreas,
-        behaviorCustomAreas,
-        situation: $("#situation").value.trim(),
-        thoughtText: $("#thoughtText").value.trim(),
-        emotion: state.emotion,
-        emotionCustom: shortCustomValue("#emotionCustom"),
-        body: state.body.slice(),
-        bodyCustom: shortCustomValue("#bodyCustom"),
-        thoughtScore: Number($("#thoughtScore").value),
-        emotionScore: Number($("#emotionScore").value),
-        urgeScore: Number($("#urgeScore").value),
-        actionLevel: Number($("#actionLevel").value),
-        coping: $("#coping").value.trim(),
-        copingScore: Number($("#copingScore").value),
-        gratitude: $("#gratitude").value.trim(),
-        insight: $("#insight").value.trim(),
-        value,
-        valueActionDraft: $("#valueActionDraft").value.trim(),
-        updatedAt: new Date().toISOString()
-      };
-      const index = state.data.observations.findIndex(o => o.id === id);
-      if (index >= 0) state.data.observations[index] = entry;
-      else state.data.observations.push(entry);
-      saveData();
-      $("#observeForm").reset();
-      resetObserveDefaults();
-      renderAll();
-      showToast("관찰 기록을 저장했습니다.");
-    }
-    function resetObserveDefaults() {
-      $("#observeDate").value = todayISO();
-      state.observeMode = "저녁";
-      state.behavior = "";
-      state.behaviorAreas = [];
-      state.emotion = "";
-      state.emotionCustom = "";
-      state.body = [];
-      state.bodyCustom = "";
-      state.value = "";
-      ["thoughtScore","emotionScore","urgeScore","actionLevel","copingScore"].forEach(id => {
-        $("#" + id).value = 0;
-        $("#" + id + "Value").textContent = "0";
-      });
-      initPickers();
-    }
-    function practiceSubmit(event) {
-      event.preventDefault();
-      const id = $("#practiceId").value || uid();
-      const entry = {
-        id,
-        value: $("#practiceValue").value.trim(),
-        name: $("#practiceName").value.trim(),
-        reason: $("#practiceReason").value.trim(),
-        frequency: $("#frequency").value,
-        customDays: state.customDays.slice(),
-        targetCount: Math.max(1, Math.min(12, Number($("#targetCount").value) || 1)),
-        reminderMode: $("#reminderMode").value,
-        reminderTimes: $("#reminderTimes").value.trim(),
-        startDate: $("#practiceStart").value || todayISO(),
-        barriers: $("#barriers").value.trim(),
-        smallVersion: $("#smallVersion").value.trim(),
-        archived: false,
-        updatedAt: new Date().toISOString()
-      };
-      if (!entry.value || !entry.name) {
-        showToast("가치와 실천행동을 입력해주세요.");
-        return;
-      }
-      if (!entry.smallVersion && !confirm("30% 버전의 최소 행동이 비어 있습니다. 기분이 좋지 않은 날에도 이어갈 수 있도록 최소 행동을 정하는 것을 권장합니다. 그래도 저장할까요?")) {
-        return;
-      }
-      const index = state.data.practices.findIndex(p => p.id === id);
-      if (index >= 0) state.data.practices[index] = { ...state.data.practices[index], ...entry };
-      else state.data.practices.push(entry);
-      saveData();
-      clearPracticeForm();
-      renderAll();
-      showToast("작은 실천행동을 저장했습니다.");
-    }
-    function editPractice(id) {
-      const p = state.data.practices.find(x => x.id === id);
-      if (!p) return;
-      $("#practiceId").value = p.id;
-      $("#practiceValue").value = p.value || "";
-      $("#practiceName").value = p.name || "";
-      $("#practiceReason").value = p.reason || "";
-      $("#frequency").value = p.frequency || "daily";
-      $("#targetCount").value = targetCount(p);
-      $("#reminderMode").value = p.reminderMode || "morning";
-      $("#reminderTimes").value = p.reminderTimes || "";
-      $("#practiceStart").value = p.startDate || todayISO();
-      $("#barriers").value = p.barriers || "";
-      $("#smallVersion").value = p.smallVersion || "";
-      state.customDays = p.customDays || [];
-      $$("#weekdayChips button").forEach(b => b.classList.toggle("active", state.customDays.includes(Number(b.dataset.day))));
-      $("#customDaysRow").style.display = $("#frequency").value === "custom" ? "block" : "none";
-      $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none";
-      setView("practice");
-    }
-    function clearPracticeForm() {
-      $("#practiceForm").reset();
-      $("#practiceId").value = "";
-      $("#practiceStart").value = todayISO();
-      $("#targetCount").value = 1;
-      $("#reminderMode").value = "morning";
-      $("#reminderTimes").value = "";
-      state.customDays = [];
-      $$("#weekdayChips button").forEach(b => b.classList.remove("active"));
-      $("#customDaysRow").style.display = "none";
-      $("#reminderTimesRow").style.display = "none";
-    }
-    function sendObservationToPractice() {
-      const value = $("#valueCustom").value.trim() || state.value;
-      const action = $("#valueActionDraft").value.trim();
-      if (!value && !action) {
-        showToast("먼저 가치와 작은 행동 초안을 입력해주세요.");
-        return;
-      }
-      $("#practiceValue").value = value;
-      $("#practiceName").value = action;
-      $("#practiceStart").value = todayISO();
-      setView("practice");
-      showToast("가치와 행동 초안을 실천 설정으로 옮겼습니다.");
-    }
-    function renderSharePreview() {
-      $("#sharePreview").textContent = buildSummary(state.shareMode);
-    }
-    function renderAll() {
-      if (state.view === "today") renderToday();
-      renderObserveList();
-      renderPracticeLogList();
-      renderPracticeList();
-      if (state.view === "trend") renderTrend();
-      if (state.view === "share") renderSharePreview();
-    }
-    function checkLock() {
-      const pin = localStorage.getItem(PIN_KEY);
-      if (pin) $("#lockScreen").classList.add("active");
-    }
-    function unlock() {
-      const pin = localStorage.getItem(PIN_KEY);
-      const recovery = localStorage.getItem(RECOVERY_KEY);
-      if ($("#unlockPin").value === pin || (recovery && $("#unlockPin").value === recovery)) {
-        $("#lockScreen").classList.remove("active");
-        $("#unlockPin").value = "";
-        $("#unlockMessage").textContent = "";
-      } else {
-        $("#unlockMessage").textContent = "PIN이 맞지 않습니다.";
-      }
-    }
-    function generateRecoveryCode() {
-      if (crypto.getRandomValues) {
-        return Array.from(crypto.getRandomValues(new Uint32Array(2)))
-          .map(n => n.toString(36).slice(0, 4).toUpperCase())
-          .join("-");
-      }
-      return `${Math.random().toString(36).slice(2, 6)}-${Date.now().toString(36).slice(-4)}`.toUpperCase();
-    }
-    async function applyAppUpdate() {
-      try {
-        if ("serviceWorker" in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(reg => reg.unregister()));
-        }
-        if ("caches" in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(key => caches.delete(key)));
-        }
-      } finally {
-        window.location.reload();
-      }
-    }
-    function resetLockedApp() {
-      if (!confirm("PIN을 잊은 경우 기록 보호를 위해 모든 기록과 PIN을 삭제한 뒤 초기화합니다. 계속할까요?")) return;
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(PIN_KEY);
-      localStorage.removeItem(RECOVERY_KEY);
-      window.location.reload();
-    }
-    function touchActivity() { state.lastActive = Date.now(); }
-    function setupEvents() {
-      $$(".tab").forEach(tab => tab.addEventListener("click", () => setView(tab.dataset.view)));
-      $$("[data-jump]").forEach(b => b.addEventListener("click", () => setView(b.dataset.jump)));
-      $("#observeForm").addEventListener("submit", observeSubmit);
-      $("#practiceForm").addEventListener("submit", practiceSubmit);
-      $("#sendToPractice").addEventListener("click", sendObservationToPractice);
-      $("#clearPracticeForm").addEventListener("click", clearPracticeForm);
-      $("#frequency").addEventListener("change", () => $("#customDaysRow").style.display = $("#frequency").value === "custom" ? "block" : "none");
-      $("#reminderMode").addEventListener("change", () => $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none");
-      $("#requestNotification").addEventListener("click", async () => {
-        if (!("Notification" in window)) {
-          showToast("이 브라우저는 알림을 지원하지 않습니다.");
-          return;
-        }
-        const result = await Notification.requestPermission();
-        showToast(result === "granted" ? "알림 권한이 허용되었습니다." : "알림 권한이 허용되지 않았습니다.");
-        renderNotificationStatus();
-      });
-      $("#observeModeButtons").addEventListener("click", e => {
-        const b = e.target.closest("button");
-        if (!b) return;
-        $$("#observeModeButtons button").forEach(x => x.classList.remove("active"));
-        b.classList.add("active");
-        state.observeMode = b.dataset.value;
-      });
-      $("#rangeButtons").addEventListener("click", e => {
-        const b = e.target.closest("button");
-        if (!b) return;
-        $$("#rangeButtons button").forEach(x => x.classList.remove("active"));
-        b.classList.add("active");
-        state.shareRange = b.dataset.days === "all" ? "all" : Number(b.dataset.days);
-        renderSharePreview();
-      });
-      $("#shareModeButtons").addEventListener("click", e => {
-        const b = e.target.closest("button");
-        if (!b) return;
-        $$("#shareModeButtons button").forEach(x => x.classList.remove("active"));
-        b.classList.add("active");
-        state.shareMode = b.dataset.mode;
-        renderSharePreview();
-      });
-      $$("[data-redact]").forEach(b => b.addEventListener("click", () => {
-        b.classList.toggle("active");
-        state.redactions[b.dataset.redact] = b.classList.contains("active");
-        renderSharePreview();
-      }));
-      $("#buildPreview").addEventListener("click", () => {
-        renderSharePreview();
-        showToast("공유 미리보기를 만들었습니다.");
-      });
-      $("#downloadCsv").addEventListener("click", () => {
-        const data = buildCsv();
-        downloadBlob(data.blob, data.fileName);
-        $("#shareInfo").textContent = `저장한 파일: ${data.fileName}`;
-      });
-      $("#shareFile").addEventListener("click", async () => {
-        const data = buildCsv();
-        const file = new File([data.blob], data.fileName, { type: "text/csv" });
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-          try {
-            await navigator.share({ title: "마음고요 관찰과 실천", text: `${rangeLabel()} 기록 공유입니다. 받는 사람: respectuu@naver.com`, files: [file] });
-            $("#shareInfo").textContent = `공유한 파일: ${data.fileName}`;
-            return;
-          } catch (error) {
-            if (error.name === "AbortError") return;
-          }
-        }
-        downloadBlob(data.blob, data.fileName);
-        const subject = encodeURIComponent(`마음고요 관찰과 실천 공유 ${todayISO()}`);
-        const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 기록을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`);
-        window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
-      });
-      $("#importCsv").addEventListener("click", () => importCsvFile($("#importFile").files[0]));
-      $("#savePin").addEventListener("click", () => {
-        const pin = $("#pinInput").value.trim();
-        if (pin.length < 4) return showToast("PIN은 4자리 이상으로 설정해주세요.");
-        const recovery = generateRecoveryCode();
-        localStorage.setItem(PIN_KEY, pin);
-        localStorage.setItem(RECOVERY_KEY, recovery);
-        $("#pinInput").value = "";
-        $("#recoveryInfo").textContent = `복구코드: ${recovery}  이 코드는 PIN을 잊었을 때 사용합니다. 안전한 곳에 따로 적어두세요.`;
-        showToast("PIN을 저장했습니다.");
-      });
-      $("#lockNow").addEventListener("click", () => $("#lockScreen").classList.add("active"));
-      $("#updateApp").addEventListener("click", applyAppUpdate);
-      $("#saveNoRecordReminderTime").addEventListener("click", () => {
-        state.data.settings.noRecordReminderTime = $("#noRecordReminderTime").value || "20:00";
-        saveData();
-        renderNotificationStatus();
-        showToast("미기록 알림 시간을 저장했습니다.");
-      });
-      $("#unlockButton").addEventListener("click", unlock);
-      $("#unlockPin").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
-      $("#resetLockedApp").addEventListener("click", resetLockedApp);
-      $("#saveAlias").addEventListener("click", () => {
-        const alias = $("#aliasInput").value.trim();
-        if (!alias) return showToast("별칭을 입력해주세요.");
-        state.data.settings.alias = alias;
-        saveData();
-        initPickers();
-        showToast("별칭을 저장했습니다.");
-      });
-      ["click", "keydown", "touchstart"].forEach(name => document.addEventListener(name, touchActivity, { passive: true }));
-      setInterval(() => {
-        if (localStorage.getItem(PIN_KEY) && Date.now() - state.lastActive > AUTO_LOCK_MS) $("#lockScreen").classList.add("active");
-      }, 15000);
-      setInterval(() => {
-        checkPracticeReminders();
-        checkNoRecordReminder();
-      }, 60000);
-      window.addEventListener("resize", () => { if (state.view === "trend") drawTrend(); });
-    }
-    function init() {
-      loadData();
-      $("#noRecordReminderTime").value = noRecordReminderTime();
-      initPickers();
-      bindSliders();
-      setupEvents();
-      resetObserveDefaults();
-      clearPracticeForm();
-      renderAll();
-      checkLock();
-      checkPracticeReminders();
-      checkNoRecordReminder();
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-    }
-    init();
-  </script>
+  <script src="./app.js" defer></script>
 </body>
 </html>
