@@ -105,7 +105,7 @@ function bindEvents() {
   });
 
   els.sampleBtn.addEventListener("click", () => ingestCsv(sampleCsv, "예시 CSV"));
-  els.resetBtn.addEventListener("click", resetAll);
+  els.resetBtn.addEventListener("click", () => resetAll());
   els.printBtn.addEventListener("click", () => window.print());
   els.exportBtn.addEventListener("click", exportSummary);
   els.copySummaryBtn.addEventListener("click", copySessionSummary);
@@ -251,7 +251,7 @@ function normalizeLegacyRows(rows) {
     const recordType = row.record_type || row.type || row.category || "";
     const category = inferCategory(recordType);
     const content = row.content || row.memo || row.note || row.title || Object.values(row).filter(Boolean).join(" · ");
-    const intensity = score10(row.intensity || row.score || row.urge_score || row.practice_score);
+    const intensity = score10(firstDefined(row.intensity, row.score, row.urge_score, row.practice_score));
     return {
       id: `${row.id || "legacy"}-${index}`,
       client: row.client_id || row.client_alias || row.client || "내담자",
@@ -266,8 +266,8 @@ function normalizeLegacyRows(rows) {
       recordType,
       sourceScores: {
         urgeScore: category === "urge" ? intensity : score10(row.urge_score),
-        actionLevel: category === "action" ? score5(row.action_level || row.actionized) : score5(row.action_level),
-        practiceScore: category === "practice" ? score10(row.practice_score || row.completed || row.intensity) : score10(row.practice_score),
+        actionLevel: category === "action" ? score5(firstDefined(row.action_level, row.actionized)) : score5(row.action_level),
+        practiceScore: category === "practice" ? score10(firstDefined(row.practice_score, row.completed, row.intensity)) : score10(row.practice_score),
       },
       payload: row,
     };
@@ -469,7 +469,7 @@ function renderDataView() {
   const structural = [
     card("CSV 구조", `<p>스키마: <strong>${escapeHtml(state.schemaVersion)}</strong></p><p>record_type과 payload_json 기반 자료를 읽었습니다.</p>`, "focus"),
     card("공유 모드", `<p><strong>${escapeHtml(state.shareModeLabel)}</strong></p><p>${state.shareMode === "counselor_full" ? "상세 내용이 포함될 수 있습니다." : "민감정보가 제외되었을 수 있습니다."}</p>`, state.shareMode === "counselor_full" ? "ok" : "focus"),
-    card("자료 보호", `<p>원본 CSV는 저장하지 않습니다.</p><p>요약 저장에는 현재 분석 요약과 상담 메모만 포함됩니다.</p>`, "ok"),
+    card("자료 보호", `<p>원본 CSV 파일 자체는 저장하지 않습니다.</p><p>단, "요약 저장" 파일에는 내담자가 기록한 실제 문장이 연쇄별 요약으로 포함되므로 민감정보 문서로 보관해야 합니다.</p>`, "focus"),
   ];
   const redactedCards = redacted.slice(0, 6).map((record) => recordCard(record, "민감정보 제외", "focus", ["기록 없음이 아니라 공유 설정 때문에 제외된 칸입니다."]));
   const visual = visualFeedback(
@@ -516,6 +516,7 @@ function renderMeasurementFeedbackView() {
       ["성공/억제", chains((chain) => chain.highUrge && !chain.actionized).length * 20, "ok"],
       ["회복 유지 위험", chains(isMotivationDip).length * 20, "focus"],
     ]),
+    ["urge", "action", "practice"],
   );
   return visual + workbench([
     ["개인 내 변화", success.concat(partial)],
@@ -597,6 +598,8 @@ function renderSafetyView() {
       "다음에는 충동 몇 점에서 30초 마음챙김 호흡을 시작할까요?",
       "호흡을 방해한 가장 큰 요소는 생각, 몸반응, 장소, 피로 중 무엇이었나요?",
     ],
+    "",
+    ["urge", "action", "practice"],
   );
   return visual + workbench([
     ["행동화 위기 후보", risky.map((chain) => chainCard(chain, "생각·충동 알아차림 점검", chain.actionized ? "warn" : "focus"))],
@@ -679,6 +682,8 @@ function renderSuccessView() {
       "완전한 무증상이 아니어도 강도 감소를 변화로 인정할 수 있나요?",
       "다음 주에도 이 차이를 재현하려면 어떤 조건이 필요할까요?",
     ],
+    "",
+    ["urge", "action", "practice"],
   );
   return visual + workbench([
     ["성공/억제 기록", success.map((chain) => chainCard(chain, "충동을 견딘 기록", "ok"))],
@@ -746,6 +751,7 @@ function renderValuePracticeView() {
       "다음 주 가치 쪽으로 움직이는 1% 행동은 무엇인가요?",
     ],
     renderBarSummary(groups.slice(0, 4).map((group) => [group.name.slice(0, 8), group.avg === null ? 0 : group.avg * 10, group.misses ? "warn" : "ok"])),
+    ["urge", "practice"],
   );
   return visual + workbench([
     ["실천 수행도", performanceCards],
@@ -803,6 +809,7 @@ function renderSessionFeedbackSummaryView() {
       ["성공", success.length * 20, "ok"],
       ["유지위험", maintenance.length * 25, "warn"],
     ]),
+    ["urge", "action", "practice"],
   );
   return visual + workbench([
     ["오늘의 위험", risky.map((chain) => chainCard(chain, "고위험 연쇄", "warn")).concat(latent.map((chain) => chainCard(chain, "저충동 잠복 연쇄", "focus")))],
@@ -865,13 +872,13 @@ function recordCard(record, title, kind, questions = []) {
   return card(title, `<p><strong>${escapeHtml(formatDate(record.createdAt))}</strong> · ${escapeHtml(CATEGORY_LABELS[record.category] || record.category)}</p><p>${record.redacted ? `<span class="redacted">공유 설정으로 제외됨</span>` : escapeHtml(record.content || record.title)}</p>`, kind, questions);
 }
 
-function visualFeedback(title, subtitle, mainHtml, prompts = [], sideHtml = "") {
+function visualFeedback(title, subtitle, mainHtml, prompts = [], sideHtml = "", legendKeys = null) {
   return `<div class="visual-feedback">
     <section class="visual-card">
       <h3>${escapeHtml(title)}</h3>
       <p class="muted">${escapeHtml(subtitle)}</p>
       ${mainHtml}
-      ${legendHtml()}
+      ${legendHtml(legendKeys)}
     </section>
     <section class="visual-card">
       <h3>그래프 기반 질문</h3>
@@ -881,12 +888,19 @@ function visualFeedback(title, subtitle, mainHtml, prompts = [], sideHtml = "") 
   </div>`;
 }
 
-function legendHtml() {
-  return `<div class="chart-legend">
-    <span><i class="legend-dot" style="background:#b65333"></i>충동</span>
-    <span><i class="legend-dot" style="background:#6a5acd"></i>행동화</span>
-    <span><i class="legend-dot" style="background:#2f7b4f"></i>실천</span>
-  </div>`;
+function legendHtml(keys) {
+  // keys가 없으면(막대 요약 등 색상선이 없는 시각화) 범례를 표시하지 않습니다.
+  // 실제로 그려진 선(options.only)과 다른 범례가 표시되는 것을 막기 위해 항상 키를 명시적으로 받습니다.
+  if (!keys || !keys.length) return "";
+  const items = {
+    urge: ["#b65333", "충동"],
+    action: ["#6a5acd", "행동화"],
+    practice: ["#2f7b4f", "실천"],
+  };
+  return `<div class="chart-legend">${keys
+    .filter((key) => items[key])
+    .map((key) => `<span><i class="legend-dot" style="background:${items[key][0]}"></i>${items[key][1]}</span>`)
+    .join("")}</div>`;
 }
 
 function renderTrendSvg(chainsToShow = state.chains.slice().reverse(), options = {}) {
@@ -980,7 +994,7 @@ function exportSummary() {
   const payload = {
     app: "마음고요 상담분석실",
     version: APP_VERSION,
-    privacyNotice: "원본 CSV는 저장하지 않고 현재 분석 요약, 상담 메모, 연쇄별 요약만 저장됨.",
+    privacyNotice: "이 앱은 원본 CSV 파일 자체를 브라우저나 서버에 저장하지 않습니다. 단, 이 요약 파일에는 CSV에 담겨 있던 내담자의 실제 문장(상황·생각·감정·실천 기록)이 연쇄별 요약 형태로 포함되어 있으므로, 상담 메모가 담긴 민감정보 문서로 간주하여 암호화 저장·접근 제한 등 안전하게 보관하시기 바랍니다.",
     sourceFile: state.fileName,
     schemaVersion: state.schemaVersion,
     shareMode: state.shareMode,
@@ -1030,7 +1044,8 @@ function buildSummaryText() {
 }
 
 async function refreshApp() {
-  resetAll();
+  if (hasUnsavedContent() && !window.confirm("현재 불러온 자료와 상담 메모가 모두 지워집니다. 앱을 새로 적용할까요?")) return;
+  resetAll(true);
   try {
     sessionStorage.clear();
   } catch (error) {
@@ -1047,7 +1062,15 @@ async function refreshApp() {
   window.location.replace(`${window.location.href.split("?")[0]}?appVersion=${APP_VERSION}&updated=${Date.now()}`);
 }
 
-function resetAll() {
+function hasUnsavedContent() {
+  return state.records.length > 0 || els.notes.value.trim() !== "";
+}
+
+function resetAll(skipConfirm = false) {
+  if (!skipConfirm && hasUnsavedContent()) {
+    const proceed = window.confirm("현재 불러온 자료와 상담 메모가 모두 지워집니다. 계속할까요?");
+    if (!proceed) return;
+  }
   resetDataOnly();
   els.csvInput.value = "";
   els.notes.value = "";
@@ -1162,7 +1185,8 @@ function hasSafetyWord(chain) {
 }
 
 function valueWords(text) {
-  return ["가족", "건강", "회복", "약속", "일", "관계", "삶", "가치"].some((word) => text.includes(word));
+  // "일"처럼 지나치게 일반적인 한 글자 단어는 "일요일", "며칠" 등과 오탐되어 제외했습니다.
+  return ["가족", "건강", "회복", "약속", "관계", "삶", "가치"].some((word) => text.includes(word));
 }
 
 function negativeWords(text) {
@@ -1239,6 +1263,13 @@ function score5(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   return clamp(Math.round(number), 0, 5, null);
+}
+
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return undefined;
 }
 
 function clamp(number, min, max, fallback) {
