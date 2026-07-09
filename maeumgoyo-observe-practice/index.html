@@ -242,6 +242,7 @@
         <div class="lead">
           상담실 밖의 하루도 상담 과정의 일부입니다. 오늘의 마음을 관찰하고, 내가 중요하게 여기는 방향으로 아주 작은 행동을 해보세요.
         </div>
+        <p class="small" id="notificationStatus"></p>
         <div class="section-head">
           <h2>오늘의 관찰과 작은 실천</h2>
           <span class="small" id="todayLabel"></span>
@@ -452,6 +453,28 @@
               <div class="chip-row" id="weekdayChips"></div>
             </div>
             <div class="form-row">
+              <label for="targetCount">실천 약속 횟수</label>
+              <input id="targetCount" type="number" min="1" max="12" value="1">
+              <div class="small">예: 운동을 하루 2번 하기로 약속했다면 2를 입력합니다. 통계는 하루 기록의 평균 수행도로 계산합니다.</div>
+            </div>
+            <div class="form-row">
+              <label for="reminderMode">알림 방식</label>
+              <select id="reminderMode">
+                <option value="morning">매일 아침에 하루 일정 알림</option>
+                <option value="times">정해진 시간마다 알림</option>
+                <option value="none">알림 사용 안 함</option>
+              </select>
+            </div>
+            <div class="form-row" id="reminderTimesRow" style="display:none">
+              <label for="reminderTimes">알림 시간</label>
+              <input id="reminderTimes" placeholder="예: 08:00, 20:00">
+              <div class="small">하루 여러 번 실천하기로 했다면 시간도 여러 개 입력할 수 있습니다.</div>
+            </div>
+            <div class="form-row">
+              <button class="ghost-btn full" id="requestNotification" type="button">알림 권한 요청</button>
+              <div class="small">알림은 스마트폰/브라우저 정책에 따라 앱이 열려 있거나 백그라운드에 남아 있을 때 가장 안정적으로 작동합니다.</div>
+            </div>
+            <div class="form-row">
               <label for="practiceStart">시작일</label>
               <input id="practiceStart" type="date">
             </div>
@@ -569,6 +592,13 @@
             <button class="ghost-btn full" id="lockNow" type="button">지금 잠그기</button>
             <div style="height:10px"></div>
             <button class="ghost-btn full" id="updateApp" type="button">앱 업데이트 새로 적용</button>
+            <div style="height:10px"></div>
+            <div class="form-row">
+              <label for="noRecordReminderTime">미기록 알림 시간</label>
+              <input id="noRecordReminderTime" type="time" value="20:00">
+              <div class="small">하루 동안 관찰 기록과 실천 기록이 모두 없을 때 이 시간에 한 번 알림을 보냅니다. 비워두면 기본값 20:00으로 작동합니다.</div>
+            </div>
+            <button class="ghost-btn full" id="saveNoRecordReminderTime" type="button">미기록 알림 시간 저장</button>
             <p class="small">알림 문구는 중립적으로 유지하세요. 예: “오늘의 관찰과 실천을 기록할 시간입니다.”</p>
           </div>
           <div class="card">
@@ -613,7 +643,7 @@
       shareRange: 7,
       shareMode: "counselorDetail",
       redactions: { thoughts: true, details: true, private: true },
-      data: { observations: [], practices: [], logs: [], settings: { alias: "" } },
+      data: { observations: [], practices: [], logs: [], settings: { alias: "", noRecordReminderTime: "20:00" } },
       lastActive: Date.now()
     };
 
@@ -638,7 +668,7 @@
           observations: Array.isArray(parsed.observations) ? parsed.observations : [],
           practices: Array.isArray(parsed.practices) ? parsed.practices : [],
           logs: Array.isArray(parsed.logs) ? parsed.logs : [],
-          settings: { alias: "", ...(parsed.settings || {}) }
+          settings: { alias: "", noRecordReminderTime: "20:00", ...(parsed.settings || {}) }
         };
       } catch {
         saveData();
@@ -719,23 +749,46 @@
       return true;
     }
     function activePractices() { return state.data.practices.filter(p => !p.archived); }
-    function logFor(practiceId, iso) { return state.data.logs.find(l => l.practiceId === practiceId && l.date === iso); }
+    function targetCount(practice) {
+      return Math.max(1, Math.min(12, Number(practice.targetCount || 1) || 1));
+    }
+    function logsFor(practiceId, iso) {
+      return state.data.logs
+        .filter(l => l.practiceId === practiceId && l.date === iso)
+        .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+    }
+    function logFor(practiceId, iso) { return logsFor(practiceId, iso)[0]; }
     function recentObservations(days = 7) { return state.data.observations.filter(o => dateObj(o.date) >= daysAgo(days - 1)); }
     function recentLogs(days = 7) { return state.data.logs.filter(l => dateObj(l.date) >= daysAgo(days - 1)); }
     function avg(items, getter) { return items.length ? items.reduce((sum, item) => sum + getter(item), 0) / items.length : 0; }
+    function averageDailyLogScore(logs) {
+      const groups = {};
+      logs.forEach(log => {
+        const key = `${log.practiceId}|${log.date}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(log);
+      });
+      const dayPracticeAverages = Object.values(groups).map(group => avg(group, item => Number(item.score)));
+      return avg(dayPracticeAverages, value => value);
+    }
     function observationIntensity(o) { return (Number(o.thoughtScore) + Number(o.emotionScore) + Number(o.urgeScore)) / 3; }
     function updateMetrics() {
       const today = todayISO();
       const todayObs = state.data.observations.filter(o => o.date === today);
       const weekObs = recentObservations(7);
       const weekLogs = recentLogs(7);
-      const dueCount = activePractices().reduce((sum, p) => {
+      let dueCount = 0;
+      let achievedCount = 0;
+      activePractices().forEach(p => {
         for (let i = 0; i < 7; i++) {
           const d = daysAgo(i).toISOString().slice(0, 10);
-          if (isPracticeDue(p, d)) sum++;
+          if (isPracticeDue(p, d)) {
+            const target = targetCount(p);
+            dueCount += target;
+            achievedCount += Math.min(logsFor(p.id, d).length, target);
+          }
         }
-        return sum;
-      }, 0);
+      });
       const restart = weekLogs.filter(l => Number(l.score) > 0).filter(l => {
         const prev = state.data.logs
           .filter(x => x.practiceId === l.practiceId && dateObj(x.date) < dateObj(l.date))
@@ -747,11 +800,12 @@
       $("#weekIntensity").textContent = avg(weekObs, observationIntensity).toFixed(1);
       $("#riskCount").textContent = weekObs.filter(o => Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4).length;
       $("#activePracticeCount").textContent = activePractices().length;
-      $("#practiceRate").textContent = dueCount ? `${Math.round(weekLogs.length / dueCount * 100)}%` : "0%";
+      $("#practiceRate").textContent = dueCount ? `${Math.round(achievedCount / dueCount * 100)}%` : "0%";
       $("#restartDays").textContent = restart;
     }
     function renderToday() {
       updateMetrics();
+      renderNotificationStatus();
       const today = todayISO();
       const obs = state.data.observations.filter(o => o.date === today).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
       $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
@@ -771,18 +825,30 @@
     function renderPracticeToday(p) {
       const today = todayISO();
       const due = isPracticeDue(p, today);
-      const log = logFor(p.id, today);
+      const todayLogs = logsFor(p.id, today);
+      const log = todayLogs[0];
+      const target = targetCount(p);
+      const todayAverage = averageDailyLogScore(todayLogs);
+      const logHistory = todayLogs.length ? `
+        <div style="height:8px"></div>
+        <div class="small"><strong>오늘 기록 ${todayLogs.length}/${target}회 · 하루 평균 ${todayAverage.toFixed(1)}점</strong></div>
+        <div class="list">
+          ${todayLogs.slice(0, 4).map(item => `<div class="plain-card small">수행도 ${item.score}/10 · ${formatSavedTime(item.updatedAt)}${item.note ? `<br>${item.note}` : ""}</div>`).join("")}
+        </div>
+      ` : "";
       return `<div class="record-item">
         <div class="record-top"><strong>${p.value || "가치"} · ${p.name}</strong><span class="tag ${due ? "" : "warn"}">${due ? "오늘 실천일" : "선택 기록"}</span></div>
+        <div class="small">오늘 약속: ${target}회 · 현재 ${todayLogs.length}회 기록</div>
         <div class="small">30% 버전: ${p.smallVersion || "-"}</div>
         <div style="height:8px"></div>
         <div class="slider-card">
           <div class="slider-top"><span>오늘 수행도</span><span class="slider-value" id="todayLogValue-${p.id}">${log ? log.score : 0}</span></div>
           <input data-practice-score="${p.id}" type="range" min="0" max="10" value="${log ? log.score : 0}">
         </div>
-        <textarea data-practice-note="${p.id}" placeholder="방해요인, 도움이 된 조건, 짧은 성찰">${log ? (log.note || "") : ""}</textarea>
+        <textarea data-practice-note="${p.id}" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
         <div style="height:8px"></div>
-        <button class="solid-btn full" data-save-log="${p.id}" type="button">오늘 실천 기록 저장</button>
+        <button class="solid-btn full" data-save-log="${p.id}" type="button">오늘 실천 추가 기록</button>
+        ${logHistory}
       </div>`;
     }
     function bindTodayLogButtons() {
@@ -798,10 +864,8 @@
           const escapedId = selectorEscape(id);
           const score = Number($(`[data-practice-score="${escapedId}"]`).value);
           const note = $(`[data-practice-note="${escapedId}"]`).value.trim();
-          const existing = logFor(id, todayISO());
-          const entry = { id: existing?.id || uid(), practiceId: id, date: todayISO(), score, note, updatedAt: new Date().toISOString() };
-          if (existing) Object.assign(existing, entry);
-          else state.data.logs.push(entry);
+          const entry = { id: uid(), practiceId: id, date: todayISO(), score, note, updatedAt: new Date().toISOString() };
+          state.data.logs.push(entry);
           saveData();
           renderAll();
           showToast("오늘의 실천 기록을 저장했습니다.");
@@ -819,6 +883,8 @@
         return `<div class="record-item">
           <div class="record-top"><strong>${p.value || "가치"} · ${p.name}</strong><span class="tag">${frequencyLabel(p.frequency)}</span></div>
           <div class="small">이유: ${p.reason || "-"}</div>
+          <div class="small">약속: ${frequencyLabel(p.frequency)} · 실천일마다 ${targetCount(p)}회</div>
+          <div class="small">알림: ${reminderLabel(p)}</div>
           <div class="small">방해요인: ${p.barriers || "-"}</div>
           <div class="small">30% 버전: ${p.smallVersion || "-"}</div>
           <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)}</div>
@@ -847,6 +913,76 @@
     }
     function frequencyLabel(value) {
       return { daily: "매일", "3week": "주 3일", "1week": "주 1일", custom: "맞춤 요일" }[value] || value;
+    }
+    function reminderTimesForPractice(practice) {
+      if ((practice.reminderMode || "morning") === "none") return [];
+      if ((practice.reminderMode || "morning") === "times") {
+        return String(practice.reminderTimes || "")
+          .split(",")
+          .map(v => v.trim())
+          .filter(v => /^\d{1,2}:\d{2}$/.test(v))
+          .map(v => {
+            const [h, m] = v.split(":");
+            return `${String(Number(h)).padStart(2, "0")}:${m}`;
+          });
+      }
+      return ["08:00"];
+    }
+    function reminderLabel(practice) {
+      if ((practice.reminderMode || "morning") === "none") return "사용 안 함";
+      const times = reminderTimesForPractice(practice);
+      if ((practice.reminderMode || "morning") === "times") return times.length ? times.join(", ") : "시간 미설정";
+      return "매일 아침 하루 일정 알림";
+    }
+    function notify(message) {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      navigator.serviceWorker?.ready
+        .then(reg => reg.showNotification("마음고요 관찰과 실천", { body: message, icon: "./app-icon-192.png" }))
+        .catch(() => new Notification("마음고요 관찰과 실천", { body: message, icon: "./app-icon-192.png" }));
+    }
+    function noRecordReminderTime() {
+      return state.data.settings.noRecordReminderTime || "20:00";
+    }
+    function renderNotificationStatus() {
+      const box = $("#notificationStatus");
+      if (!box) return;
+      if (!("Notification" in window)) {
+        box.textContent = "이 브라우저는 기록 알림을 지원하지 않습니다.";
+        return;
+      }
+      if (Notification.permission !== "granted") {
+        box.textContent = "알림이 꺼져 있어 기록 알림을 받을 수 없습니다.";
+        return;
+      }
+      box.textContent = `알림이 켜져 있습니다. 미기록 알림 시간: ${noRecordReminderTime()}`;
+    }
+    function checkPracticeReminders() {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      const now = new Date();
+      const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      const today = todayISO();
+      activePractices().forEach(practice => {
+        if (!isPracticeDue(practice, today)) return;
+        if (!reminderTimesForPractice(practice).includes(time)) return;
+        const key = `maeumgoyo.reminded.${practice.id}.${today}.${time}`;
+        if (localStorage.getItem(key)) return;
+        localStorage.setItem(key, "1");
+        notify(`${practice.name} · 오늘 약속 ${targetCount(practice)}회입니다.`);
+      });
+    }
+    function checkNoRecordReminder() {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      const now = new Date();
+      const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      if (time !== noRecordReminderTime()) return;
+      const today = todayISO();
+      const hasObservation = state.data.observations.some(record => record.date === today);
+      const hasPracticeLog = state.data.logs.some(record => record.date === today);
+      if (hasObservation || hasPracticeLog) return;
+      const key = `maeumgoyo.noRecordReminder.${today}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+      notify("오늘 아직 관찰 기록과 실천 기록이 없습니다. 짧게라도 오늘의 마음과 작은 실천을 남겨보세요.");
     }
     function renderTrend() {
       drawTrend();
@@ -877,7 +1013,7 @@
         return d.toISOString().slice(0, 10);
       });
       const obsSeries = days.map(day => avg(state.data.observations.filter(o => o.date === day), observationIntensity));
-      const logSeries = days.map(day => avg(state.data.logs.filter(l => l.date === day), l => Number(l.score)));
+      const logSeries = days.map(day => averageDailyLogScore(state.data.logs.filter(l => l.date === day)));
       const actionSeries = days.map(day => avg(state.data.observations.filter(o => o.date === day), o => Number(o.actionLevel) * 2));
       drawLine(ctx, obsSeries, "#2f7567", pad, width, height);
       drawLine(ctx, logSeries, "#c1842f", pad, width, height);
@@ -925,7 +1061,7 @@
           `위험 신호를 알아차린 횟수: ${highRisk.length}건`,
           `충동이 있었지만 문제 행동으로 이어지지 않은 기록: ${resisted.length}건`,
           `가치 기반 실천 기록: ${logs.length}건`,
-          `실천 평균 수행도: ${avg(logs, l => Number(l.score)).toFixed(1)}점`,
+          `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
           `주요 가치: ${topValues}`,
           "",
           "가족이 도울 수 있는 방식: 비난보다 실천을 이어갈 환경을 함께 만들고, 구체적 원자료 공개보다 회복 노력과 다음 행동을 확인합니다."
@@ -942,7 +1078,7 @@
         `문제 행동 수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
         `고위험 신호: ${highRisk.length}건`,
         `충동이 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
-        `실천 평균 수행도: ${avg(logs, l => Number(l.score)).toFixed(1)}점`,
+        `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
         `반복 방해요인: ${barrierText}`,
         `도움이 된 대처행동: ${helpful}`,
         "",
@@ -977,7 +1113,7 @@
       });
       logs.forEach(l => {
         const p = state.data.practices.find(x => x.id === l.practiceId) || {};
-        rows.push(["실천", l.date, p.value || "", p.name || "", `수행도 ${l.score}/10`]);
+        rows.push(["실천", l.date, p.value || "", p.name || "", `수행도 ${l.score}/10 · 약속 ${targetCount(p)}회`]);
         if (state.shareMode !== "family") rows.push(["실천", l.date, "성찰", state.redactions.private ? "민감 내용 제외" : l.note, ""]);
       });
       rows.push([]);
@@ -1087,11 +1223,12 @@
           if (kind === "실천" && date && item && value) {
             let practice = state.data.practices.find(p => p.value === item && p.name === value);
             if (!practice) {
-              practice = { id: uid(), value: item, name: value, reason: "CSV에서 가져온 실천행동", frequency: "daily", customDays: [], startDate: date, barriers: "", smallVersion: "", archived: false, updatedAt: new Date().toISOString() };
+              const targetMatch = String(note || "").match(/약속\s*(\d+)/);
+              practice = { id: uid(), value: item, name: value, reason: "CSV에서 가져온 실천행동", frequency: "daily", customDays: [], targetCount: targetMatch ? Number(targetMatch[1]) : 1, reminderMode: "morning", reminderTimes: "", startDate: date, barriers: "", smallVersion: "", archived: false, updatedAt: new Date().toISOString() };
               state.data.practices.push(practice);
             }
             const scoreMatch = String(note || "").match(/수행도\s*(\d+)/);
-            if (scoreMatch && !logFor(practice.id, date)) {
+            if (scoreMatch) {
               state.data.logs.push({ id: uid(), practiceId: practice.id, date, score: Number(scoreMatch[1]), note: "", updatedAt: new Date().toISOString() });
             }
           }
@@ -1171,6 +1308,9 @@
         reason: $("#practiceReason").value.trim(),
         frequency: $("#frequency").value,
         customDays: state.customDays.slice(),
+        targetCount: Math.max(1, Math.min(12, Number($("#targetCount").value) || 1)),
+        reminderMode: $("#reminderMode").value,
+        reminderTimes: $("#reminderTimes").value.trim(),
         startDate: $("#practiceStart").value || todayISO(),
         barriers: $("#barriers").value.trim(),
         smallVersion: $("#smallVersion").value.trim(),
@@ -1197,21 +1337,29 @@
       $("#practiceName").value = p.name || "";
       $("#practiceReason").value = p.reason || "";
       $("#frequency").value = p.frequency || "daily";
+      $("#targetCount").value = targetCount(p);
+      $("#reminderMode").value = p.reminderMode || "morning";
+      $("#reminderTimes").value = p.reminderTimes || "";
       $("#practiceStart").value = p.startDate || todayISO();
       $("#barriers").value = p.barriers || "";
       $("#smallVersion").value = p.smallVersion || "";
       state.customDays = p.customDays || [];
       $$("#weekdayChips button").forEach(b => b.classList.toggle("active", state.customDays.includes(Number(b.dataset.day))));
       $("#customDaysRow").style.display = $("#frequency").value === "custom" ? "block" : "none";
+      $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none";
       setView("practice");
     }
     function clearPracticeForm() {
       $("#practiceForm").reset();
       $("#practiceId").value = "";
       $("#practiceStart").value = todayISO();
+      $("#targetCount").value = 1;
+      $("#reminderMode").value = "morning";
+      $("#reminderTimes").value = "";
       state.customDays = [];
       $$("#weekdayChips button").forEach(b => b.classList.remove("active"));
       $("#customDaysRow").style.display = "none";
+      $("#reminderTimesRow").style.display = "none";
     }
     function sendObservationToPractice() {
       const value = $("#valueCustom").value.trim() || state.value;
@@ -1290,6 +1438,16 @@
       $("#sendToPractice").addEventListener("click", sendObservationToPractice);
       $("#clearPracticeForm").addEventListener("click", clearPracticeForm);
       $("#frequency").addEventListener("change", () => $("#customDaysRow").style.display = $("#frequency").value === "custom" ? "block" : "none");
+      $("#reminderMode").addEventListener("change", () => $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none");
+      $("#requestNotification").addEventListener("click", async () => {
+        if (!("Notification" in window)) {
+          showToast("이 브라우저는 알림을 지원하지 않습니다.");
+          return;
+        }
+        const result = await Notification.requestPermission();
+        showToast(result === "granted" ? "알림 권한이 허용되었습니다." : "알림 권한이 허용되지 않았습니다.");
+        renderNotificationStatus();
+      });
       $("#observeModeButtons").addEventListener("click", e => {
         const b = e.target.closest("button");
         if (!b) return;
@@ -1357,6 +1515,12 @@
       });
       $("#lockNow").addEventListener("click", () => $("#lockScreen").classList.add("active"));
       $("#updateApp").addEventListener("click", applyAppUpdate);
+      $("#saveNoRecordReminderTime").addEventListener("click", () => {
+        state.data.settings.noRecordReminderTime = $("#noRecordReminderTime").value || "20:00";
+        saveData();
+        renderNotificationStatus();
+        showToast("미기록 알림 시간을 저장했습니다.");
+      });
       $("#unlockButton").addEventListener("click", unlock);
       $("#unlockPin").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
       $("#resetLockedApp").addEventListener("click", resetLockedApp);
@@ -1373,10 +1537,15 @@
       setInterval(() => {
         if (localStorage.getItem(PIN_KEY) && Date.now() - state.lastActive > AUTO_LOCK_MS) $("#lockScreen").classList.add("active");
       }, 15000);
+      setInterval(() => {
+        checkPracticeReminders();
+        checkNoRecordReminder();
+      }, 60000);
       window.addEventListener("resize", () => { if (state.view === "trend") drawTrend(); });
     }
     function init() {
       loadData();
+      $("#noRecordReminderTime").value = noRecordReminderTime();
       initPickers();
       bindSliders();
       setupEvents();
@@ -1384,6 +1553,8 @@
       clearPracticeForm();
       renderAll();
       checkLock();
+      checkPracticeReminders();
+      checkNoRecordReminder();
       if ("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(() => {});
     }
     init();
