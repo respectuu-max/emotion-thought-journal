@@ -129,6 +129,7 @@
       font-weight: 750;
     }
     .segmented button.active, .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .chip input[type="checkbox"] { width: auto; min-height: 0; margin: 0 6px 0 0; accent-color: var(--brand); }
     .slider-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 9px; background: #fbfdfb; }
     .slider-top { display: flex; justify-content: space-between; gap: 10px; font-weight: 800; margin-bottom: 6px; }
     .slider-value { color: var(--brand-dark); }
@@ -242,7 +243,14 @@
         <div class="lead">
           상담실 밖의 하루도 상담 과정의 일부입니다. 오늘의 마음을 관찰하고, 내가 중요하게 여기는 방향으로 아주 작은 행동을 해보세요.
         </div>
+        <div class="plain-card" style="margin-top:10px;">
+          <h3>처음 사용 안내</h3>
+          <p class="small">1. 오늘 마음과 행동을 관찰합니다.</p>
+          <p class="small">2. 내가 중요하게 여기는 가치에서 작은 실천행동을 정합니다.</p>
+          <p class="small">3. 기록을 상담에서 함께 보고 조정합니다.</p>
+        </div>
         <p class="small" id="notificationStatus"></p>
+        <div class="plain-card" id="todayTaskSummary" style="margin-top:10px;"></div>
         <div class="section-head">
           <h2>오늘의 관찰과 작은 실천</h2>
           <span class="small" id="todayLabel"></span>
@@ -308,6 +316,10 @@
             <input type="hidden" id="observeId">
             <h2>관찰 기록</h2>
             <p class="small">감정, 생각, 몸 반응, 충동과 문제 행동의 흐름을 기록합니다. 정직한 기록은 심판이 아니라 치료 자료입니다.</p>
+            <div class="lead">
+              지금 혼자 버티기 어렵다면 기록을 마치려고 애쓰기보다 가까운 사람이나 상담자에게 먼저 연락하세요.
+            </div>
+            <div style="height:12px"></div>
             <div class="form-row">
               <label for="observeDate">날짜</label>
               <input id="observeDate" type="date" required>
@@ -325,8 +337,8 @@
               <label>문제 행동 영역</label>
               <div class="chip-row" id="behaviorChips"></div>
               <div style="height:8px"></div>
-              <input id="behaviorCustom" placeholder="직접 입력 또는 안전한 별칭 입력">
-              <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 실제 행동 여부와 정도는 아래 문제 행동 수준에서 기록합니다.</div>
+              <input id="behaviorCustom" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
+              <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 여러 영역을 함께 선택할 수 있고, 실제 행동 여부와 정도는 아래 문제 행동 수준에서 기록합니다.</div>
             </div>
             <div class="form-row">
               <label for="situation">상황</label>
@@ -488,6 +500,7 @@
             </div>
             <div class="plain-card">
               <h3>좋은 실천행동 점검</h3>
+              <p class="small">너무 큰 실천은 오래가기 어렵습니다. 기분이 좋지 않은 날에도 가능한 크기로 줄여보세요.</p>
               <p class="small">5분 안에 시작할 수 있나요?</p>
               <p class="small">기분이 좋지 않은 날에도 30% 버전으로 할 수 있나요?</p>
               <p class="small">문제 행동이 끌고 가는 방향과 조금 다른 방향인가요?</p>
@@ -502,6 +515,12 @@
               <button class="ghost-btn" id="clearPracticeForm" type="button">새 실천</button>
             </div>
             <p class="small">설정한 행동을 오늘 실제로 어느 정도 했는지 0~10점으로 기록합니다.</p>
+            <div class="plain-card">
+              <h3>수행도 기준</h3>
+              <p class="small">0점: 전혀 하지 못함 · 3점: 30% 버전만 시도함 · 5점: 일부 수행함</p>
+              <p class="small">7점: 대부분 수행함 · 10점: 계획한 대로 수행함</p>
+            </div>
+            <div style="height:10px"></div>
             <div id="practiceLogList" class="list"></div>
             <div class="section-head">
               <h2>설정된 실천행동</h2>
@@ -530,6 +549,14 @@
           <div class="card">
             <h2>안전한 공유</h2>
             <p class="small">개인기록, 상담자 공유, 가족/배우자 공유를 구분합니다. 공유 전 미리보기로 민감한 내용 포함 여부를 확인하세요.</p>
+            <div class="lead">
+              이 앱의 기록은 현재 기기 브라우저에 저장됩니다. 기기를 바꾸거나 브라우저 데이터를 삭제하면 기록이 사라질 수 있으니, 정기적으로 CSV 저장을 권장합니다.
+            </div>
+            <div style="height:10px"></div>
+            <div class="plain-card">
+              <h3>가족/배우자 공유 안내</h3>
+              <p class="small">가족 공유는 신뢰 회복을 돕기 위한 요약입니다. 상세 원자료 공개 여부는 상담자와 상의해 결정하는 것이 좋습니다.</p>
+            </div>
             <div class="form-row">
               <label>공유 범위</label>
               <div class="segmented" id="rangeButtons">
@@ -568,7 +595,7 @@
           </div>
           <div class="card">
             <h2>CSV 가져오기</h2>
-            <p class="small">이 앱에서 저장한 CSV를 다시 불러옵니다. 같은 기기나 새 기기에서 기록을 옮길 때 사용할 수 있습니다.</p>
+            <p class="small">이 앱에서 새 CSV 구조로 저장한 파일을 다시 불러옵니다. 같은 기기나 새 기기에서 기록을 옮길 때 사용할 수 있습니다.</p>
             <input class="file-input" id="importFile" type="file" accept=".csv,text/csv">
             <div style="height:10px"></div>
             <button class="ghost-btn full" id="importCsv" type="button">CSV 가져오기</button>
@@ -600,6 +627,7 @@
             </div>
             <button class="ghost-btn full" id="saveNoRecordReminderTime" type="button">미기록 알림 시간 저장</button>
             <p class="small">알림 문구는 중립적으로 유지하세요. 예: “오늘의 관찰과 실천을 기록할 시간입니다.”</p>
+            <p class="small">알림은 앱 설치 상태, 브라우저, 스마트폰 설정에 따라 작동이 제한될 수 있습니다.</p>
           </div>
           <div class="card">
             <h2>안전한 언어 설정</h2>
@@ -635,7 +663,8 @@
     const state = {
       view: "today",
       observeMode: "저녁",
-      behavior: "도박",
+      behavior: "",
+      behaviorAreas: [],
       emotion: "",
       body: [],
       value: "",
@@ -655,6 +684,9 @@
     function dateObj(iso) { return new Date(iso + "T00:00:00"); }
     function daysAgo(n) { const d = dateObj(todayISO()); d.setDate(d.getDate() - n); return d; }
     function escapeCsv(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
     function selectorEscape(value) {
       if (window.CSS && typeof CSS.escape === "function") return CSS.escape(value);
       return String(value).replace(/["\\]/g, "\\$&");
@@ -708,11 +740,31 @@
         state[key] = button.dataset.value;
       });
     }
+    function setBehaviorGroup(items) {
+      const oldBox = $("#behaviorChips");
+      const freshBox = oldBox.cloneNode(false);
+      oldBox.replaceWith(freshBox);
+      const box = $("#behaviorChips");
+      const selected = new Set(state.behaviorAreas || []);
+      box.innerHTML = items.map(item => `
+        <label class="chip ${selected.has(item) ? "active" : ""}">
+          <input type="checkbox" value="${escapeHtml(item)}" ${selected.has(item) ? "checked" : ""}>
+          ${escapeHtml(item)}
+        </label>
+      `).join("");
+      box.addEventListener("change", () => {
+        state.behaviorAreas = $$("#behaviorChips input[type='checkbox']:checked").map(input => input.value);
+        $$("#behaviorChips .chip").forEach(label => {
+          const input = label.querySelector("input");
+          label.classList.toggle("active", Boolean(input && input.checked));
+        });
+      });
+    }
     function initPickers() {
       const alias = state.data.settings.alias || "";
       const aliasItems = alias && !["도박", "성행동", "쇼핑"].includes(alias) ? [alias] : [];
       const behaviorItems = ["도박", "성행동", ...aliasItems, ...defaultBehaviors.filter(v => !["도박", "성행동"].includes(v))];
-      setChipGroup("#behaviorChips", behaviorItems, "behavior", state.behavior);
+      setBehaviorGroup(behaviorItems);
       setChipGroup("#emotionChips", emotions, "emotion");
       setChipGroup("#bodyChips", bodies, "body");
       setChipGroup("#valueChips", values, "value");
@@ -749,6 +801,25 @@
       return true;
     }
     function activePractices() { return state.data.practices.filter(p => !p.archived); }
+    function splitBehaviorCustom(text) {
+      return String(text || "").split(/[,\n]/).map(value => value.trim()).filter(Boolean);
+    }
+    function selectedBehaviorAreas() {
+      const checked = $$("#behaviorChips input[type='checkbox']:checked").map(input => input.value);
+      return Array.from(new Set([...checked, ...splitBehaviorCustom($("#behaviorCustom").value)]));
+    }
+    function behaviorAreasFromRecord(record) {
+      if (Array.isArray(record.behaviorAreas) && record.behaviorAreas.length) return record.behaviorAreas;
+      if (record.behavior) return [record.behavior];
+      return [];
+    }
+    function behaviorAreaText(record) {
+      const areas = behaviorAreasFromRecord(record);
+      return areas.length ? areas.join(", ") : "-";
+    }
+    function behaviorCustomText(record) {
+      return Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.join(", ") : "";
+    }
     function targetCount(practice) {
       return Math.max(1, Math.min(12, Number(practice.targetCount || 1) || 1));
     }
@@ -803,9 +874,32 @@
       $("#practiceRate").textContent = dueCount ? `${Math.round(achievedCount / dueCount * 100)}%` : "0%";
       $("#restartDays").textContent = restart;
     }
+    function renderTodayTaskSummary() {
+      const box = $("#todayTaskSummary");
+      if (!box) return;
+      const today = todayISO();
+      const observationCount = state.data.observations.filter(o => o.date === today).length;
+      let dueTargets = 0;
+      let loggedCount = 0;
+      activePractices().forEach(practice => {
+        if (!isPracticeDue(practice, today)) return;
+        const target = targetCount(practice);
+        dueTargets += target;
+        loggedCount += Math.min(logsFor(practice.id, today).length, target);
+      });
+      const remaining = Math.max(0, dueTargets - loggedCount);
+      box.innerHTML = `
+        <h3>오늘 할 일</h3>
+        <p class="small">관찰 기록: ${observationCount > 0 ? `완료 ${observationCount}건` : "아직 없음"}</p>
+        <p class="small">실천 기록: ${dueTargets ? `${loggedCount}/${dueTargets}회` : "오늘 예정된 실천 없음"}</p>
+        <p class="small">오늘 남은 실천: ${remaining}회</p>
+        <p class="small">미기록 알림: ${noRecordReminderTime()}</p>
+      `;
+    }
     function renderToday() {
       updateMetrics();
       renderNotificationStatus();
+      renderTodayTaskSummary();
       const today = todayISO();
       const obs = state.data.observations.filter(o => o.date === today).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
       $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
@@ -816,7 +910,7 @@
     function renderObservationItem(o) {
       const risk = Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4;
       return `<div class="record-item">
-        <div class="record-top"><strong>${o.date} · ${o.mode}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : o.behavior}</span></div>
+        <div class="record-top"><strong>${o.date} · ${o.mode}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : behaviorAreaText(o)}</span></div>
         <div class="small">감정: ${o.emotion || "-"} · 가치: ${o.value || "-"}</div>
         <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 행동수준 ${o.actionLevel}/5</div>
         ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${o.valueActionDraft}</div>` : ""}
@@ -1052,6 +1146,13 @@
       const topValues = Object.entries(valueCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(v => v[0]).join(", ") || "아직 없음";
       const barrierText = practices.map(p => p.barriers).filter(Boolean).slice(0, 4).join(" / ") || "아직 없음";
       const helpful = observations.map(o => o.coping).filter(Boolean).slice(0, 4).join(" / ") || "아직 없음";
+      const keySummary = [
+        "핵심 요약:",
+        `- 이번 기간 가장 높았던 위험 신호: ${highRisk.length}건`,
+        `- 가장 많이 선택한 가치: ${topValues}`,
+        `- 실천행동 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
+        `- 다음 상담에서 조정할 점: 30% 버전, 고위험 시간대, 반복 방해요인`
+      ];
       if (mode === "family") {
         return [
           "가족/배우자 회복 과정 요약",
@@ -1069,6 +1170,8 @@
       }
       return [
         mode === "counselorDetail" ? "상담자 상세 공유 요약" : "상담자 요약 공유",
+        "",
+        ...keySummary,
         "",
         `기록 기간: ${rangeLabel()}`,
         `관찰 기록: ${observations.length}건`,
@@ -1096,28 +1199,61 @@
       const summary = buildSummary(state.shareMode);
       const observations = rangeRecords(state.data.observations);
       const logs = rangeRecords(state.data.logs);
-      const rows = [["구분","날짜","항목","값","비고"]];
+      const header = [
+        "record_type", "id", "date", "updated_at", "time_slot",
+        "behavior_areas", "behavior_custom_areas", "emotion", "body_reactions",
+        "situation", "thought_text", "thought_score", "emotion_score", "urge_score", "action_level",
+        "coping", "coping_score", "gratitude", "insight", "value", "value_action_draft",
+        "practice_id", "practice_value", "practice_name", "practice_reason", "frequency", "target_count",
+        "custom_days", "reminder_mode", "reminder_times", "start_date", "barriers", "small_version",
+        "practice_score", "practice_note", "archived", "share_mode", "range_label"
+      ];
+      const rows = [header];
+      const redactDetails = state.shareMode === "family" || state.redactions.details;
+      const redactThoughts = state.shareMode === "family" || state.redactions.thoughts;
+      const redactPrivate = state.shareMode === "family" || state.redactions.private;
+
       observations.forEach(o => {
-        rows.push(["관찰", o.date, "시간대", o.mode, ""]);
-        rows.push(["관찰", o.date, "문제 행동 영역", state.shareMode === "family" || state.redactions.details ? "민감 내용 제외" : o.behavior, ""]);
-        rows.push(["관찰", o.date, "감정", o.emotion || "", ""]);
-        rows.push(["관찰", o.date, "사고/감정/충동", `${o.thoughtScore}/${o.emotionScore}/${o.urgeScore}`, ""]);
-        rows.push(["관찰", o.date, "문제 행동 수준", o.actionLevel, "0~5"]);
-        rows.push(["관찰", o.date, "가치", o.value || "", ""]);
-        if (state.shareMode !== "family") {
-          rows.push(["관찰", o.date, "상황", state.redactions.details ? "민감 내용 제외" : o.situation, ""]);
-          rows.push(["관찰", o.date, "생각", state.redactions.thoughts ? "민감 내용 제외" : o.thoughtText, ""]);
-          rows.push(["관찰", o.date, "대처행동", o.coping || "", ""]);
-          rows.push(["관찰", o.date, "성찰", state.redactions.private ? "민감 내용 제외" : o.insight, ""]);
-        }
+        rows.push([
+          "observation", o.id || "", o.date || "", o.updatedAt || "", o.mode || "",
+          redactDetails ? "민감 내용 제외" : behaviorAreaText(o),
+          redactDetails ? "민감 내용 제외" : behaviorCustomText(o),
+          o.emotion || "", Array.isArray(o.body) ? o.body.join("; ") : "",
+          redactDetails ? "민감 내용 제외" : (o.situation || ""),
+          redactThoughts ? "민감 내용 제외" : (o.thoughtText || ""),
+          o.thoughtScore ?? 0, o.emotionScore ?? 0, o.urgeScore ?? 0, o.actionLevel ?? 0,
+          o.coping || "", o.copingScore ?? 0, o.gratitude || "",
+          redactPrivate ? "민감 내용 제외" : (o.insight || ""),
+          o.value || "", o.valueActionDraft || "",
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+          state.shareMode, rangeLabel()
+        ]);
       });
+
+      state.data.practices.forEach(p => {
+        rows.push([
+          "practice_definition", p.id || "", "", p.updatedAt || "", "",
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+          p.value || "", "",
+          p.id || "", p.value || "", p.name || "", p.reason || "", p.frequency || "daily", targetCount(p),
+          Array.isArray(p.customDays) ? p.customDays.join(";") : "", p.reminderMode || "morning", p.reminderTimes || "",
+          p.startDate || "", p.barriers || "", p.smallVersion || "",
+          "", "", p.archived ? "1" : "0", state.shareMode, rangeLabel()
+        ]);
+      });
+
       logs.forEach(l => {
         const p = state.data.practices.find(x => x.id === l.practiceId) || {};
-        rows.push(["실천", l.date, p.value || "", p.name || "", `수행도 ${l.score}/10 · 약속 ${targetCount(p)}회`]);
-        if (state.shareMode !== "family") rows.push(["실천", l.date, "성찰", state.redactions.private ? "민감 내용 제외" : l.note, ""]);
+        rows.push([
+          "practice_log", l.id || "", l.date || "", l.updatedAt || "", "",
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+          p.value || "", "",
+          l.practiceId || "", p.value || "", p.name || "", "", "", targetCount(p),
+          "", "", "", "", "", "",
+          l.score ?? 0, redactPrivate ? "민감 내용 제외" : (l.note || ""), "", state.shareMode, rangeLabel()
+        ]);
       });
-      rows.push([]);
-      rows.push(["요약", "", summary, "", ""]);
+
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
       const nameMode = state.shareMode === "family" ? "가족회복요약" : state.shareMode === "counselorSummary" ? "상담자요약" : "상담자상세";
       return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
@@ -1166,74 +1302,101 @@
       reader.onload = () => {
         const rows = parseCsv(String(reader.result || "").replace(/^\ufeff/, ""));
         const header = rows.shift() || [];
-        if (header[0] !== "구분") {
-          $("#importInfo").textContent = "이 앱에서 저장한 CSV 형식이 아닙니다.";
+        if (header[0] !== "record_type") {
+          $("#importInfo").textContent = "새 CSV 구조(record_type 열)로 저장한 파일만 가져올 수 있습니다.";
           return;
         }
+        const index = {};
+        header.forEach((name, i) => index[name] = i);
+        const cell = (row, name) => row[index[name]] ?? "";
         const before = {
           observations: state.data.observations.length,
           practices: state.data.practices.length,
           logs: state.data.logs.length
         };
-        const tempObs = new Map();
         rows.forEach(row => {
-          const [kind, date, item, value, note] = row;
-          if (kind === "관찰" && date) {
-            const key = date;
-            if (!tempObs.has(key)) {
-              tempObs.set(key, {
-                id: uid(),
-                date,
-                mode: "가져오기",
-                behavior: "",
-                situation: "",
-                thoughtText: "",
-                emotion: "",
-                body: [],
-                thoughtScore: 0,
-                emotionScore: 0,
-                urgeScore: 0,
-                actionLevel: 0,
-                coping: "",
-                copingScore: 0,
-                gratitude: "",
-                insight: "",
-                value: "",
-                valueActionDraft: "",
+          const type = cell(row, "record_type");
+          if (type === "observation") {
+            const id = cell(row, "id") || uid();
+            if (state.data.observations.some(o => o.id === id)) return;
+            const behaviorAreas = splitBehaviorCustom(cell(row, "behavior_areas"));
+            const behaviorCustomAreas = splitBehaviorCustom(cell(row, "behavior_custom_areas"));
+            state.data.observations.push({
+              id,
+              date: cell(row, "date") || todayISO(),
+              mode: cell(row, "time_slot") || "가져오기",
+              behavior: behaviorAreas.join(", "),
+              behaviorAreas,
+              behaviorCustomAreas,
+              situation: cell(row, "situation") === "민감 내용 제외" ? "" : cell(row, "situation"),
+              thoughtText: cell(row, "thought_text") === "민감 내용 제외" ? "" : cell(row, "thought_text"),
+              emotion: cell(row, "emotion"),
+              body: splitBehaviorCustom(cell(row, "body_reactions").replace(/;/g, ",")),
+              thoughtScore: Number(cell(row, "thought_score")) || 0,
+              emotionScore: Number(cell(row, "emotion_score")) || 0,
+              urgeScore: Number(cell(row, "urge_score")) || 0,
+              actionLevel: Number(cell(row, "action_level")) || 0,
+              coping: cell(row, "coping"),
+              copingScore: Number(cell(row, "coping_score")) || 0,
+              gratitude: cell(row, "gratitude"),
+              insight: cell(row, "insight") === "민감 내용 제외" ? "" : cell(row, "insight"),
+              value: cell(row, "value"),
+              valueActionDraft: cell(row, "value_action_draft"),
+              updatedAt: cell(row, "updated_at") || new Date().toISOString()
+            });
+          }
+          if (type === "practice_definition") {
+            const id = cell(row, "practice_id") || cell(row, "id") || uid();
+            if (state.data.practices.some(p => p.id === id)) return;
+            state.data.practices.push({
+              id,
+              value: cell(row, "practice_value") || cell(row, "value"),
+              name: cell(row, "practice_name"),
+              reason: cell(row, "practice_reason"),
+              frequency: cell(row, "frequency") || "daily",
+              customDays: String(cell(row, "custom_days") || "").split(";").map(Number).filter(n => !Number.isNaN(n)),
+              targetCount: Number(cell(row, "target_count")) || 1,
+              reminderMode: cell(row, "reminder_mode") || "morning",
+              reminderTimes: cell(row, "reminder_times"),
+              startDate: cell(row, "start_date") || todayISO(),
+              barriers: cell(row, "barriers"),
+              smallVersion: cell(row, "small_version"),
+              archived: cell(row, "archived") === "1",
+              updatedAt: cell(row, "updated_at") || new Date().toISOString()
+            });
+          }
+          if (type === "practice_log") {
+            const id = cell(row, "id") || uid();
+            if (state.data.logs.some(log => log.id === id)) return;
+            const practiceId = cell(row, "practice_id");
+            if (practiceId && !state.data.practices.some(p => p.id === practiceId)) {
+              state.data.practices.push({
+                id: practiceId,
+                value: cell(row, "practice_value"),
+                name: cell(row, "practice_name"),
+                reason: "CSV에서 가져온 실천행동",
+                frequency: "daily",
+                customDays: [],
+                targetCount: Number(cell(row, "target_count")) || 1,
+                reminderMode: "morning",
+                reminderTimes: "",
+                startDate: cell(row, "date") || todayISO(),
+                barriers: "",
+                smallVersion: "",
+                archived: false,
                 updatedAt: new Date().toISOString()
               });
             }
-            const obs = tempObs.get(key);
-            if (item === "시간대") obs.mode = value;
-            if (item === "문제 행동 영역" || item === "문제 행동 유형") obs.behavior = value;
-            if (item === "감정") obs.emotion = value;
-            if (item === "사고/감정/충동") {
-              const parts = String(value).split("/").map(Number);
-              obs.thoughtScore = parts[0] || 0;
-              obs.emotionScore = parts[1] || 0;
-              obs.urgeScore = parts[2] || 0;
-            }
-            if (item === "문제 행동 수준") obs.actionLevel = Number(value) || 0;
-            if (item === "가치") obs.value = value;
-            if (item === "상황" && value !== "민감 내용 제외") obs.situation = value;
-            if (item === "생각" && value !== "민감 내용 제외") obs.thoughtText = value;
-            if (item === "대처행동") obs.coping = value;
-            if (item === "성찰" && value !== "민감 내용 제외") obs.insight = value;
-          }
-          if (kind === "실천" && date && item && value) {
-            let practice = state.data.practices.find(p => p.value === item && p.name === value);
-            if (!practice) {
-              const targetMatch = String(note || "").match(/약속\s*(\d+)/);
-              practice = { id: uid(), value: item, name: value, reason: "CSV에서 가져온 실천행동", frequency: "daily", customDays: [], targetCount: targetMatch ? Number(targetMatch[1]) : 1, reminderMode: "morning", reminderTimes: "", startDate: date, barriers: "", smallVersion: "", archived: false, updatedAt: new Date().toISOString() };
-              state.data.practices.push(practice);
-            }
-            const scoreMatch = String(note || "").match(/수행도\s*(\d+)/);
-            if (scoreMatch) {
-              state.data.logs.push({ id: uid(), practiceId: practice.id, date, score: Number(scoreMatch[1]), note: "", updatedAt: new Date().toISOString() });
-            }
+            state.data.logs.push({
+              id,
+              practiceId,
+              date: cell(row, "date") || todayISO(),
+              score: Number(cell(row, "practice_score")) || 0,
+              note: cell(row, "practice_note") === "민감 내용 제외" ? "" : cell(row, "practice_note"),
+              updatedAt: cell(row, "updated_at") || new Date().toISOString()
+            });
           }
         });
-        tempObs.forEach(obs => state.data.observations.push(obs));
         saveData();
         renderAll();
         $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 ${state.data.observations.length - before.observations}개, 실천행동 ${state.data.practices.length - before.practices}개, 수행도 ${state.data.logs.length - before.logs}개`;
@@ -1254,13 +1417,17 @@
     function observeSubmit(event) {
       event.preventDefault();
       const value = ($("#valueCustom").value.trim() || state.value || "");
-      const behavior = ($("#behaviorCustom").value.trim() || state.behavior || state.data.settings.alias || "A행동");
+      const behaviorAreas = selectedBehaviorAreas();
+      const behaviorCustomAreas = splitBehaviorCustom($("#behaviorCustom").value);
+      const behavior = behaviorAreas.join(", ");
       const id = $("#observeId").value || uid();
       const entry = {
         id,
         date: $("#observeDate").value || todayISO(),
         mode: state.observeMode,
         behavior,
+        behaviorAreas,
+        behaviorCustomAreas,
         situation: $("#situation").value.trim(),
         thoughtText: $("#thoughtText").value.trim(),
         emotion: state.emotion,
@@ -1289,6 +1456,8 @@
     function resetObserveDefaults() {
       $("#observeDate").value = todayISO();
       state.observeMode = "저녁";
+      state.behavior = "";
+      state.behaviorAreas = [];
       state.emotion = "";
       state.body = [];
       state.value = "";
@@ -1319,6 +1488,9 @@
       };
       if (!entry.value || !entry.name) {
         showToast("가치와 실천행동을 입력해주세요.");
+        return;
+      }
+      if (!entry.smallVersion && !confirm("30% 버전의 최소 행동이 비어 있습니다. 기분이 좋지 않은 날에도 이어갈 수 있도록 최소 행동을 정하는 것을 권장합니다. 그래도 저장할까요?")) {
         return;
       }
       const index = state.data.practices.findIndex(p => p.id === id);
@@ -1529,7 +1701,6 @@
         if (!alias) return showToast("별칭을 입력해주세요.");
         state.data.settings.alias = alias;
         saveData();
-        state.behavior = alias;
         initPickers();
         showToast("별칭을 저장했습니다.");
       });
