@@ -690,7 +690,7 @@ function renderFocus() {
 function renderTherapyView() {
   if (!els.therapyView) return;
   if (!state.chains.length) {
-    els.therapyView.innerHTML = `<div class="therapy-empty">CSV를 불러오면 회기 작업 순서에 맞춘 개입 후보가 표시됩니다.</div>`;
+    els.therapyView.innerHTML = `<div class="therapy-empty"><strong>${escapeHtml(therapyViewLabel(state.therapyView))}</strong><br>CSV를 불러오면 이 단계에 맞춘 개입 후보가 표시됩니다.</div>`;
     return;
   }
 
@@ -705,6 +705,20 @@ function renderTherapyView() {
     summary: renderSessionSummaryView,
   };
   els.therapyView.innerHTML = (views[state.therapyView] || views.focus)();
+}
+
+function therapyViewLabel(view) {
+  const labels = {
+    focus: "1. 오늘의 초점",
+    chain: "2. 연쇄 분석",
+    crisis: "3. 위기·충동",
+    change: "4. 작은 변화",
+    thought: "5. 생각 검토",
+    value: "6. 가치와 방향",
+    practice: "7. 실천 조정",
+    summary: "8. 회기 요약",
+  };
+  return labels[view] || labels.focus;
 }
 
 function chainScores(chain) {
@@ -1222,12 +1236,12 @@ function initialize() {
   [els.urgeThreshold, els.actionThreshold, els.practiceMissThreshold].forEach((control) => {
     control.addEventListener("input", handleThresholdChange);
   });
-  els.therapyMenu.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-therapy-view]");
-    if (!button) return;
-    state.therapyView = button.dataset.therapyView;
-    els.therapyMenu.querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
-    renderTherapyView();
+  els.therapyMenu.querySelectorAll("[data-therapy-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.therapyView = button.dataset.therapyView;
+      els.therapyMenu.querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
+      renderTherapyView();
+    });
   });
   els.chartMode.addEventListener("input", renderChart);
   els.loadSampleBtn.addEventListener("click", () => ingestCsv(sampleCsv));
