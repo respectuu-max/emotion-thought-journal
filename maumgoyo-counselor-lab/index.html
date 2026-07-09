@@ -131,15 +131,39 @@
             <div class="workflow-step"><strong>7. 실천 조정</strong><span>실천행동 평균 점수, 저수행, 다음 과제 조정 질문</span></div>
             <div class="workflow-step"><strong>8. 회기 요약</strong><span>위험/성공/실천 조정 요약과 다음 회기 확인 포인트</span></div>
           </div>
-          <div class="therapy-menu" id="therapyMenu" role="tablist" aria-label="치료작업 메뉴">
-            <button class="active" data-therapy-view="focus" type="button">오늘의 초점</button>
-            <button data-therapy-view="chain" type="button">연쇄 분석</button>
-            <button data-therapy-view="crisis" type="button">위기·충동</button>
-            <button data-therapy-view="change" type="button">작은 변화</button>
-            <button data-therapy-view="thought" type="button">생각 검토</button>
-            <button data-therapy-view="value" type="button">가치와 방향</button>
-            <button data-therapy-view="practice" type="button">실천 조정</button>
-            <button data-therapy-view="summary" type="button">회기 요약</button>
+          <div class="therapy-menu workflow-menu" id="therapyMenu" role="tablist" aria-label="회기 치료작업 순서">
+            <button class="active" data-therapy-view="focus" type="button">
+              <strong>1. 오늘의 초점</strong>
+              <span>위험 연쇄, 억제/성공 연쇄, 실천 조정, 가치 단서 우선순위</span>
+            </button>
+            <button data-therapy-view="chain" type="button">
+              <strong>2. 연쇄 분석</strong>
+              <span>상황-생각-감정/몸반응-충동-문제행동수준-대처/실천 흐름</span>
+            </button>
+            <button data-therapy-view="crisis" type="button">
+              <strong>3. 위기·충동</strong>
+              <span>DBT STOP/TIPP 적용 후보</span>
+            </button>
+            <button data-therapy-view="change" type="button">
+              <strong>4. 작은 변화</strong>
+              <span>행동활성화 관점의 긍정 경험, 자기효능감 단서</span>
+            </button>
+            <button data-therapy-view="thought" type="button">
+              <strong>5. 생각 검토</strong>
+              <span>CBT 자동사고 검토 질문</span>
+            </button>
+            <button data-therapy-view="value" type="button">
+              <strong>6. 가치와 방향</strong>
+              <span>ACT 회피-가치 방향 질문</span>
+            </button>
+            <button data-therapy-view="practice" type="button">
+              <strong>7. 실천 조정</strong>
+              <span>실천행동 평균 점수, 저수행, 다음 과제 조정 질문</span>
+            </button>
+            <button data-therapy-view="summary" type="button">
+              <strong>8. 회기 요약</strong>
+              <span>위험/성공/실천 조정 요약과 다음 회기 확인 포인트</span>
+            </button>
           </div>
         </div>
         <div id="therapyView" class="therapy-view"></div>

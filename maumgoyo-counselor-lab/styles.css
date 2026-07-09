@@ -368,6 +368,13 @@ textarea {
   gap: 6px;
 }
 
+.workflow-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 8px;
+}
+
 .workflow-guide {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -403,9 +410,34 @@ textarea {
   font-size: 13px;
 }
 
+.workflow-menu button {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 10px;
+  text-align: left;
+  align-content: start;
+}
+
+.workflow-menu button strong {
+  color: var(--primary-strong);
+  font-size: 13px;
+}
+
+.workflow-menu button span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .therapy-menu button.active {
   background: var(--primary);
   border-color: var(--primary);
+  color: white;
+}
+
+.workflow-menu button.active strong,
+.workflow-menu button.active span {
   color: white;
 }
 
@@ -631,6 +663,10 @@ th {
   }
 
   .workflow-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-menu {
     grid-template-columns: 1fr;
   }
 }
