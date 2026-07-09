@@ -1,9 +1,9 @@
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
+const CSV_SCHEMA_VERSION = "maeumgoyo_compact_v2";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
 const STORAGE_KEY = "maeumgoyo.observePractice.v2";
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 5000;
-const REDACTED_TEXT = "민감 내용 제외";
 const TEXT_LIMITS = {
   short: 40,
   medium: 160,
@@ -33,7 +33,6 @@ const TEXT_LIMITS = {
       customDays: [],
       shareRange: 7,
       shareMode: "counselorDetail",
-      redactions: { thoughts: true, details: true, private: true },
       data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], settings: { alias: "", noRecordReminderTime: "20:00" } },
       lastActive: Date.now()
     };
@@ -113,9 +112,6 @@ const TEXT_LIMITS = {
         .filter(item => /^([01]\d|2[0-3]):[0-5]\d$/.test(item))
         .slice(0, 6)
         .join(", ");
-    }
-    function isRedacted(value) {
-      return String(value || "").trim() === REDACTED_TEXT;
     }
     function compactList(values) {
       return values.map(value => String(value || "").trim()).filter(Boolean);
@@ -501,7 +497,7 @@ const TEXT_LIMITS = {
       return `<div class="record-item">
         <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
         <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
-        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제 행동 수준 ${o.actionLevel}/5</div>
+        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제행동수준 ${o.actionLevel}/5</div>
         ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${escapeHtml(o.valueActionDraft)}</div>` : ""}
         <div class="button-row record-actions">
           <button class="ghost-btn" type="button" data-edit-observation="${escapeHtml(o.id)}">수정</button>
@@ -857,7 +853,7 @@ const TEXT_LIMITS = {
         <div class="trend-legend">
           <span><i class="legend-dot obs"></i>관찰강도</span>
           <span><i class="legend-dot practice"></i>실천수행도</span>
-          <span><i class="legend-dot action"></i>문제 행동 수준</span>
+          <span><i class="legend-dot action"></i>문제행동수준</span>
         </div>
         <div class="trend-status">최근 14일: 관찰 ${data.reduce((sum, day) => sum + day.observationCount, 0)}건, 실천 ${data.reduce((sum, day) => sum + day.logCount, 0)}건</div>
         <div class="trend-bar-list">
@@ -910,7 +906,7 @@ const TEXT_LIMITS = {
       ctx.fillStyle = "#1d2924"; ctx.font = "12px sans-serif";
       ctx.fillText("관찰강도", pad, 16);
       ctx.fillStyle = "#c1842f"; ctx.fillText("실천수행도", pad + 72, 16);
-      ctx.fillStyle = "#b64a45"; ctx.fillText("문제 행동 수준", pad + 158, 16);
+      ctx.fillStyle = "#b64a45"; ctx.fillText("문제행동수준", pad + 158, 16);
       ctx.fillStyle = "#64736d";
       ctx.fillText(`최근 14일 관찰 ${totalObservations}건 · 실천 ${totalLogs}건`, pad, displayHeight - 10);
     }
@@ -982,7 +978,7 @@ const TEXT_LIMITS = {
         `실천 기록: ${logs.length}건`,
         `주요 가치: ${topValues}`,
         `사고·감정·충동 평균: ${avg(observations, observationIntensity).toFixed(1)}점`,
-        `문제 행동 수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
+        `문제행동수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
         `고위험 신호: ${highRisk.length}건`,
         `충동이 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
         `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
@@ -1000,66 +996,84 @@ const TEXT_LIMITS = {
       return `최근 ${Number(state.shareRange) === 7 ? "1주" : Number(state.shareRange) === 14 ? "2주" : "4주"}`;
     }
     function buildCsv() {
-      const summary = buildSummary(state.shareMode);
+      const summary = buildSummary("counselorDetail");
       const observations = rangeRecords(activeObservations());
       const logs = rangeRecords(activeLogs());
-      const header = [
-        "schema_version", "record_type", "id", "date", "updated_at", "time_slot",
-        "behavior_areas", "behavior_custom_areas", "emotion", "emotion_custom", "body_reactions", "body_custom",
-        "situation", "thought_text", "thought_score", "emotion_score", "urge_score", "action_level",
-        "coping", "coping_score", "gratitude", "insight", "value", "value_action_draft",
-        "practice_id", "practice_value", "practice_name", "practice_reason", "frequency", "target_count",
-        "custom_days", "reminder_mode", "reminder_times", "start_date", "barriers", "small_version",
-        "practice_score", "practice_note", "archived", "share_mode", "range_label"
-      ];
+      const exportedAt = new Date().toISOString();
+      const clientAlias = state.data.settings.alias || "";
+      const csvShareMode = "counselor_full";
+      const header = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_label", "payload_json"];
       const rows = [header];
-      const redactDetails = state.shareMode === "family" || state.redactions.details;
-      const redactThoughts = state.shareMode === "family" || state.redactions.thoughts;
-      const redactPrivate = state.shareMode === "family" || state.redactions.private;
+      const addRow = (type, id, date, updatedAt, payload) => {
+        rows.push([
+          CSV_SCHEMA_VERSION,
+          type,
+          id || "",
+          date || "",
+          updatedAt || "",
+          exportedAt,
+          clientAlias,
+          csvShareMode,
+          rangeLabel(),
+          JSON.stringify(payload)
+        ]);
+      };
 
       observations.forEach(o => {
-        rows.push([
-          "maeumgoyo_v2", "observation", o.id || "", o.date || "", o.updatedAt || "", o.mode || "",
-          redactDetails ? "민감 내용 제외" : behaviorAreaText(o),
-          redactDetails ? "민감 내용 제외" : behaviorCustomText(o),
-          o.emotion || "", o.emotionCustom || "", Array.isArray(o.body) ? o.body.join("; ") : "", o.bodyCustom || "",
-          redactDetails ? "민감 내용 제외" : (o.situation || ""),
-          redactThoughts ? "민감 내용 제외" : (o.thoughtText || ""),
-          o.thoughtScore ?? 0, o.emotionScore ?? 0, o.urgeScore ?? 0, o.actionLevel ?? 0,
-          o.coping || "", o.copingScore ?? 0, o.gratitude || "",
-          redactPrivate ? "민감 내용 제외" : (o.insight || ""),
-          o.value || "", o.valueActionDraft || "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-          state.shareMode, rangeLabel()
-        ]);
+        addRow("observation", o.id, o.date, o.updatedAt, {
+          time_slot: o.mode || "",
+          behavior_areas: Array.isArray(o.behaviorAreas) ? o.behaviorAreas : splitBehaviorCustom(o.behavior || ""),
+          behavior_custom_areas: Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : [],
+          emotion: o.emotion || "",
+          emotion_custom: o.emotionCustom || "",
+          body_reactions: Array.isArray(o.body) ? o.body : [],
+          body_custom: o.bodyCustom || "",
+          situation: o.situation || "",
+          thought_text: o.thoughtText || "",
+          thought_score: o.thoughtScore ?? 0,
+          emotion_score: o.emotionScore ?? 0,
+          urge_score: o.urgeScore ?? 0,
+          action_level: o.actionLevel ?? 0,
+          coping: o.coping || "",
+          coping_score: o.copingScore ?? 0,
+          gratitude: o.gratitude || "",
+          insight: o.insight || "",
+          value: o.value || "",
+          value_action_draft: o.valueActionDraft || ""
+        });
       });
 
       state.data.practices.forEach(p => {
-        rows.push([
-          "maeumgoyo_v2", "practice_definition", p.id || "", "", p.updatedAt || "", "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-          p.value || "", "",
-          p.id || "", p.value || "", p.name || "", p.reason || "", p.frequency || "daily", targetCount(p),
-          Array.isArray(p.customDays) ? p.customDays.join(";") : "", p.reminderMode || "morning", p.reminderTimes || "",
-          p.startDate || "", p.barriers || "", p.smallVersion || "",
-          "", "", p.archived ? "1" : "0", state.shareMode, rangeLabel()
-        ]);
+        addRow("practice_definition", p.id, "", p.updatedAt, {
+          practice_value: p.value || "",
+          practice_name: p.name || "",
+          practice_reason: p.reason || "",
+          frequency: p.frequency || "daily",
+          target_count: targetCount(p),
+          custom_days: Array.isArray(p.customDays) ? p.customDays : [],
+          reminder_mode: p.reminderMode || "morning",
+          reminder_times: p.reminderTimes || "",
+          start_date: p.startDate || "",
+          barriers: p.barriers || "",
+          small_version: p.smallVersion || "",
+          archived: p.archived ? "1" : "0"
+        });
       });
 
       logs.forEach(l => {
         const p = state.data.practices.find(x => x.id === l.practiceId) || {};
-        rows.push([
-          "maeumgoyo_v2", "practice_log", l.id || "", l.date || "", l.updatedAt || "", "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-          p.value || "", "",
-          l.practiceId || "", p.value || "", p.name || "", "", "", targetCount(p),
-          "", "", "", "", "", "",
-          l.score ?? 0, redactPrivate ? "민감 내용 제외" : (l.note || ""), "", state.shareMode, rangeLabel()
-        ]);
+        addRow("practice_log", l.id, l.date, l.updatedAt, {
+          practice_id: l.practiceId || "",
+          practice_value: p.value || "",
+          practice_name: p.name || "",
+          target_count: targetCount(p),
+          practice_score: l.score ?? 0,
+          practice_note: l.note || ""
+        });
       });
 
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
-      const nameMode = state.shareMode === "family" ? "가족회복요약" : state.shareMode === "counselorSummary" ? "상담자요약" : "상담자상세";
+      const nameMode = "상담자치료자료";
       return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
     }
     function verifyCurrentCsv() {
@@ -1077,21 +1091,35 @@ const TEXT_LIMITS = {
       }
       const index = {};
       header.forEach((name, i) => index[name] = i);
-      ["schema_version", "record_type", "id", "date", "updated_at"].forEach(name => {
+      ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_label", "payload_json"].forEach(name => {
         if (!(name in index)) {
           report.ok = false;
           report.messages.push(`필수 항목 누락: ${name}`);
         }
       });
+      const payloadOf = (row, rowIndex) => {
+        try {
+          return JSON.parse(row[index.payload_json] || "{}");
+        } catch {
+          report.ok = false;
+          report.messages.push(`${rowIndex + 2}행의 payload_json을 읽지 못했습니다.`);
+          return {};
+        }
+      };
       rows.forEach((row, rowIndex) => {
         if (row.length !== header.length) {
           report.ok = false;
           report.messages.push(`${rowIndex + 2}행의 칸 수가 맞지 않습니다.`);
         }
-        if (row[index.schema_version] !== "maeumgoyo_v2") {
+        if (row[index.schema_version] !== CSV_SCHEMA_VERSION) {
           report.ok = false;
           report.messages.push(`${rowIndex + 2}행의 schema_version이 맞지 않습니다.`);
         }
+        if (row[index.share_mode] !== "counselor_full") {
+          report.ok = false;
+          report.messages.push(`${rowIndex + 2}행의 share_mode가 상담자 전체 자료가 아닙니다.`);
+        }
+        payloadOf(row, rowIndex);
         const type = row[index.record_type];
         if (type in report.counts) report.counts[type] += 1;
         else {
@@ -1123,7 +1151,8 @@ const TEXT_LIMITS = {
           report.messages.push(`관찰 기록 누락: ${record.date}`);
           return;
         }
-        if (row[index.date] !== record.date || Number(row[index.urge_score]) !== Number(record.urgeScore)) {
+        const payload = payloadOf(row, 0);
+        if (row[index.date] !== record.date || Number(payload.urge_score) !== Number(record.urgeScore)) {
           report.ok = false;
           report.messages.push(`관찰 기록 값 불일치: ${record.date}`);
         }
@@ -1136,7 +1165,8 @@ const TEXT_LIMITS = {
           report.messages.push(`실천행동 누락: ${record.name || record.value || record.id}`);
           return;
         }
-        if (row[index.practice_name] !== (record.name || "") || row[index.practice_value] !== (record.value || "")) {
+        const payload = payloadOf(row, 0);
+        if (payload.practice_name !== (record.name || "") || payload.practice_value !== (record.value || "")) {
           report.ok = false;
           report.messages.push(`실천행동 값 불일치: ${record.name || record.id}`);
         }
@@ -1150,7 +1180,8 @@ const TEXT_LIMITS = {
           report.messages.push(`수행 기록 누락: ${record.date}`);
           return;
         }
-        if (row[index.date] !== record.date || Number(row[index.practice_score]) !== Number(record.score)) {
+        const payload = payloadOf(row, 0);
+        if (row[index.date] !== record.date || Number(payload.practice_score) !== Number(record.score)) {
           report.ok = false;
           report.messages.push(`수행 기록 값 불일치: ${record.date}`);
         }
@@ -1227,12 +1258,12 @@ const TEXT_LIMITS = {
         }
         const header = rows.shift() || [];
         if (header[0] !== "schema_version" || header[1] !== "record_type") {
-          $("#importInfo").textContent = "새 CSV 구조(maeumgoyo_v2)로 저장한 파일만 가져올 수 있습니다.";
+          $("#importInfo").textContent = "현재 개발용 CSV 구조(maeumgoyo_compact_v2)로 저장한 파일만 가져올 수 있습니다.";
           return;
         }
         const index = {};
         header.forEach((name, i) => index[name] = i);
-        const requiredColumns = ["schema_version", "record_type", "id", "date", "updated_at"];
+        const requiredColumns = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_label", "payload_json"];
         const missingColumns = requiredColumns.filter(name => !(name in index));
         if (missingColumns.length) {
           $("#importInfo").textContent = `CSV 필수 항목이 빠져 있습니다: ${missingColumns.join(", ")}`;
@@ -1246,72 +1277,78 @@ const TEXT_LIMITS = {
           logs: state.data.logs.length
         };
         rows.forEach(row => {
-          if (cell(row, "schema_version") !== "maeumgoyo_v2") return;
+          if (cell(row, "schema_version") !== CSV_SCHEMA_VERSION) return;
           const type = cell(row, "record_type");
+          let payload = {};
+          try {
+            payload = JSON.parse(cell(row, "payload_json") || "{}");
+          } catch {
+            return;
+          }
           if (type === "observation") {
             const id = cell(row, "id") || uid();
             if (state.data.observations.some(o => o.id === id)) return;
-            const behaviorAreas = splitBehaviorCustom(cell(row, "behavior_areas"));
-            const behaviorCustomAreas = splitBehaviorCustom(cell(row, "behavior_custom_areas"));
+            const behaviorAreas = Array.isArray(payload.behavior_areas) ? payload.behavior_areas : splitBehaviorCustom(payload.behavior_areas);
+            const behaviorCustomAreas = Array.isArray(payload.behavior_custom_areas) ? payload.behavior_custom_areas : splitBehaviorCustom(payload.behavior_custom_areas);
             state.data.observations.push({
               id,
               date: cleanDate(cell(row, "date") || todayISO()),
-              mode: cleanText(cell(row, "time_slot") || "가져오기", TEXT_LIMITS.short),
+              mode: cleanText(payload.time_slot || "가져오기", TEXT_LIMITS.short),
               behavior: behaviorAreas.join(", "),
               behaviorAreas,
               behaviorCustomAreas,
-              situation: isRedacted(cell(row, "situation")) ? "" : cleanMultiline(cell(row, "situation"), TEXT_LIMITS.long),
-              thoughtText: isRedacted(cell(row, "thought_text")) ? "" : cleanMultiline(cell(row, "thought_text"), TEXT_LIMITS.long),
-              emotion: cleanText(cell(row, "emotion"), TEXT_LIMITS.short),
-              emotionCustom: cleanText(cell(row, "emotion_custom"), 10),
-              body: splitBehaviorCustom(cell(row, "body_reactions").replace(/;/g, ",")),
-              bodyCustom: cleanText(cell(row, "body_custom"), 10),
-              thoughtScore: clampNumber(cell(row, "thought_score"), 0, 10, 0),
-              emotionScore: clampNumber(cell(row, "emotion_score"), 0, 10, 0),
-              urgeScore: clampNumber(cell(row, "urge_score"), 0, 10, 0),
-              actionLevel: clampNumber(cell(row, "action_level"), 0, 5, 0),
-              coping: cleanMultiline(cell(row, "coping"), TEXT_LIMITS.long),
-              copingScore: clampNumber(cell(row, "coping_score"), 0, 10, 0),
-              gratitude: cleanMultiline(cell(row, "gratitude"), TEXT_LIMITS.medium),
-              insight: isRedacted(cell(row, "insight")) ? "" : cleanMultiline(cell(row, "insight"), TEXT_LIMITS.reflection),
-              value: cleanText(cell(row, "value"), TEXT_LIMITS.short),
-              valueActionDraft: cleanMultiline(cell(row, "value_action_draft"), TEXT_LIMITS.medium),
+              situation: cleanMultiline(payload.situation, TEXT_LIMITS.long),
+              thoughtText: cleanMultiline(payload.thought_text, TEXT_LIMITS.long),
+              emotion: cleanText(payload.emotion, TEXT_LIMITS.short),
+              emotionCustom: cleanText(payload.emotion_custom, 10),
+              body: Array.isArray(payload.body_reactions) ? payload.body_reactions : splitBehaviorCustom(String(payload.body_reactions || "").replace(/;/g, ",")),
+              bodyCustom: cleanText(payload.body_custom, 10),
+              thoughtScore: clampNumber(payload.thought_score, 0, 10, 0),
+              emotionScore: clampNumber(payload.emotion_score, 0, 10, 0),
+              urgeScore: clampNumber(payload.urge_score, 0, 10, 0),
+              actionLevel: clampNumber(payload.action_level, 0, 5, 0),
+              coping: cleanMultiline(payload.coping, TEXT_LIMITS.long),
+              copingScore: clampNumber(payload.coping_score, 0, 10, 0),
+              gratitude: cleanMultiline(payload.gratitude, TEXT_LIMITS.medium),
+              insight: cleanMultiline(payload.insight, TEXT_LIMITS.reflection),
+              value: cleanText(payload.value, TEXT_LIMITS.short),
+              valueActionDraft: cleanMultiline(payload.value_action_draft, TEXT_LIMITS.medium),
               updatedAt: cell(row, "updated_at") || new Date().toISOString()
             });
           }
           if (type === "practice_definition") {
-            const id = cell(row, "practice_id") || cell(row, "id") || uid();
+            const id = cell(row, "id") || uid();
             if (state.data.practices.some(p => p.id === id)) return;
             state.data.practices.push({
               id,
-              value: cleanText(cell(row, "practice_value") || cell(row, "value"), TEXT_LIMITS.short),
-              name: cleanMultiline(cell(row, "practice_name"), TEXT_LIMITS.medium),
-              reason: cleanMultiline(cell(row, "practice_reason"), TEXT_LIMITS.long),
-              frequency: cell(row, "frequency") || "daily",
-              customDays: String(cell(row, "custom_days") || "").split(";").map(Number).filter(n => !Number.isNaN(n)),
-              targetCount: clampNumber(cell(row, "target_count"), 1, 12, 1),
-              reminderMode: cell(row, "reminder_mode") || "morning",
-              reminderTimes: cleanTimeList(cell(row, "reminder_times")),
-              startDate: cleanDate(cell(row, "start_date") || todayISO()),
-              barriers: cleanMultiline(cell(row, "barriers"), TEXT_LIMITS.long),
-              smallVersion: cleanMultiline(cell(row, "small_version"), TEXT_LIMITS.medium),
-              archived: cell(row, "archived") === "1",
+              value: cleanText(payload.practice_value, TEXT_LIMITS.short),
+              name: cleanMultiline(payload.practice_name, TEXT_LIMITS.medium),
+              reason: cleanMultiline(payload.practice_reason, TEXT_LIMITS.long),
+              frequency: payload.frequency || "daily",
+              customDays: Array.isArray(payload.custom_days) ? payload.custom_days.map(Number).filter(n => !Number.isNaN(n)) : String(payload.custom_days || "").split(";").map(Number).filter(n => !Number.isNaN(n)),
+              targetCount: clampNumber(payload.target_count, 1, 12, 1),
+              reminderMode: payload.reminder_mode || "morning",
+              reminderTimes: cleanTimeList(payload.reminder_times),
+              startDate: cleanDate(payload.start_date || todayISO()),
+              barriers: cleanMultiline(payload.barriers, TEXT_LIMITS.long),
+              smallVersion: cleanMultiline(payload.small_version, TEXT_LIMITS.medium),
+              archived: payload.archived === "1",
               updatedAt: cell(row, "updated_at") || new Date().toISOString()
             });
           }
           if (type === "practice_log") {
             const id = cell(row, "id") || uid();
             if (state.data.logs.some(log => log.id === id)) return;
-            const practiceId = cell(row, "practice_id");
+            const practiceId = payload.practice_id || "";
             if (practiceId && !state.data.practices.some(p => p.id === practiceId)) {
               state.data.practices.push({
                 id: practiceId,
-                value: cleanText(cell(row, "practice_value"), TEXT_LIMITS.short),
-                name: cleanMultiline(cell(row, "practice_name"), TEXT_LIMITS.medium),
+                value: cleanText(payload.practice_value, TEXT_LIMITS.short),
+                name: cleanMultiline(payload.practice_name, TEXT_LIMITS.medium),
                 reason: "CSV에서 가져온 실천행동",
                 frequency: "daily",
                 customDays: [],
-                targetCount: clampNumber(cell(row, "target_count"), 1, 12, 1),
+                targetCount: clampNumber(payload.target_count, 1, 12, 1),
                 reminderMode: "morning",
                 reminderTimes: "",
                 startDate: cleanDate(cell(row, "date") || todayISO()),
@@ -1325,8 +1362,8 @@ const TEXT_LIMITS = {
               id,
               practiceId,
               date: cleanDate(cell(row, "date") || todayISO()),
-              score: clampNumber(cell(row, "practice_score"), 0, 10, 0),
-              note: isRedacted(cell(row, "practice_note")) ? "" : cleanMultiline(cell(row, "practice_note"), TEXT_LIMITS.long),
+              score: clampNumber(payload.practice_score, 0, 10, 0),
+              note: cleanMultiline(payload.practice_note, TEXT_LIMITS.long),
               updatedAt: cell(row, "updated_at") || new Date().toISOString()
             });
           }
@@ -1620,7 +1657,7 @@ const TEXT_LIMITS = {
       $("#quickRisk").addEventListener("click", () => startQuickObservation("risk"));
       $("#quickBackup").addEventListener("click", () => {
         setView("share");
-        showToast("CSV 저장으로 현재 기록을 백업할 수 있습니다.");
+        showToast("CSV 저장으로 상담자에게 보낼 전체 치료자료를 만들 수 있습니다.");
       });
       $("#rangeButtons").addEventListener("click", e => {
         const b = e.target.closest("button");
@@ -1638,11 +1675,6 @@ const TEXT_LIMITS = {
         state.shareMode = b.dataset.mode;
         renderSharePreview();
       });
-      $$("[data-redact]").forEach(b => b.addEventListener("click", () => {
-        b.classList.toggle("active");
-        state.redactions[b.dataset.redact] = b.classList.contains("active");
-        renderSharePreview();
-      }));
       $("#buildPreview").addEventListener("click", () => {
         renderSharePreview();
         showToast("공유 미리보기를 만들었습니다.");
@@ -1652,7 +1684,7 @@ const TEXT_LIMITS = {
         downloadBlob(data.blob, data.fileName);
         state.data.settings.lastBackupAt = new Date().toISOString();
         if (!saveData()) return;
-        $("#shareInfo").textContent = `저장한 파일: ${data.fileName}`;
+        $("#shareInfo").textContent = `상담자 치료자료 전체본을 저장했습니다: ${data.fileName}`;
       });
       $("#verifyCsv").addEventListener("click", renderCsvVerification);
       $("#shareFile").addEventListener("click", async () => {
@@ -1660,8 +1692,8 @@ const TEXT_LIMITS = {
         const file = new File([data.blob], data.fileName, { type: "text/csv" });
         if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
           try {
-            await navigator.share({ title: "마음고요 관찰과 실천", text: `${rangeLabel()} 기록 공유입니다. 받는 사람: respectuu@naver.com`, files: [file] });
-            $("#shareInfo").textContent = `공유한 파일: ${data.fileName}`;
+            await navigator.share({ title: "마음고요 관찰과 실천", text: `${rangeLabel()} 상담자 치료자료 전체본입니다. 받는 사람: respectuu@naver.com`, files: [file] });
+            $("#shareInfo").textContent = `상담자 치료자료 전체본을 공유했습니다: ${data.fileName}`;
             return;
           } catch (error) {
             if (error.name === "AbortError") return;
@@ -1670,8 +1702,8 @@ const TEXT_LIMITS = {
         downloadBlob(data.blob, data.fileName);
         state.data.settings.lastBackupAt = new Date().toISOString();
         if (!saveData()) return;
-        const subject = encodeURIComponent(`마음고요 관찰과 실천 공유 ${todayISO()}`);
-        const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 기록을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`);
+        const subject = encodeURIComponent(`마음고요 관찰과 실천 상담자 치료자료 ${todayISO()}`);
+        const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`);
         window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
       });
       $("#importCsv").addEventListener("click", () => importCsvFile($("#importFile").files[0]));

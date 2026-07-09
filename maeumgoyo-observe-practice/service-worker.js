@@ -1,10 +1,11 @@
-const CACHE_NAME = "maeumgoyo-observe-practice-v20";
+const CACHE_NAME = "maeumgoyo-observe-practice-v23";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
-  "./manifest.webmanifest"
+  "./manifest.webmanifest",
+  "./CSV_SCHEMA.md"
 ];
 const STATIC_ASSETS = [
   "./app-icon-192.png",
