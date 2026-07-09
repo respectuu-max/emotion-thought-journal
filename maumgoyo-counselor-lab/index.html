@@ -3,200 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>마음고요 상담분석실 v7</title>
-  <link rel="stylesheet" href="styles-20260710-v7.css">
+  <title>마음고요 상담분석실 20260710 v10</title>
+  <link rel="stylesheet" href="styles-20260710-v10.css">
 </head>
 <body>
   <header class="app-header">
     <div>
       <p class="eyebrow">상담자용 CSV 분석 도구</p>
-      <h1>마음고요 상담분석실 <span class="version-badge">20260710 v7</span></h1>
-      <p class="version-note">PC 큰 화면 전용 작업 순서 메뉴 · 하위 작업 즉시 표시 · 캐시 회피 파일명 적용</p>
+      <h1>마음고요 상담분석실 <span class="version-badge">20260710 v10</span></h1>
+      <p class="version-note">50분 회기형 8단계 · 측정기록 기반 피드백 치료 · STOP/TIPP 호흡훈련 · 가치기반 실천</p>
     </div>
     <div class="header-actions">
-      <button id="loadSampleBtn" class="secondary" type="button" title="예시 데이터 불러오기">예시</button>
-      <button id="refreshAppBtn" class="secondary" type="button" title="앱 파일과 화면을 최신 상태로 다시 불러오기">앱 업데이트 새로 적용</button>
-      <button id="resetBtn" class="secondary" type="button" title="불러온 자료와 상담 메모 제거">자료 제거</button>
-      <button id="printBtn" class="secondary" type="button" title="현재 분석 화면 인쇄">인쇄</button>
-      <button id="exportBtn" class="primary" type="button" title="상담 요약 파일 내보내기">요약 저장</button>
+      <button id="sampleBtn" class="secondary" type="button">예시</button>
+      <button id="refreshBtn" class="secondary" type="button">앱 업데이트 새로 적용</button>
+      <button id="resetBtn" class="secondary" type="button">자료 제거</button>
+      <button id="printBtn" class="secondary" type="button">인쇄</button>
+      <button id="exportBtn" class="primary" type="button">요약 저장</button>
     </div>
   </header>
 
   <main class="app-shell">
     <aside class="sidebar">
-      <section class="panel upload-panel">
+      <section class="panel">
         <label class="drop-zone" for="csvInput" id="dropZone">
-          <span class="drop-title">CSV 파일 불러오기</span>
-          <span class="drop-copy">내담자용 앱에서 내보낸 record_type 기반 CSV를 선택하거나 끌어놓으세요.</span>
+          <strong>CSV 파일 불러오기</strong>
+          <span>마음고요 관찰과 실천에서 내보낸 record_type 기반 CSV를 선택하거나 끌어오세요.</span>
           <input id="csvInput" type="file" accept=".csv,text/csv">
         </label>
-        <div class="file-meta" id="fileMeta">아직 불러온 파일이 없습니다.</div>
-        <div class="share-mode-card" id="shareModeInfo">
+        <div id="fileMeta" class="file-meta">아직 불러온 파일이 없습니다.</div>
+        <div id="shareModeInfo" class="share-mode-card">
           <span>공유 모드</span>
           <strong>CSV를 불러오면 표시됩니다.</strong>
-          <p>민감정보 제외 여부를 여기서 확인할 수 있습니다.</p>
+          <p>상담자용 상세, 상담자용 요약, 가족회복용 여부와 민감정보 제외 가능성을 확인합니다.</p>
         </div>
-        <p class="privacy-note">새 CSV를 불러오면 이전 분석 자료와 상담 메모는 자동으로 지워집니다. 이 앱은 분석 내용을 누적 저장하지 않습니다.</p>
-      </section>
-
-      <section class="panel">
-        <h2>필터</h2>
-        <label>
-          내담자
-          <select id="clientFilter"></select>
-        </label>
-        <label>
-          기간 시작
-          <input id="fromDate" type="date">
-        </label>
-        <label>
-          기간 종료
-          <input id="toDate" type="date">
-        </label>
-        <label>
-          기록 유형
-          <select id="typeFilter"></select>
-        </label>
-        <label>
-          위험 신호
-          <select id="riskFilter">
-            <option value="all">전체</option>
-            <option value="high_urge">충동 높음</option>
-            <option value="actionized">행동화 있음</option>
-            <option value="missed_practice">실천 미수행</option>
-          </select>
-        </label>
-        <label>
-          검색어
-          <input id="keywordFilter" type="search" placeholder="상황, 생각, 감정, 메모 검색">
-        </label>
+        <p class="privacy-note">이 앱은 원본 CSV를 저장하지 않습니다. 새 CSV를 불러오거나 자료를 제거하면 현재 분석과 상담 메모가 초기화됩니다.</p>
       </section>
 
       <section class="panel">
         <h2>위험 기준</h2>
-        <label>
-          충동 높음 기준
-          <input id="urgeThreshold" type="number" min="0" max="10" step="1" value="8">
-        </label>
-        <label>
-          행동화 기준
-          <input id="actionThreshold" type="number" min="0" max="5" step="1" value="4">
-        </label>
-        <label>
-          실천 미수행 기준
-          <input id="practiceMissThreshold" type="number" min="0" max="10" step="1" value="0">
-        </label>
-        <p class="privacy-note">내담자용 CSV 기준값입니다. 일반 CSV는 0-100 강도 기준으로 환산해 적용합니다.</p>
+        <label>충동 높음 기준 <input id="urgeThreshold" type="number" min="0" max="10" step="1" value="8"></label>
+        <label>문제행동 기준 <input id="actionThreshold" type="number" min="0" max="5" step="1" value="4"></label>
+        <label>실천 저수행 기준 <input id="practiceThreshold" type="number" min="0" max="10" step="1" value="0"></label>
+        <p class="privacy-note">상담 스타일에 맞게 기준을 조정하면 모든 작업판이 즉시 다시 계산됩니다.</p>
       </section>
 
       <section class="panel">
-        <h2>컬럼 인식</h2>
-        <dl class="mapping-list" id="mappingList"></dl>
+        <h2>자료 범위</h2>
+        <dl id="schemaInfo" class="info-list"></dl>
+      </section>
+
+      <section class="panel">
+        <h2>상담 메모</h2>
+        <textarea id="notes" placeholder="회기 중 확인한 가설, 변화언어, 다음 실천과제를 적어두세요. 메모는 새 CSV를 불러오면 지워집니다."></textarea>
       </section>
     </aside>
 
     <section class="workspace">
-      <section class="metric-grid" id="metrics"></section>
+      <section id="metrics" class="metric-grid"></section>
 
-      <section class="analysis-grid">
-        <div class="panel chart-panel">
-          <div class="panel-heading">
-            <h2>감정·충동 흐름</h2>
-            <select id="chartMode">
-              <option value="emotion">감정 강도</option>
-              <option value="urge">충동 강도</option>
-              <option value="practice">실천 수행도</option>
-            </select>
-          </div>
-          <canvas id="trendChart" width="960" height="320" aria-label="기간별 흐름 차트"></canvas>
+      <section class="panel workflow-panel">
+        <div class="panel-heading">
+          <h2>치료작업 순서</h2>
+          <span id="activeStepLabel" class="muted">자료 확인</span>
         </div>
-
-        <div class="panel focus-panel">
-          <div class="panel-heading">
-            <h2>상담 초점</h2>
-            <button id="copyFocusBtn" class="secondary small" type="button">복사</button>
-          </div>
-          <div id="focusList" class="focus-list"></div>
-        </div>
+        <nav id="therapyMenu" class="therapy-menu" aria-label="치료작업 메뉴"></nav>
       </section>
 
-      <section class="panel therapy-panel">
-        <div class="panel-heading">
-          <h2>치료작업 메뉴</h2>
-          <div class="workflow-guide" aria-label="회기 작업 순서">
-            <div class="workflow-step"><strong>1. 오늘의 초점</strong><span>위험 연쇄, 억제/성공 연쇄, 실천 조정, 가치 단서 우선순위</span></div>
-            <div class="workflow-step"><strong>2. 연쇄 분석</strong><span>상황-생각-감정/몸반응-충동-문제행동수준-대처/실천 흐름</span></div>
-            <div class="workflow-step"><strong>3. 위기·충동</strong><span>DBT STOP/TIPP 적용 후보</span></div>
-            <div class="workflow-step"><strong>4. 작은 변화</strong><span>행동활성화 관점의 긍정 경험, 자기효능감 단서</span></div>
-            <div class="workflow-step"><strong>5. 생각 검토</strong><span>CBT 자동사고 검토 질문</span></div>
-            <div class="workflow-step"><strong>6. 가치와 방향</strong><span>ACT 회피-가치 방향 질문</span></div>
-            <div class="workflow-step"><strong>7. 실천 조정</strong><span>실천행동 평균 점수, 저수행, 다음 과제 조정 질문</span></div>
-            <div class="workflow-step"><strong>8. 회기 요약</strong><span>위험/성공/실천 조정 요약과 다음 회기 확인 포인트</span></div>
-          </div>
-          <div class="therapy-menu workflow-menu" id="therapyMenu" role="tablist" aria-label="회기 치료작업 순서">
-            <button class="active" data-therapy-view="focus" type="button">
-              <strong>1. 오늘의 초점</strong>
-              <span>위험 연쇄, 억제/성공 연쇄, 실천 조정, 가치 단서 우선순위</span>
-            </button>
-            <button data-therapy-view="chain" type="button">
-              <strong>2. 연쇄 분석</strong>
-              <span>상황-생각-감정/몸반응-충동-문제행동수준-대처/실천 흐름</span>
-            </button>
-            <button data-therapy-view="crisis" type="button">
-              <strong>3. 위기·충동</strong>
-              <span>DBT STOP/TIPP 적용 후보</span>
-            </button>
-            <button data-therapy-view="change" type="button">
-              <strong>4. 작은 변화</strong>
-              <span>행동활성화 관점의 긍정 경험, 자기효능감 단서</span>
-            </button>
-            <button data-therapy-view="thought" type="button">
-              <strong>5. 생각 검토</strong>
-              <span>CBT 자동사고 검토 질문</span>
-            </button>
-            <button data-therapy-view="value" type="button">
-              <strong>6. 가치와 방향</strong>
-              <span>ACT 회피-가치 방향 질문</span>
-            </button>
-            <button data-therapy-view="practice" type="button">
-              <strong>7. 실천 조정</strong>
-              <span>실천행동 평균 점수, 저수행, 다음 과제 조정 질문</span>
-            </button>
-            <button data-therapy-view="summary" type="button">
-              <strong>8. 회기 요약</strong>
-              <span>위험/성공/실천 조정 요약과 다음 회기 확인 포인트</span>
-            </button>
-          </div>
-        </div>
+      <section class="panel workbench-panel">
         <div id="therapyView" class="therapy-view"></div>
       </section>
 
       <section class="panel">
         <div class="panel-heading">
-          <h2>상황-생각-감정-충동-행동화 연쇄</h2>
-          <div class="segmented" role="tablist" aria-label="보기 방식">
-            <button id="chainViewBtn" class="active" type="button">연쇄</button>
-            <button id="tableViewBtn" type="button">기록표</button>
-          </div>
+          <h2>연쇄 기록 전체 보기</h2>
+          <button id="copySummaryBtn" class="secondary small" type="button">요약 복사</button>
         </div>
-        <div id="chainView" class="chain-list"></div>
-        <div id="tableView" class="table-wrap hidden"></div>
-      </section>
-
-      <section class="panel notes-panel">
-        <h2>상담 메모</h2>
-        <textarea id="counselorNotes" placeholder="상담 중 확인한 핵심 패턴, 다음 회기 과제, 보호요인 등을 기록하세요. 메모는 저장되지 않으며 새 CSV를 불러오거나 자료를 제거하면 함께 지워집니다."></textarea>
+        <div id="chainList" class="chain-list"></div>
       </section>
     </section>
   </main>
 
-  <template id="emptyStateTemplate">
-    <div class="empty-state">
-      <h2>CSV를 불러오면 분석이 시작됩니다.</h2>
-      <p>record_type, 날짜, 내용, 강도, 수행 여부 컬럼을 자동으로 찾아 상담용 요약과 연쇄 고리를 구성합니다.</p>
-    </div>
-  </template>
-
-  <script src="app-20260710-v7.js"></script>
+  <script src="app-20260710-v10.js"></script>
 </body>
 </html>
