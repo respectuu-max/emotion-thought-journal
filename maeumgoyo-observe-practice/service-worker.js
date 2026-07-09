@@ -1,4 +1,4 @@
-const CACHE_NAME = "maeumgoyo-observe-practice-v9";
+const CACHE_NAME = "maeumgoyo-observe-practice-v10";
 const ASSETS = [
   "./",
   "./index.html",

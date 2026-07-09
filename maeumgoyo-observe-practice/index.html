@@ -229,12 +229,12 @@
         <div class="contact">메일 respectuu@naver.com</div>
       </div>
       <nav class="tabs" aria-label="앱 메뉴">
-        <button class="tab active" data-view="today">오늘</button>
-        <button class="tab" data-view="observe">관찰</button>
-        <button class="tab" data-view="practice">실천</button>
-        <button class="tab" data-view="trend">추세</button>
-        <button class="tab" data-view="share">공유</button>
-        <button class="tab" data-view="protect">보호</button>
+        <button class="tab active" data-view="today">오늘할일</button>
+        <button class="tab" data-view="observe">관찰하기</button>
+        <button class="tab" data-view="practice">실천하기</button>
+        <button class="tab" data-view="trend">추세보기</button>
+        <button class="tab" data-view="share">공유하기</button>
+        <button class="tab" data-view="protect">보호하기</button>
       </nav>
     </header>
 
@@ -351,10 +351,14 @@
             <div class="form-row">
               <label>감정 종류</label>
               <div class="chip-row" id="emotionChips"></div>
+              <div style="height:8px"></div>
+              <input id="emotionCustom" maxlength="10" placeholder="기타 감정 10자 이내">
             </div>
             <div class="form-row">
               <label>몸 반응</label>
               <div class="chip-row" id="bodyChips"></div>
+              <div style="height:8px"></div>
+              <input id="bodyCustom" maxlength="10" placeholder="기타 몸 반응 10자 이내">
             </div>
             <div class="form-row">
               <label>강도 기록</label>
@@ -666,7 +670,9 @@
       behavior: "",
       behaviorAreas: [],
       emotion: "",
+      emotionCustom: "",
       body: [],
+      bodyCustom: "",
       value: "",
       customDays: [],
       shareRange: 7,
@@ -686,6 +692,18 @@
     function escapeCsv(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    function shortCustomValue(selector) {
+      return String($(selector)?.value || "").trim().slice(0, 10);
+    }
+    function compactList(values) {
+      return values.map(value => String(value || "").trim()).filter(Boolean);
+    }
+    function emotionText(record) {
+      return compactList([record.emotion, record.emotionCustom]).join(", ") || "-";
+    }
+    function bodyText(record) {
+      return compactList([...(Array.isArray(record.body) ? record.body : []), record.bodyCustom]).join(", ") || "-";
     }
     function selectorEscape(value) {
       if (window.CSS && typeof CSS.escape === "function") return CSS.escape(value);
@@ -724,7 +742,7 @@
       const freshBox = oldBox.cloneNode(false);
       oldBox.replaceWith(freshBox);
       const box = $(containerId);
-      box.innerHTML = items.map((item, index) => `<button type="button" class="chip ${item === activeValue || (!activeValue && index === 0 && key === "behavior") ? "active" : ""}" data-value="${item}">${item}</button>`).join("");
+      box.innerHTML = items.map((item, index) => `<button type="button" class="chip ${item === activeValue || (!activeValue && index === 0 && key === "behavior") ? "active" : ""}" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("");
       box.addEventListener("click", (event) => {
         const button = event.target.closest("button");
         if (!button) return;
@@ -910,10 +928,10 @@
     function renderObservationItem(o) {
       const risk = Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4;
       return `<div class="record-item">
-        <div class="record-top"><strong>${o.date} · ${o.mode}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : behaviorAreaText(o)}</span></div>
-        <div class="small">감정: ${o.emotion || "-"} · 가치: ${o.value || "-"}</div>
+        <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
+        <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
         <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 행동수준 ${o.actionLevel}/5</div>
-        ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${o.valueActionDraft}</div>` : ""}
+        ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${escapeHtml(o.valueActionDraft)}</div>` : ""}
       </div>`;
     }
     function renderPracticeToday(p) {
@@ -927,21 +945,21 @@
         <div style="height:8px"></div>
         <div class="small"><strong>오늘 기록 ${todayLogs.length}/${target}회 · 하루 평균 ${todayAverage.toFixed(1)}점</strong></div>
         <div class="list">
-          ${todayLogs.slice(0, 4).map(item => `<div class="plain-card small">수행도 ${item.score}/10 · ${formatSavedTime(item.updatedAt)}${item.note ? `<br>${item.note}` : ""}</div>`).join("")}
+          ${todayLogs.slice(0, 4).map(item => `<div class="plain-card small">수행도 ${escapeHtml(item.score)}/10 · ${escapeHtml(formatSavedTime(item.updatedAt))}${item.note ? `<br>${escapeHtml(item.note)}` : ""}</div>`).join("")}
         </div>
       ` : "";
       return `<div class="record-item">
-        <div class="record-top"><strong>${p.value || "가치"} · ${p.name}</strong><span class="tag ${due ? "" : "warn"}">${due ? "오늘 실천일" : "선택 기록"}</span></div>
+        <div class="record-top"><strong>${escapeHtml(p.value || "가치")} · ${escapeHtml(p.name)}</strong><span class="tag ${due ? "" : "warn"}">${due ? "오늘 실천일" : "선택 기록"}</span></div>
         <div class="small">오늘 약속: ${target}회 · 현재 ${todayLogs.length}회 기록</div>
-        <div class="small">30% 버전: ${p.smallVersion || "-"}</div>
+        <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
         <div style="height:8px"></div>
         <div class="slider-card">
-          <div class="slider-top"><span>오늘 수행도</span><span class="slider-value" id="todayLogValue-${p.id}">${log ? log.score : 0}</span></div>
-          <input data-practice-score="${p.id}" type="range" min="0" max="10" value="${log ? log.score : 0}">
+          <div class="slider-top"><span>오늘 수행도</span><span class="slider-value" id="todayLogValue-${escapeHtml(p.id)}">${log ? escapeHtml(log.score) : 0}</span></div>
+          <input data-practice-score="${escapeHtml(p.id)}" type="range" min="0" max="10" value="${log ? escapeHtml(log.score) : 0}">
         </div>
-        <textarea data-practice-note="${p.id}" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
+        <textarea data-practice-note="${escapeHtml(p.id)}" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
         <div style="height:8px"></div>
-        <button class="solid-btn full" data-save-log="${p.id}" type="button">오늘 실천 추가 기록</button>
+        <button class="solid-btn full" data-save-log="${escapeHtml(p.id)}" type="button">오늘 실천 추가 기록</button>
         ${logHistory}
       </div>`;
     }
@@ -975,17 +993,17 @@
       $("#practiceList").innerHTML = practices.length ? practices.map(p => {
         const logs = state.data.logs.filter(l => l.practiceId === p.id);
         return `<div class="record-item">
-          <div class="record-top"><strong>${p.value || "가치"} · ${p.name}</strong><span class="tag">${frequencyLabel(p.frequency)}</span></div>
-          <div class="small">이유: ${p.reason || "-"}</div>
-          <div class="small">약속: ${frequencyLabel(p.frequency)} · 실천일마다 ${targetCount(p)}회</div>
-          <div class="small">알림: ${reminderLabel(p)}</div>
-          <div class="small">방해요인: ${p.barriers || "-"}</div>
-          <div class="small">30% 버전: ${p.smallVersion || "-"}</div>
+          <div class="record-top"><strong>${escapeHtml(p.value || "가치")} · ${escapeHtml(p.name)}</strong><span class="tag">${escapeHtml(frequencyLabel(p.frequency))}</span></div>
+          <div class="small">이유: ${escapeHtml(p.reason || "-")}</div>
+          <div class="small">약속: ${escapeHtml(frequencyLabel(p.frequency))} · 실천일마다 ${targetCount(p)}회</div>
+          <div class="small">알림: ${escapeHtml(reminderLabel(p))}</div>
+          <div class="small">방해요인: ${escapeHtml(p.barriers || "-")}</div>
+          <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
           <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)}</div>
           <div style="height:8px"></div>
           <div class="button-row">
-            <button class="ghost-btn" type="button" data-edit-practice="${p.id}">수정</button>
-            <button class="danger-btn" type="button" data-archive-practice="${p.id}">${p.archived ? "복원" : "보관"}</button>
+            <button class="ghost-btn" type="button" data-edit-practice="${escapeHtml(p.id)}">수정</button>
+            <button class="danger-btn" type="button" data-archive-practice="${escapeHtml(p.id)}">${p.archived ? "복원" : "보관"}</button>
           </div>
         </div>`;
       }).join("") : `<div class="empty">가치 기반 작은 실천행동을 1개 이상 설정해보세요.</div>`;
@@ -1200,8 +1218,8 @@
       const observations = rangeRecords(state.data.observations);
       const logs = rangeRecords(state.data.logs);
       const header = [
-        "record_type", "id", "date", "updated_at", "time_slot",
-        "behavior_areas", "behavior_custom_areas", "emotion", "body_reactions",
+        "schema_version", "record_type", "id", "date", "updated_at", "time_slot",
+        "behavior_areas", "behavior_custom_areas", "emotion", "emotion_custom", "body_reactions", "body_custom",
         "situation", "thought_text", "thought_score", "emotion_score", "urge_score", "action_level",
         "coping", "coping_score", "gratitude", "insight", "value", "value_action_draft",
         "practice_id", "practice_value", "practice_name", "practice_reason", "frequency", "target_count",
@@ -1215,10 +1233,10 @@
 
       observations.forEach(o => {
         rows.push([
-          "observation", o.id || "", o.date || "", o.updatedAt || "", o.mode || "",
+          "maeumgoyo_v2", "observation", o.id || "", o.date || "", o.updatedAt || "", o.mode || "",
           redactDetails ? "민감 내용 제외" : behaviorAreaText(o),
           redactDetails ? "민감 내용 제외" : behaviorCustomText(o),
-          o.emotion || "", Array.isArray(o.body) ? o.body.join("; ") : "",
+          o.emotion || "", o.emotionCustom || "", Array.isArray(o.body) ? o.body.join("; ") : "", o.bodyCustom || "",
           redactDetails ? "민감 내용 제외" : (o.situation || ""),
           redactThoughts ? "민감 내용 제외" : (o.thoughtText || ""),
           o.thoughtScore ?? 0, o.emotionScore ?? 0, o.urgeScore ?? 0, o.actionLevel ?? 0,
@@ -1232,8 +1250,8 @@
 
       state.data.practices.forEach(p => {
         rows.push([
-          "practice_definition", p.id || "", "", p.updatedAt || "", "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+          "maeumgoyo_v2", "practice_definition", p.id || "", "", p.updatedAt || "", "",
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
           p.value || "", "",
           p.id || "", p.value || "", p.name || "", p.reason || "", p.frequency || "daily", targetCount(p),
           Array.isArray(p.customDays) ? p.customDays.join(";") : "", p.reminderMode || "morning", p.reminderTimes || "",
@@ -1245,8 +1263,8 @@
       logs.forEach(l => {
         const p = state.data.practices.find(x => x.id === l.practiceId) || {};
         rows.push([
-          "practice_log", l.id || "", l.date || "", l.updatedAt || "", "",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+          "maeumgoyo_v2", "practice_log", l.id || "", l.date || "", l.updatedAt || "", "",
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
           p.value || "", "",
           l.practiceId || "", p.value || "", p.name || "", "", "", targetCount(p),
           "", "", "", "", "", "",
@@ -1302,8 +1320,8 @@
       reader.onload = () => {
         const rows = parseCsv(String(reader.result || "").replace(/^\ufeff/, ""));
         const header = rows.shift() || [];
-        if (header[0] !== "record_type") {
-          $("#importInfo").textContent = "새 CSV 구조(record_type 열)로 저장한 파일만 가져올 수 있습니다.";
+        if (header[0] !== "schema_version" || header[1] !== "record_type") {
+          $("#importInfo").textContent = "새 CSV 구조(maeumgoyo_v2)로 저장한 파일만 가져올 수 있습니다.";
           return;
         }
         const index = {};
@@ -1315,6 +1333,7 @@
           logs: state.data.logs.length
         };
         rows.forEach(row => {
+          if (cell(row, "schema_version") !== "maeumgoyo_v2") return;
           const type = cell(row, "record_type");
           if (type === "observation") {
             const id = cell(row, "id") || uid();
@@ -1331,7 +1350,9 @@
               situation: cell(row, "situation") === "민감 내용 제외" ? "" : cell(row, "situation"),
               thoughtText: cell(row, "thought_text") === "민감 내용 제외" ? "" : cell(row, "thought_text"),
               emotion: cell(row, "emotion"),
+              emotionCustom: cell(row, "emotion_custom"),
               body: splitBehaviorCustom(cell(row, "body_reactions").replace(/;/g, ",")),
+              bodyCustom: cell(row, "body_custom"),
               thoughtScore: Number(cell(row, "thought_score")) || 0,
               emotionScore: Number(cell(row, "emotion_score")) || 0,
               urgeScore: Number(cell(row, "urge_score")) || 0,
@@ -1431,7 +1452,9 @@
         situation: $("#situation").value.trim(),
         thoughtText: $("#thoughtText").value.trim(),
         emotion: state.emotion,
+        emotionCustom: shortCustomValue("#emotionCustom"),
         body: state.body.slice(),
+        bodyCustom: shortCustomValue("#bodyCustom"),
         thoughtScore: Number($("#thoughtScore").value),
         emotionScore: Number($("#emotionScore").value),
         urgeScore: Number($("#urgeScore").value),
@@ -1459,7 +1482,9 @@
       state.behavior = "";
       state.behaviorAreas = [];
       state.emotion = "";
+      state.emotionCustom = "";
       state.body = [];
+      state.bodyCustom = "";
       state.value = "";
       ["thoughtScore","emotionScore","urgeScore","actionLevel","copingScore"].forEach(id => {
         $("#" + id).value = 0;

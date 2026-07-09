@@ -19,7 +19,8 @@
 - 알림은 스마트폰/브라우저 정책에 따라 앱이 열려 있거나 백그라운드에 남아 있을 때 가장 안정적으로 작동합니다.
 - 첫 화면에는 오늘 할 일 요약, 첫 사용 안내, 알림 상태가 표시됩니다.
 - 관찰 기록의 문제 행동 영역은 복수 선택이 가능하며, 기타 영역이나 별칭은 직접 입력할 수 있습니다.
-- CSV는 record_type 열을 기준으로 observation, practice_definition, practice_log를 구분하는 단순 표 구조입니다.
+- CSV는 schema_version=maeumgoyo_v2와 record_type 열을 기준으로 observation, practice_definition, practice_log를 구분하는 새 표 구조입니다.
+- 감정 기타값은 emotion_custom, 몸 반응 기타값은 body_custom 열에 10자 이내 텍스트로 저장됩니다.
 - 수행도 기준표는 실천 탭에서 확인할 수 있습니다.
 - 기기를 바꾸거나 브라우저 데이터를 삭제하면 기록이 사라질 수 있으므로 정기적으로 CSV 저장을 권장합니다.
 - 앱은 응급 대응 도구가 아니며, 위기 상황에서는 즉시 사람에게 도움을 요청해야 합니다.
