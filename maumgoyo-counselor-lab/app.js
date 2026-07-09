@@ -97,6 +97,7 @@ const els = {
   chainViewBtn: document.getElementById("chainViewBtn"),
   tableViewBtn: document.getElementById("tableViewBtn"),
   loadSampleBtn: document.getElementById("loadSampleBtn"),
+  refreshAppBtn: document.getElementById("refreshAppBtn"),
   resetBtn: document.getElementById("resetBtn"),
   printBtn: document.getElementById("printBtn"),
   exportBtn: document.getElementById("exportBtn"),
@@ -689,11 +690,6 @@ function renderFocus() {
 
 function renderTherapyView() {
   if (!els.therapyView) return;
-  if (!state.chains.length) {
-    els.therapyView.innerHTML = `<div class="therapy-empty"><strong>${escapeHtml(therapyViewLabel(state.therapyView))}</strong><br>CSV를 불러오면 이 단계에 맞춘 개입 후보가 표시됩니다.</div>`;
-    return;
-  }
-
   const views = {
     focus: renderSessionFocusView,
     chain: renderChainWorkView,
@@ -704,7 +700,11 @@ function renderTherapyView() {
     practice: renderPracticeAdjustmentView,
     summary: renderSessionSummaryView,
   };
-  els.therapyView.innerHTML = (views[state.therapyView] || views.focus)();
+  const guide = renderTherapyGuide(state.therapyView);
+  const dataView = state.chains.length
+    ? (views[state.therapyView] || views.focus)()
+    : `<div class="therapy-empty">CSV를 불러오면 위 하위 작업에 맞춘 내담자 자료 기반 후보가 여기에 표시됩니다.</div>`;
+  els.therapyView.innerHTML = `${guide}${dataView}`;
 }
 
 function therapyViewLabel(view) {
@@ -719,6 +719,48 @@ function therapyViewLabel(view) {
     summary: "8. 회기 요약",
   };
   return labels[view] || labels.focus;
+}
+
+function renderTherapyGuide(view) {
+  const guides = {
+    focus: {
+      title: "오늘의 초점 하위 작업",
+      items: ["위험 연쇄를 먼저 확인", "충동은 높았지만 행동화가 낮았던 성공 연쇄 찾기", "실천 저수행과 가치 단서 확인", "오늘 다룰 기록 1-3개 선택"],
+    },
+    chain: {
+      title: "연쇄 분석 하위 작업",
+      items: ["상황과 촉발 단서 확인", "자동사고와 감정/몸반응 연결", "충동과 문제행동수준 확인", "대처와 가치실천이 들어간 지점 찾기"],
+    },
+    crisis: {
+      title: "위기·충동 개입 하위 작업",
+      items: ["충동 기준 이상 기록 확인", "문제행동수준 기준 이상 기록 확인", "몸반응이 뚜렷한 기록에서 TIPP 후보 찾기", "다음 위기 때 STOP 첫 행동 정하기"],
+    },
+    change: {
+      title: "작은 변화 발견 하위 작업",
+      items: ["실천 점수 1 이상 기록 찾기", "0점 이후 다시 시도한 기록 찾기", "충동은 높았지만 행동화가 낮은 조건 찾기", "자기효능감과 긍정 경험 반영 문장 만들기"],
+    },
+    thought: {
+      title: "생각 검토 하위 작업",
+      items: ["반복 자동사고 확인", "허가 생각·포기 생각·자기비난 구분", "증거와 반대증거 질문 준비", "균형 잡힌 생각 후보 만들기"],
+    },
+    value: {
+      title: "가치와 방향 하위 작업",
+      items: ["회피/통제 시도와 가치 방향 구분", "가치 단서와 가치행동 초안 확인", "고통이 있어도 가능한 1% 행동 찾기", "회피의 단기 이득과 장기 비용 탐색"],
+    },
+    practice: {
+      title: "실천 조정 하위 작업",
+      items: ["실천행동별 평균 점수 확인", "0점 또는 저수행 반복 행동 확인", "작은 버전과 방해요인 확인", "다음 주 과제를 더 작고 구체적으로 조정"],
+    },
+    summary: {
+      title: "회기 요약 하위 작업",
+      items: ["오늘 다룬 연쇄 정리", "위험 신호와 작동한 대처 정리", "작은 변화와 강화할 행동 정리", "다음 회기 확인 포인트와 과제 저장"],
+    },
+  };
+  const guide = guides[view] || guides.focus;
+  return `<div class="therapy-guide-card">
+    <h3>${escapeHtml(guide.title)}</h3>
+    <ol>${guide.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>
+  </div>`;
 }
 
 function chainScores(chain) {
@@ -1133,6 +1175,26 @@ function handleThresholdChange() {
   else render();
 }
 
+async function refreshAppUpdate() {
+  clearAnalysisState();
+  try {
+    sessionStorage.clear();
+  } catch (error) {
+    // Storage may be blocked in some browser privacy modes.
+  }
+  try {
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+    }
+  } catch (error) {
+    // File-based use usually has no Cache Storage; ignore safely.
+  }
+  const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+  const separator = cleanUrl.includes("?") ? "&" : "?";
+  window.location.replace(`${cleanUrl}${separator}appVersion=20260710-v6b&updated=${Date.now()}`);
+}
+
 function downloadText(filename, text, type = "application/json") {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
@@ -1245,6 +1307,7 @@ function initialize() {
   });
   els.chartMode.addEventListener("input", renderChart);
   els.loadSampleBtn.addEventListener("click", () => ingestCsv(sampleCsv));
+  els.refreshAppBtn.addEventListener("click", refreshAppUpdate);
   els.resetBtn.addEventListener("click", () => clearAnalysisState());
   els.printBtn.addEventListener("click", () => window.print());
   els.exportBtn.addEventListener("click", exportSummary);

@@ -446,6 +446,33 @@ textarea {
   gap: 14px;
 }
 
+.therapy-guide-card {
+  padding: 16px;
+  border: 1px solid #b9cbc4;
+  border-radius: 8px;
+  background: #f3faf7;
+}
+
+.therapy-guide-card h3 {
+  margin: 0 0 10px;
+  color: var(--primary-strong);
+  font-size: 16px;
+}
+
+.therapy-guide-card ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.therapy-guide-card li {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .therapy-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -667,6 +694,10 @@ th {
   }
 
   .workflow-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .therapy-guide-card ol {
     grid-template-columns: 1fr;
   }
 }
