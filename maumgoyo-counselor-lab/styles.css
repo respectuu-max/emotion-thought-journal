@@ -357,6 +357,93 @@ textarea {
   color: white;
 }
 
+.therapy-panel .panel-heading {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.therapy-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.therapy-menu button {
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.therapy-menu button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.therapy-view {
+  display: grid;
+  gap: 14px;
+}
+
+.therapy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.therapy-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfb;
+}
+
+.therapy-card.priority {
+  border-left: 4px solid var(--primary);
+}
+
+.therapy-card.warn {
+  border-left: 4px solid var(--warn);
+}
+
+.therapy-card.ok {
+  border-left: 4px solid var(--ok);
+}
+
+.therapy-card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.therapy-card p {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.therapy-card ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.therapy-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.therapy-empty {
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #fbfcfb;
+}
+
 .chain-list {
   display: grid;
   gap: 14px;
@@ -507,6 +594,10 @@ th {
 
   .chain-steps {
     grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
+  .therapy-grid {
+    grid-template-columns: 1fr;
   }
 }
 

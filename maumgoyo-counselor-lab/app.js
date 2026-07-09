@@ -10,6 +10,7 @@ const state = {
   shareMode: "",
   shareModeLabel: "",
   shareModePrivacy: "",
+  therapyView: "focus",
   thresholds: {
     urgeScore: 8,
     actionLevel: 4,
@@ -89,6 +90,8 @@ const els = {
   focusList: document.getElementById("focusList"),
   trendChart: document.getElementById("trendChart"),
   chartMode: document.getElementById("chartMode"),
+  therapyMenu: document.getElementById("therapyMenu"),
+  therapyView: document.getElementById("therapyView"),
   chainView: document.getElementById("chainView"),
   tableView: document.getElementById("tableView"),
   chainViewBtn: document.getElementById("chainViewBtn"),
@@ -605,6 +608,7 @@ function render() {
   renderMetrics();
   renderFocus();
   renderChart();
+  renderTherapyView();
   renderChains();
   renderTable();
 }
@@ -681,6 +685,173 @@ function renderFocus() {
   ];
 
   els.focusList.innerHTML = items.map(([text, warn]) => `<div class="focus-item ${warn ? "warn" : ""}">${escapeHtml(text)}</div>`).join("");
+}
+
+function renderTherapyView() {
+  if (!els.therapyView) return;
+  if (!state.chains.length) {
+    els.therapyView.innerHTML = `<div class="therapy-empty">CSV를 불러오면 회기 작업 순서에 맞춘 개입 후보가 표시됩니다.</div>`;
+    return;
+  }
+
+  const views = {
+    focus: renderSessionFocusView,
+    chain: renderChainWorkView,
+    crisis: renderCrisisView,
+    change: renderSmallChangeView,
+    thought: renderThoughtReviewView,
+    value: renderValueDirectionView,
+    practice: renderPracticeAdjustmentView,
+    summary: renderSessionSummaryView,
+  };
+  els.therapyView.innerHTML = (views[state.therapyView] || views.focus)();
+}
+
+function chainScores(chain) {
+  const thought = maxScore(chain.steps.thought, "thoughtScore");
+  const emotion = maxScore(chain.steps.emotion, "emotionScore");
+  const urge = maxScore(chain.steps.urge, "urgeScore");
+  const action = maxScore(chain.steps.action, "actionLevel");
+  const practice = maxScore(chain.steps.practice, "practiceScore");
+  return { thought, emotion, urge, action, practice };
+}
+
+function maxScore(records, key) {
+  const values = records.map((record) => record.sourceScores?.[key]).filter((value) => Number.isFinite(Number(value))).map(Number);
+  return values.length ? Math.max(...values) : null;
+}
+
+function chainText(chain, category) {
+  return chain.steps[category].filter((record) => !record.redacted).map((record) => visibleContent(record)).filter(Boolean).join(" / ");
+}
+
+function scoreLine(chain) {
+  const scores = chainScores(chain);
+  return [
+    scores.thought !== null ? `생각 ${scores.thought}/10` : "",
+    scores.emotion !== null ? `감정 ${scores.emotion}/10` : "",
+    scores.urge !== null ? `충동 ${scores.urge}/10` : "",
+    scores.action !== null ? `문제행동 ${scores.action}/5` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function card(title, body, options = {}) {
+  const cls = ["therapy-card", options.kind || ""].filter(Boolean).join(" ");
+  const tags = options.tags?.length ? `<div class="tag-row">${options.tags.map((tag) => `<span class="tag ${tag.kind || ""}">${escapeHtml(tag.text)}</span>`).join("")}</div>` : "";
+  const questions = options.questions?.length ? `<ul>${options.questions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : "";
+  return `<article class="${cls}"><span class="therapy-kicker">${escapeHtml(options.kicker || "")}</span><h3>${escapeHtml(title)}</h3>${body}${tags}${questions}</article>`;
+}
+
+function renderSessionFocusView() {
+  const highRisk = state.chains.filter((chain) => chain.highUrge && chain.actionized);
+  const resisted = state.chains.filter((chain) => chain.highUrge && !chain.actionized);
+  const missed = state.chains.filter((chain) => chain.missedPractice);
+  const valueChains = state.chains.filter((chain) => chainText(chain, "practice") || chainText(chain, "situation").includes("가치"));
+  const items = [
+    ...highRisk.slice(0, 2).map((chain) => focusCard(chain, "위험 연쇄", "DBT STOP/TIPP와 행동화 직전 신호 분석", "warn")),
+    ...resisted.slice(0, 2).map((chain) => focusCard(chain, "억제/성공 연쇄", "충동은 높았지만 행동화가 낮았던 조건 강화", "ok")),
+    ...missed.slice(0, 2).map((chain) => focusCard(chain, "실천 조정", "점수 0 또는 낮은 수행의 조건 조정", "priority")),
+    ...valueChains.slice(0, 2).map((chain) => focusCard(chain, "가치 단서", "ACT 가치 방향과 작은 행동 연결", "priority")),
+  ];
+  return `<div class="therapy-grid">${(items.length ? items : [card("오늘의 초점 후보 없음", `<p>현재 기준에서 뚜렷한 위험 또는 실천 조정 후보가 없습니다. 연쇄 분석에서 최근 기록을 함께 검토하세요.</p>`, { kind: "priority" })]).join("")}</div>`;
+}
+
+function focusCard(chain, title, task, kind) {
+  return card(title, `<p>${escapeHtml(formatDate(chain.firstDate))} · ${escapeHtml(chain.chainId)}</p><p>${escapeHtml(scoreLine(chain) || "점수 기록 없음")}</p><p>${escapeHtml(task)}</p>`, {
+    kind,
+    tags: [
+      chain.highUrge ? { text: "충동 높음", kind: "warn" } : null,
+      chain.actionized ? { text: "행동화 높음", kind: "warn" } : null,
+      chain.missedPractice ? { text: "실천 조정", kind: "warn" } : null,
+    ].filter(Boolean),
+    questions: ["오늘 이 기록을 먼저 볼 필요가 있는가?", "위험 안정화와 변화 강화 중 무엇이 우선인가?"],
+  });
+}
+
+function renderChainWorkView() {
+  return `<div class="therapy-grid">${state.chains.slice(0, 6).map((chain) => card(
+    `${formatDate(chain.firstDate)} 연쇄`,
+    `<p><strong>상황</strong>: ${escapeHtml(chainText(chain, "situation") || "기록 없음")}</p><p><strong>생각</strong>: ${escapeHtml(chainText(chain, "thought") || "기록 없음")}</p><p><strong>감정/몸반응</strong>: ${escapeHtml(chainText(chain, "emotion") || "기록 없음")}</p><p><strong>대처/실천</strong>: ${escapeHtml(chainText(chain, "practice") || "기록 없음")}</p>`,
+    { kind: chain.actionized ? "warn" : chain.highUrge ? "priority" : "ok", questions: ["어느 지점에서 개입 가능성이 있었나?", "행동화 전 가장 먼저 알아차릴 신호는 무엇인가?"] }
+  )).join("")}</div>`;
+}
+
+function renderCrisisView() {
+  const candidates = state.chains.filter((chain) => chain.highUrge || chain.actionized || chainText(chain, "emotion"));
+  return `<div class="therapy-grid">${(candidates.length ? candidates : state.chains).slice(0, 6).map((chain) => card(
+    "위기·충동 개입 후보",
+    `<p>${escapeHtml(scoreLine(chain) || "점수 기록 없음")}</p><p><strong>몸반응/감정</strong>: ${escapeHtml(chainText(chain, "emotion") || "기록 없음")}</p><p><strong>추천</strong>: STOP으로 행동화 전 틈을 만들고, 몸반응이 강하면 TIPP를 먼저 적용합니다.</p>`,
+    { kind: chain.actionized ? "warn" : "priority", tags: [{ text: "STOP" }, { text: "TIPP" }], questions: ["충동 8 이상일 때 가장 먼저 할 행동은?", "몸을 먼저 낮추는 기술이 필요한가?"] }
+  )).join("")}</div>`;
+}
+
+function renderSmallChangeView() {
+  const candidates = state.chains.filter((chain) => {
+    const scores = chainScores(chain);
+    return (scores.practice !== null && scores.practice > state.thresholds.practiceMissScore) || (chain.highUrge && !chain.actionized) || chainText(chain, "practice");
+  });
+  return `<div class="therapy-grid">${(candidates.length ? candidates : state.chains).slice(0, 6).map((chain) => card(
+    "작은 변화 발견",
+    `<p><strong>긍정 경험 후보</strong>: ${escapeHtml(smallChangeSentence(chain))}</p><p><strong>대처/실천</strong>: ${escapeHtml(chainText(chain, "practice") || "기록 없음")}</p>`,
+    { kind: chain.highUrge && !chain.actionized ? "ok" : "priority", questions: ["무엇이 0점이 아니라 1점이 되게 했나?", "이 행동이 가능했던 조건은 무엇인가?", "이 경험을 내담자 언어로 이름 붙이면?"] }
+  )).join("")}</div>`;
+}
+
+function smallChangeSentence(chain) {
+  const scores = chainScores(chain);
+  if (chain.highUrge && !chain.actionized) return "충동은 높았지만 문제행동수준이 낮게 끝난 기록입니다.";
+  if (scores.practice !== null && scores.practice > 0) return `실천 점수 ${scores.practice}/10의 시도 기록이 있습니다.`;
+  if (chainText(chain, "practice")) return "대처 또는 가치실천 초안이 기록되어 있습니다.";
+  return "작은 차이를 함께 찾아볼 수 있는 기록입니다.";
+}
+
+function renderThoughtReviewView() {
+  const thoughtChains = state.chains.filter((chain) => chainText(chain, "thought"));
+  return `<div class="therapy-grid">${(thoughtChains.length ? thoughtChains : state.chains).slice(0, 6).map((chain) => card(
+    "CBT 생각 검토",
+    `<p><strong>자동사고</strong>: ${escapeHtml(chainText(chain, "thought") || "기록 없음")}</p><p>${escapeHtml(scoreLine(chain) || "점수 기록 없음")}</p>`,
+    { kind: "priority", questions: ["이 생각의 증거와 반대 증거는?", "이 생각을 10% 덜 믿는다면 가능한 행동은?", "균형 잡힌 문장으로 바꾸면?"] }
+  )).join("")}</div>`;
+}
+
+function renderValueDirectionView() {
+  const valueChains = state.chains.filter((chain) => chainText(chain, "practice"));
+  return `<div class="therapy-grid">${(valueChains.length ? valueChains : state.chains).slice(0, 6).map((chain) => card(
+    "ACT 가치와 방향",
+    `<p><strong>고통/충동</strong>: ${escapeHtml(scoreLine(chain) || "점수 기록 없음")}</p><p><strong>가치·대처 단서</strong>: ${escapeHtml(chainText(chain, "practice") || "기록 없음")}</p>`,
+    { kind: "priority", questions: ["이 행동은 고통을 줄이는 쪽인가, 삶을 넓히는 쪽인가?", "이 생각이 있는 채로도 할 수 있는 1% 행동은?", "회피의 단기 이득과 장기 비용은?"] }
+  )).join("")}</div>`;
+}
+
+function renderPracticeAdjustmentView() {
+  const practiceRecords = state.filtered.filter((record) => record.category === "practice");
+  const grouped = new Map();
+  practiceRecords.forEach((record) => {
+    const key = record.payload?.practice_id || record.chainId || record.title || "실천행동";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(record);
+  });
+  const cards = [...grouped.entries()].slice(0, 8).map(([key, records]) => {
+    const scores = records.map((record) => record.sourceScores?.practiceScore).filter((value) => Number.isFinite(Number(value))).map(Number);
+    const avgScore = scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : null;
+    const misses = records.filter(isMissedPracticeRecord).length;
+    const label = records.find((record) => record.title)?.title || key;
+    return card(label, `<p>기록 ${records.length}개 · 평균 ${avgScore === null ? "-" : `${avgScore}/10`} · 저수행 ${misses}개</p><p>${escapeHtml(records.map(visibleContent).filter(Boolean).slice(0, 2).join(" / ") || "메모 없음")}</p>`, {
+      kind: misses ? "warn" : "ok",
+      questions: ["이 행동을 절반보다 더 작게 만들면?", "언제, 어디서, 무엇을 할지 더 구체화하면?", "STOP/TIPP를 먼저 붙여야 하는 상황인가?"],
+    });
+  });
+  return `<div class="therapy-grid">${(cards.length ? cards : [card("실천 조정 후보 없음", `<p>실천행동 기록이 아직 없습니다. 가치실천 초안을 다음 과제로 구체화하세요.</p>`, { kind: "priority" })]).join("")}</div>`;
+}
+
+function renderSessionSummaryView() {
+  const highRisk = state.chains.filter((chain) => chain.highUrge && chain.actionized).length;
+  const success = state.chains.filter((chain) => chain.highUrge && !chain.actionized).length;
+  const missed = state.chains.filter((chain) => chain.missedPractice).length;
+  return `<div class="therapy-grid">
+    ${card("회기 요약 초안", `<p>위험 연쇄 ${highRisk}건 · 억제/성공 연쇄 ${success}건 · 실천 조정 후보 ${missed}건</p><p>오늘은 위험 안정화와 작은 변화 강화를 함께 다루는 흐름이 적합합니다.</p>`, { kind: highRisk ? "warn" : "priority" })}
+    ${card("다음 회기 확인 포인트", `<p>위기 신호, STOP/TIPP 실행 여부, 작은 실천행동 점수, 0점 이후 재시도 여부를 확인하세요.</p>`, { kind: "ok", questions: ["이번 주 1% 작은 행동은?", "다음 회기에 확인할 위험 신호는?", "강화할 긍정 경험은?"] })}
+  </div>`;
 }
 
 function renderChart() {
@@ -1050,6 +1221,13 @@ function initialize() {
   });
   [els.urgeThreshold, els.actionThreshold, els.practiceMissThreshold].forEach((control) => {
     control.addEventListener("input", handleThresholdChange);
+  });
+  els.therapyMenu.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-therapy-view]");
+    if (!button) return;
+    state.therapyView = button.dataset.therapyView;
+    els.therapyMenu.querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
+    renderTherapyView();
   });
   els.chartMode.addEventListener("input", renderChart);
   els.loadSampleBtn.addEventListener("click", () => ingestCsv(sampleCsv));
