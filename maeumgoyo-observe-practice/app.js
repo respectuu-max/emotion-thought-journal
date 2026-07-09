@@ -43,7 +43,19 @@ const TEXT_LIMITS = {
       const offset = now.getTimezoneOffset() * 60000;
       return new Date(now - offset).toISOString().slice(0, 10);
     }
-    function dateObj(iso) { return new Date(iso + "T00:00:00"); }
+    function toCanonicalDate(value) {
+      const text = String(value || "").trim();
+      const direct = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (direct) return `${direct[1]}-${direct[2]}-${direct[3]}`;
+      const loose = text.match(/^(\d{4})[./년\s-]+(\d{1,2})[./월\s-]+(\d{1,2})/);
+      if (loose) return `${loose[1]}-${loose[2].padStart(2, "0")}-${loose[3].padStart(2, "0")}`;
+      const parsed = new Date(text);
+      return Number.isNaN(parsed.getTime()) ? "" : dateToISO(parsed);
+    }
+    function dateObj(iso) {
+      const normalized = toCanonicalDate(iso);
+      return normalized ? new Date(normalized + "T00:00:00") : new Date(NaN);
+    }
     function daysAgo(n) { const d = dateObj(todayISO()); d.setDate(d.getDate() - n); return d; }
     function dateToISO(date) {
       const offset = date.getTimezoneOffset() * 60000;
@@ -89,9 +101,10 @@ const TEXT_LIMITS = {
       return Math.max(min, Math.min(max, number));
     }
     function cleanDate(value, fallback = todayISO()) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return fallback;
-      const parsed = dateObj(value);
-      return Number.isNaN(parsed.getTime()) ? fallback : value;
+      const normalized = toCanonicalDate(value);
+      if (!normalized) return fallback;
+      const parsed = dateObj(normalized);
+      return Number.isNaN(parsed.getTime()) ? fallback : normalized;
     }
     function cleanTimeList(value) {
       return String(value || "")
@@ -120,6 +133,12 @@ const TEXT_LIMITS = {
     function uid() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()); }
     function boolFlag(value) {
       return value === true || value === "1" || value === 1;
+    }
+    function recordDate(record) {
+      return toCanonicalDate(record?.date);
+    }
+    function sameRecordDate(record, day) {
+      return recordDate(record) === day;
     }
     function normalizeObservation(record) {
       const body = Array.isArray(record.body) ? record.body.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
@@ -380,12 +399,12 @@ const TEXT_LIMITS = {
     }
     function logsFor(practiceId, iso) {
       return activeLogs()
-        .filter(l => l.practiceId === practiceId && l.date === iso)
+        .filter(l => l.practiceId === practiceId && sameRecordDate(l, iso))
         .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
     }
     function logFor(practiceId, iso) { return logsFor(practiceId, iso)[0]; }
-    function recentObservations(days = 7) { return activeObservations().filter(o => dateObj(o.date) >= daysAgo(days - 1)); }
-    function recentLogs(days = 7) { return activeLogs().filter(l => dateObj(l.date) >= daysAgo(days - 1)); }
+    function recentObservations(days = 7) { return activeObservations().filter(o => dateObj(recordDate(o)) >= daysAgo(days - 1)); }
+    function recentLogs(days = 7) { return activeLogs().filter(l => dateObj(recordDate(l)) >= daysAgo(days - 1)); }
     function avg(items, getter) { return items.length ? items.reduce((sum, item) => sum + getter(item), 0) / items.length : 0; }
     function averageDailyLogScore(logs) {
       const groups = {};
@@ -400,7 +419,7 @@ const TEXT_LIMITS = {
     function observationIntensity(o) { return (Number(o.thoughtScore) + Number(o.emotionScore) + Number(o.urgeScore)) / 3; }
     function updateMetrics() {
       const today = todayISO();
-      const todayObs = activeObservations().filter(o => o.date === today);
+      const todayObs = activeObservations().filter(o => sameRecordDate(o, today));
       const weekObs = recentObservations(7);
       const weekLogs = recentLogs(7);
       let dueCount = 0;
@@ -417,7 +436,7 @@ const TEXT_LIMITS = {
       });
       const restart = weekLogs.filter(l => Number(l.score) > 0).filter(l => {
         const prev = state.data.logs
-          .filter(x => !x.archived && x.practiceId === l.practiceId && dateObj(x.date) < dateObj(l.date))
+          .filter(x => !x.archived && x.practiceId === l.practiceId && dateObj(recordDate(x)) < dateObj(recordDate(l)))
           .sort((a,b) => b.date.localeCompare(a.date))[0];
         return prev && Number(prev.score) === 0;
       }).length;
@@ -433,7 +452,7 @@ const TEXT_LIMITS = {
       const box = $("#todayTaskSummary");
       if (!box) return;
       const today = todayISO();
-      const observationCount = activeObservations().filter(o => o.date === today).length;
+      const observationCount = activeObservations().filter(o => sameRecordDate(o, today)).length;
       let dueTargets = 0;
       let loggedCount = 0;
       activePractices().forEach(practice => {
@@ -470,7 +489,7 @@ const TEXT_LIMITS = {
       renderNotificationStatus();
       renderTodayTaskSummary();
       const today = todayISO();
-      const obs = activeObservations().filter(o => o.date === today).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
+      const obs = activeObservations().filter(o => sameRecordDate(o, today)).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
       $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
       const practices = activePractices();
       $("#todayPracticeList").innerHTML = practices.length ? practices.map(p => renderPracticeToday(p)).join("") : `<div class="empty">아직 설정된 작은 실천행동이 없습니다.</div>`;
@@ -745,8 +764,8 @@ const TEXT_LIMITS = {
       const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       if (time !== noRecordReminderTime()) return;
       const today = todayISO();
-      const hasObservation = activeObservations().some(record => record.date === today);
-      const hasPracticeLog = activeLogs().some(record => record.date === today);
+      const hasObservation = activeObservations().some(record => sameRecordDate(record, today));
+      const hasPracticeLog = activeLogs().some(record => sameRecordDate(record, today));
       if (hasObservation || hasPracticeLog) return;
       const key = `maeumgoyo.noRecordReminder.${today}`;
       if (localStorage.getItem(key)) return;
@@ -805,15 +824,25 @@ const TEXT_LIMITS = {
         const d = daysAgo(13 - i);
         return dateToISO(d);
       });
-      return days.map(day => ({
-        day,
-        label: day.slice(5).replace("-", "/"),
-        observation: avg(activeObservations().filter(o => o.date === day), observationIntensity),
-        practice: averageDailyLogScore(activeLogs().filter(l => l.date === day)),
-        action: avg(activeObservations().filter(o => o.date === day), o => Number(o.actionLevel) * 2),
-        observationCount: activeObservations().filter(o => o.date === day).length,
-        logCount: activeLogs().filter(l => l.date === day).length
-      }));
+      const observations = activeObservations();
+      const logs = activeLogs();
+      return days.map(day => {
+        const dayObservations = observations.filter(o => sameRecordDate(o, day));
+        const dayLogs = logs.filter(l => sameRecordDate(l, day));
+        return {
+          day,
+          label: day.slice(5).replace("-", "/"),
+          observation: avg(dayObservations, observationIntensity),
+          practice: averageDailyLogScore(dayLogs),
+          action: avg(dayObservations, o => Number(o.actionLevel) * 2),
+          observationCount: dayObservations.length,
+          logCount: dayLogs.length
+        };
+      });
+    }
+    function trendWidth(value, hasRecord) {
+      const scoreWidth = Math.round(Math.max(0, Math.min(10, Number(value) || 0)) * 10);
+      return hasRecord ? Math.max(6, scoreWidth) : 0;
     }
     function renderTrendBars() {
       const box = $("#trendBars");
@@ -830,14 +859,15 @@ const TEXT_LIMITS = {
           <span><i class="legend-dot practice"></i>실천수행도</span>
           <span><i class="legend-dot action"></i>행동수준</span>
         </div>
+        <div class="trend-status">최근 14일: 관찰 ${data.reduce((sum, day) => sum + day.observationCount, 0)}건, 실천 ${data.reduce((sum, day) => sum + day.logCount, 0)}건</div>
         <div class="trend-bar-list">
           ${data.map(day => `
             <div class="trend-day">
               <div class="trend-date">${escapeHtml(day.label)}</div>
               <div class="trend-bar-stack" aria-label="${escapeHtml(day.day)} 추세">
-                <div class="trend-line obs" style="width:${Math.round(Math.max(0, Math.min(10, day.observation)) * 10)}%"><span>${day.observation ? day.observation.toFixed(1) : ""}</span></div>
-                <div class="trend-line practice" style="width:${Math.round(Math.max(0, Math.min(10, day.practice)) * 10)}%"><span>${day.practice ? day.practice.toFixed(1) : ""}</span></div>
-                <div class="trend-line action" style="width:${Math.round(Math.max(0, Math.min(10, day.action)) * 10)}%"><span>${day.action ? day.action.toFixed(1) : ""}</span></div>
+                <div class="trend-line obs" style="width:${trendWidth(day.observation, day.observationCount)}%"><span>${day.observationCount ? `${day.observation.toFixed(1)} · ${day.observationCount}건` : ""}</span></div>
+                <div class="trend-line practice" style="width:${trendWidth(day.practice, day.logCount)}%"><span>${day.logCount ? `${day.practice.toFixed(1)} · ${day.logCount}건` : ""}</span></div>
+                <div class="trend-line action" style="width:${trendWidth(day.action, day.observationCount)}%"><span>${day.observationCount ? day.action.toFixed(1) : ""}</span></div>
               </div>
             </div>
           `).join("")}
@@ -870,15 +900,21 @@ const TEXT_LIMITS = {
       const obsSeries = trendData.map(day => day.observation);
       const logSeries = trendData.map(day => day.practice);
       const actionSeries = trendData.map(day => day.action);
-      drawLine(ctx, obsSeries, "#2f7567", pad, width, height);
-      drawLine(ctx, logSeries, "#c1842f", pad, width, height);
-      drawLine(ctx, actionSeries, "#b64a45", pad, width, height);
+      const obsCounts = trendData.map(day => day.observationCount);
+      const logCounts = trendData.map(day => day.logCount);
+      const totalObservations = obsCounts.reduce((sum, count) => sum + count, 0);
+      const totalLogs = logCounts.reduce((sum, count) => sum + count, 0);
+      drawLine(ctx, obsSeries, "#2f7567", pad, width, height, obsCounts);
+      drawLine(ctx, logSeries, "#c1842f", pad, width, height, logCounts);
+      drawLine(ctx, actionSeries, "#b64a45", pad, width, height, obsCounts);
       ctx.fillStyle = "#1d2924"; ctx.font = "12px sans-serif";
       ctx.fillText("관찰강도", pad, 16);
       ctx.fillStyle = "#c1842f"; ctx.fillText("실천수행도", pad + 72, 16);
       ctx.fillStyle = "#b64a45"; ctx.fillText("행동수준", pad + 158, 16);
+      ctx.fillStyle = "#64736d";
+      ctx.fillText(`최근 14일 관찰 ${totalObservations}건 · 실천 ${totalLogs}건`, pad, displayHeight - 10);
     }
-    function drawLine(ctx, values, color, pad, width, height) {
+    function drawLine(ctx, values, color, pad, width, height, counts = []) {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -892,7 +928,14 @@ const TEXT_LIMITS = {
       values.forEach((v, i) => {
         const x = pad + (values.length === 1 ? 0 : i / (values.length - 1) * width);
         const y = pad + height - (Math.max(0, Math.min(10, v)) / 10) * height;
-        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+        const hasRecord = Number(counts[i] || 0) > 0;
+        ctx.beginPath(); ctx.arc(x, y, hasRecord ? 5 : 2.5, 0, Math.PI * 2); ctx.fill();
+        if (hasRecord) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#ffffff";
+          ctx.stroke();
+          ctx.strokeStyle = color;
+        }
       });
     }
     function buildSummary(mode = state.shareMode) {

@@ -188,6 +188,12 @@
       font-size: 12px;
       font-weight: 800;
     }
+    .trend-status {
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
     .legend-dot {
       display: inline-block;
       width: 10px;
@@ -211,7 +217,6 @@
       gap: 3px;
     }
     .trend-line {
-      min-width: 2px;
       height: 14px;
       border-radius: 8px;
       color: #fff;
