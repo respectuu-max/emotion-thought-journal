@@ -501,7 +501,7 @@ const TEXT_LIMITS = {
       return `<div class="record-item">
         <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
         <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
-        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 행동수준 ${o.actionLevel}/5</div>
+        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제 행동 수준 ${o.actionLevel}/5</div>
         ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${escapeHtml(o.valueActionDraft)}</div>` : ""}
         <div class="button-row record-actions">
           <button class="ghost-btn" type="button" data-edit-observation="${escapeHtml(o.id)}">수정</button>
@@ -857,7 +857,7 @@ const TEXT_LIMITS = {
         <div class="trend-legend">
           <span><i class="legend-dot obs"></i>관찰강도</span>
           <span><i class="legend-dot practice"></i>실천수행도</span>
-          <span><i class="legend-dot action"></i>행동수준</span>
+          <span><i class="legend-dot action"></i>문제 행동 수준</span>
         </div>
         <div class="trend-status">최근 14일: 관찰 ${data.reduce((sum, day) => sum + day.observationCount, 0)}건, 실천 ${data.reduce((sum, day) => sum + day.logCount, 0)}건</div>
         <div class="trend-bar-list">
@@ -910,7 +910,7 @@ const TEXT_LIMITS = {
       ctx.fillStyle = "#1d2924"; ctx.font = "12px sans-serif";
       ctx.fillText("관찰강도", pad, 16);
       ctx.fillStyle = "#c1842f"; ctx.fillText("실천수행도", pad + 72, 16);
-      ctx.fillStyle = "#b64a45"; ctx.fillText("행동수준", pad + 158, 16);
+      ctx.fillStyle = "#b64a45"; ctx.fillText("문제 행동 수준", pad + 158, 16);
       ctx.fillStyle = "#64736d";
       ctx.fillText(`최근 14일 관찰 ${totalObservations}건 · 실천 ${totalLogs}건`, pad, displayHeight - 10);
     }
