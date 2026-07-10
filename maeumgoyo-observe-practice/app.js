@@ -1,5 +1,6 @@
+const APP_VERSION = "v38"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
-const CSV_SCHEMA_VERSION = "maeumgoyo_compact_v2";
+const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
 const STORAGE_KEY = "maeumgoyo.observePractice.v2";
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
@@ -123,8 +124,9 @@ const TEXT_LIMITS = {
       avoidanceTags: [],
       customDays: [],
       shareRange: 7,
+      trendRange: 14,
       shareMode: "counselorDetail",
-      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00" } },
+      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00" } },
       lastActive: Date.now()
     };
 
@@ -334,6 +336,22 @@ const TEXT_LIMITS = {
         updatedAt: record.updatedAt || new Date().toISOString()
       };
     }
+    const PREDICTION_STATUSES = ["pending", "occurred", "partial", "did_not_occur"];
+    function normalizePrediction(record) {
+      return {
+        id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
+        date: cleanDate(record.date),
+        relatedObservationId: cleanText(record.relatedObservationId, TEXT_LIMITS.medium),
+        worryText: cleanMultiline(record.worryText, TEXT_LIMITS.long),
+        predictedSeverity: clampNumber(record.predictedSeverity, 0, 10, 5),
+        status: PREDICTION_STATUSES.includes(record.status) ? record.status : "pending",
+        actualSeverity: optionalScore(record.actualSeverity),
+        resolvedAt: record.resolvedAt || "",
+        note: cleanMultiline(record.note, TEXT_LIMITS.medium),
+        archived: boolFlag(record.archived),
+        updatedAt: record.updatedAt || new Date().toISOString()
+      };
+    }
     function normalizeBehaviorAliases(value) {
       const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
       const result = {};
@@ -351,6 +369,7 @@ const TEXT_LIMITS = {
         observations: Array.isArray(data.observations) ? data.observations.map(normalizeObservation) : [],
         practices: Array.isArray(data.practices) ? data.practices.map(normalizePractice) : [],
         logs: Array.isArray(data.logs) ? data.logs.map(normalizeLog) : [],
+        predictions: Array.isArray(data.predictions) ? data.predictions.map(normalizePrediction) : [],
         settings: {
           alias: cleanText(settings.alias, TEXT_LIMITS.short),
           behaviorAliases: normalizeBehaviorAliases(settings.behaviorAliases),
@@ -378,7 +397,7 @@ const TEXT_LIMITS = {
         state.data = normalizeData(parsed);
         if (!current && legacy) saveData();
       } catch {
-        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], settings: { alias: "", noRecordReminderTime: "20:00" } };
+        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], settings: { alias: "", noRecordReminderTime: "20:00" } };
         showToast("저장된 기록을 읽지 못해 새 기록 공간으로 시작합니다.");
       }
     }
@@ -531,7 +550,7 @@ const TEXT_LIMITS = {
         : "설정된 별칭이 없습니다. 항목은 원래 이름 그대로 화면에 표시됩니다.";
     }
     function bindSliders() {
-      [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["urgeInitialScore", "urgeInitialScoreValue"], ["urgeEndScore", "urgeEndScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"]].forEach(([input, label]) => {
+      [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["urgeInitialScore", "urgeInitialScoreValue"], ["urgeEndScore", "urgeEndScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"], ["predictedSeverity", "predictedSeverityValue"]].forEach(([input, label]) => {
         $("#" + input).addEventListener("input", () => $("#" + label).textContent = $("#" + input).value);
       });
     }
@@ -551,6 +570,7 @@ const TEXT_LIMITS = {
     function activePractices() { return state.data.practices.filter(p => !p.archived); }
     function activeObservations() { return state.data.observations.filter(record => !record.archived); }
     function activeLogs() { return state.data.logs.filter(record => !record.archived); }
+    function activePredictions() { return (state.data.predictions || []).filter(record => !record.archived); }
     function hiddenRecordCount() {
       return state.data.observations.filter(record => record.archived).length + state.data.logs.filter(record => record.archived).length;
     }
@@ -594,6 +614,28 @@ const TEXT_LIMITS = {
     function logFor(practiceId, iso) { return logsFor(practiceId, iso)[0]; }
     function recentObservations(days = 7) { return activeObservations().filter(o => dateObj(recordDate(o)) >= daysAgo(days - 1)); }
     function recentLogs(days = 7) { return activeLogs().filter(l => dateObj(recordDate(l)) >= daysAgo(days - 1)); }
+    const TREND_DISPLAY_CAP = 60; // 이동평균/일별 상세 막대는 이 일수까지만 그려서 목록이 지나치게 길어지지 않게 합니다.
+    function earliestRecordDaysAgo() {
+      const all = [...activeObservations(), ...activeLogs(), ...activePredictions()];
+      if (!all.length) return 14;
+      const earliest = all.reduce((min, r) => {
+        const d = recordDate(r);
+        return !min || d < min ? d : min;
+      }, null);
+      const diffDays = Math.floor((dateObj(todayISO()) - dateObj(earliest)) / 86400000) + 1;
+      return Math.min(3650, Math.max(1, diffDays));
+    }
+    function trendRangeDays() {
+      return state.trendRange === "all" ? earliestRecordDaysAgo() : Number(state.trendRange);
+    }
+    function trendRangeLabel() {
+      if (state.trendRange === "all") return "전체";
+      const n = Number(state.trendRange);
+      if (n === 7) return "최근 7일";
+      if (n === 14) return "최근 14일";
+      if (n === 28) return "최근 4주";
+      return `최근 ${n}일`;
+    }
     function avg(items, getter) { return items.length ? items.reduce((sum, item) => sum + getter(item), 0) / items.length : 0; }
     function stdDev(values) {
       if (values.length < 2) return 0;
@@ -766,7 +808,46 @@ const TEXT_LIMITS = {
       box.innerHTML = relapseStatusCardHtml(computeRelapseSignal(), { compact: true });
       $$("#relapseStatusCard [data-jump]").forEach(b => b.addEventListener("click", () => setView(b.dataset.jump)));
     }
+    function relapseRiskPercentages(signal) {
+      const stage1Max = 6;
+      const stage2Max = 4;
+      const stage1Pct = signal.hasData ? Math.round(Math.min(100, (signal.reasons.stage1.length / stage1Max) * 100)) : 0;
+      const stage2Pct = signal.hasData ? Math.round(Math.min(100, (signal.reasons.stage2.length / stage2Max) * 100)) : 0;
+      const stage3Pct = signal.hasData ? Math.round(Math.min(100, (signal.behavioralDays.length / RELAPSE_WINDOW_DAYS) * 100)) : 0;
+      return { stage1Pct, stage2Pct, stage3Pct };
+    }
+    function riskBarColor(percent) {
+      if (percent >= 50) return "var(--danger)";
+      if (percent > 0) return "var(--accent)";
+      return "var(--good)";
+    }
+    function relapseRiskBarsHtml(signal) {
+      const { stage1Pct, stage2Pct, stage3Pct } = relapseRiskPercentages(signal);
+      const rows = [
+        { label: "정서적 재발 위험", percent: stage1Pct },
+        { label: "인지적 재발 위험", percent: stage2Pct },
+        { label: "행동적 재발 위험", percent: stage3Pct }
+      ];
+      return `
+        <h3>단계별 위험도</h3>
+        <p class="small">최근 ${RELAPSE_WINDOW_DAYS}일 기록을 바탕으로 각 단계에서 지금까지 확인된 신호가 얼마나 되는지 나타낸 참고 지표입니다. 진단이나 예측이 아닙니다.</p>
+        <div style="height:8px"></div>
+        ${rows.map(row => `
+          <div class="risk-bar-row">
+            <div class="risk-bar-label">${escapeHtml(row.label)}</div>
+            <div class="risk-bar-track"><div class="risk-bar-fill" style="width:${row.percent}%; background:${riskBarColor(row.percent)};"></div></div>
+            <div class="risk-bar-percent">${row.percent}%</div>
+          </div>
+        `).join("")}
+      `;
+    }
+    function renderRelapseRiskBars() {
+      const box = $("#relapseRiskBars");
+      if (!box) return;
+      box.innerHTML = relapseRiskBarsHtml(computeRelapseSignal());
+    }
     function renderRelapseView() {
+      renderRelapseRiskBars();
       const signal = computeRelapseSignal();
       const fullBox = $("#relapseStatusFull");
       if (fullBox) fullBox.innerHTML = relapseStatusCardHtml(signal, { compact: false });
@@ -891,6 +972,11 @@ const TEXT_LIMITS = {
       $("#practiceRate").textContent = dueCount ? `${Math.round(achievedCount / dueCount * 100)}%` : "0%";
       $("#restartDays").textContent = restart;
     }
+    function notificationStatusText() {
+      if (!("Notification" in window)) return "이 브라우저는 기록 알림을 지원하지 않습니다.";
+      if (Notification.permission !== "granted") return "알림이 꺼져 있어 기록 알림을 받을 수 없습니다.";
+      return `알림이 켜져 있습니다. 미기록 알림 시간: ${noRecordReminderTime()}`;
+    }
     function renderTodayTaskSummary() {
       const box = $("#todayTaskSummary");
       if (!box) return;
@@ -912,7 +998,7 @@ const TEXT_LIMITS = {
         <p class="small">관찰 기록: ${observationCount > 0 ? `완료 ${observationCount}건` : "아직 없음"}</p>
         <p class="small">실천 기록: ${dueTargets ? `${loggedCount}/${dueTargets}회` : "오늘 예정된 실천 없음"}</p>
         <p class="small">오늘 남은 실천: ${remaining}회</p>
-        <p class="small">미기록 알림: ${noRecordReminderTime()}</p>
+        <p class="small">${escapeHtml(notificationStatusText())}</p>
         <p class="small">최근 CSV 백업: ${escapeHtml(lastBackup)}</p>
         ${backupWarning ? `<p class="small backup-warning">${escapeHtml(backupWarning)}</p>` : ""}
       `;
@@ -947,7 +1033,6 @@ const TEXT_LIMITS = {
     }
     function renderToday() {
       updateMetrics();
-      renderNotificationStatus();
       renderTodayTaskSummary();
       renderCleanStreak();
       renderRelapseToday();
@@ -1150,6 +1235,12 @@ const TEXT_LIMITS = {
       $("#behaviorCustom").value = Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.join(", ") : "";
       $("#triggerCustom").value = Array.isArray(record.triggerCustom) ? record.triggerCustom.join(", ") : "";
       $("#avoidanceCustom").value = Array.isArray(record.avoidanceCustom) ? record.avoidanceCustom.join(", ") : "";
+      const hasTriggerData = state.triggerPlaces.length || state.triggerPeople.length || state.triggerTimes.length || $("#triggerCustom").value;
+      const hasAvoidanceData = state.avoidanceTags.length || $("#avoidanceCustom").value;
+      const triggerDetails = $("#triggerDetails");
+      const avoidanceDetails = $("#avoidanceDetails");
+      if (triggerDetails) triggerDetails.open = Boolean(hasTriggerData);
+      if (avoidanceDetails) avoidanceDetails.open = Boolean(hasAvoidanceData);
       $("#situation").value = record.situation || "";
       $("#thoughtText").value = record.thoughtText || "";
       $("#emotionCustom").value = record.emotionCustom || "";
@@ -1265,17 +1356,7 @@ const TEXT_LIMITS = {
       return state.data.settings.noRecordReminderTime || "20:00";
     }
     function renderNotificationStatus() {
-      const box = $("#notificationStatus");
-      if (!box) return;
-      if (!("Notification" in window)) {
-        box.textContent = "이 브라우저는 기록 알림을 지원하지 않습니다.";
-        return;
-      }
-      if (Notification.permission !== "granted") {
-        box.textContent = "알림이 꺼져 있어 기록 알림을 받을 수 없습니다.";
-        return;
-      }
-      box.textContent = `알림이 켜져 있습니다. 미기록 알림 시간: ${noRecordReminderTime()}`;
+      renderTodayTaskSummary();
     }
     function renderHiddenRecordStatus() {
       const info = $("#hiddenRecordInfo");
@@ -1330,25 +1411,222 @@ const TEXT_LIMITS = {
       localStorage.setItem(key, "1");
       notify("오늘 아직 관찰 기록과 실천 기록이 없습니다. 짧게라도 오늘의 마음과 작은 실천을 남겨보세요.");
     }
+    function cleanDayCount(fromDaysAgo, toDaysAgo) {
+      const observations = activeObservations();
+      let count = 0;
+      for (let i = toDaysAgo; i <= fromDaysAgo; i++) {
+        const iso = dateToISO(daysAgo(i));
+        const dayObs = observations.filter(o => sameRecordDate(o, iso));
+        if (!dayObs.some(o => Number(o.actionLevel) >= RELAPSE_ACTION_ANY)) count++;
+      }
+      return count;
+    }
+    function weeklyPracticeRate(startDaysAgo, windowDays = 7) {
+      let due = 0;
+      let achieved = 0;
+      activePractices().forEach(p => {
+        for (let i = startDaysAgo; i < startDaysAgo + windowDays; i++) {
+          const d = dateToISO(daysAgo(i));
+          if (isPracticeDue(p, d)) {
+            const target = targetCount(p);
+            due += target;
+            achieved += dailyAchievedFraction(p.id, d, target);
+          }
+        }
+      });
+      return due ? achieved / due : null;
+    }
+    function buildWeeklyHighlights() {
+      const thisWeek = activeObservations().filter(o => dateObj(recordDate(o)) >= daysAgo(6));
+      const prevWeek = activeObservations().filter(o => {
+        const d = dateObj(recordDate(o));
+        return d >= daysAgo(13) && d < daysAgo(6);
+      });
+      const candidates = [];
+
+      if (thisWeek.length && prevWeek.length) {
+        const urgeNow = avg(thisWeek, o => Number(o.urgeScore));
+        const urgePrev = avg(prevWeek, o => Number(o.urgeScore));
+        if (urgePrev - urgeNow >= 1) candidates.push({ priority: urgePrev - urgeNow, text: `지난주보다 평균 충동이 ${(urgePrev - urgeNow).toFixed(1)}점 낮아졌습니다.` });
+
+        const emotionNow = avg(thisWeek, o => Number(o.emotionScore));
+        const emotionPrev = avg(prevWeek, o => Number(o.emotionScore));
+        if (emotionPrev - emotionNow >= 1) candidates.push({ priority: emotionPrev - emotionNow, text: `지난주보다 평균 불편한 감정이 ${(emotionPrev - emotionNow).toFixed(1)}점 낮아졌습니다.` });
+      }
+
+      const cleanThisWeek = cleanDayCount(6, 0);
+      const cleanPrevWeek = cleanDayCount(13, 7);
+      if (thisWeek.length && cleanThisWeek > cleanPrevWeek) {
+        candidates.push({ priority: cleanThisWeek - cleanPrevWeek + 1, text: `지난주보다 문제행동 없이 보낸 날이 ${cleanThisWeek - cleanPrevWeek}일 늘었습니다 (이번 주 ${cleanThisWeek}일).` });
+      } else if (thisWeek.length && cleanThisWeek === 7) {
+        candidates.push({ priority: 1.5, text: "이번 주는 7일 모두 문제행동 없이 보냈습니다." });
+      }
+
+      const rateNow = weeklyPracticeRate(0);
+      const ratePrev = weeklyPracticeRate(7);
+      if (rateNow !== null && ratePrev !== null && rateNow - ratePrev >= 0.1) {
+        candidates.push({ priority: (rateNow - ratePrev) * 5, text: `지난주보다 실천행동 수행도가 ${Math.round((rateNow - ratePrev) * 100)}%p 올라갔습니다.` });
+      } else if (rateNow !== null && rateNow >= 0.7) {
+        candidates.push({ priority: 1, text: `이번 주 실천행동을 목표 대비 ${Math.round(rateNow * 100)}% 수행했습니다.` });
+      }
+
+      const streak = cleanStreakDays();
+      if (streak && streak >= 3) candidates.push({ priority: streak / 10, text: `문제행동 없이 ${streak}일째 이어가는 중입니다.` });
+
+      const engagementStreak = engagementStreakDays();
+      if (engagementStreak && engagementStreak >= 5) candidates.push({ priority: engagementStreak / 20, text: `${engagementStreak}일 연속으로 기록을 이어가고 있습니다.` });
+
+      if (!candidates.length) {
+        candidates.push({ priority: 0, text: thisWeek.length ? `이번 주도 관찰 기록 ${thisWeek.length}건을 남겼습니다. 기록을 이어가는 것 자체가 중요한 진전입니다.` : "이번 주 기록을 시작하면 여기에 변화가 표시됩니다." });
+      }
+
+      return candidates.sort((a, b) => b.priority - a.priority).slice(0, 2).map(c => c.text);
+    }
+    function renderWeeklyHighlights() {
+      const box = $("#weeklyHighlights");
+      if (!box) return;
+      const highlights = buildWeeklyHighlights();
+      box.innerHTML = `
+        <div class="relapse-status level-ok">
+          <h3>이번 주 하이라이트</h3>
+          <ul>${highlights.map(text => `<li>${escapeHtml(text)}</li>`).join("")}</ul>
+        </div>
+      `;
+    }
+    function worryResolutionStats() {
+      const resolved = activePredictions().filter(p => p.status !== "pending");
+      return {
+        total: resolved.length,
+        occurred: resolved.filter(p => p.status === "occurred").length,
+        partial: resolved.filter(p => p.status === "partial").length,
+        didNot: resolved.filter(p => p.status === "did_not_occur").length
+      };
+    }
+    function renderWorryPendingItem(p) {
+      const daysSince = Math.floor((dateObj(todayISO()) - dateObj(p.date)) / 86400000);
+      const overdue = daysSince >= 14;
+      return `<div class="record-item">
+        <div class="record-top"><strong>${escapeHtml(p.date)}</strong><span class="tag ${overdue ? "warn" : ""}">${overdue ? "오래된 걱정" : `예상 ${p.predictedSeverity}/10`}</span></div>
+        <div class="small">${escapeHtml(p.worryText)}</div>
+        <div class="slider-card">
+          <div class="slider-top"><span>실제로 그랬다면 심각도는?</span><span class="slider-value" data-actual-severity-value="${escapeHtml(p.id)}">${p.predictedSeverity}</span></div>
+          <input type="range" min="0" max="10" value="${p.predictedSeverity}" data-actual-severity="${escapeHtml(p.id)}">
+        </div>
+        <div class="button-row record-actions">
+          <button class="ghost-btn" type="button" data-resolve="${escapeHtml(p.id)}" data-status="did_not_occur">일어나지 않음</button>
+          <button class="ghost-btn" type="button" data-resolve="${escapeHtml(p.id)}" data-status="partial">부분적으로 그랬음</button>
+          <button class="danger-btn" type="button" data-resolve="${escapeHtml(p.id)}" data-status="occurred">일어났음</button>
+        </div>
+      </div>`;
+    }
+    function bindWorryActions() {
+      $$("[data-actual-severity]").forEach(input => {
+        input.addEventListener("input", () => {
+          const id = input.dataset.actualSeverity;
+          const label = $(`[data-actual-severity-value="${selectorEscape(id)}"]`);
+          if (label) label.textContent = input.value;
+        });
+      });
+      $$("[data-resolve]").forEach(button => {
+        button.addEventListener("click", () => {
+          const id = button.dataset.resolve;
+          const status = button.dataset.status;
+          const prediction = state.data.predictions.find(p => p.id === id);
+          if (!prediction) return;
+          const severityInput = $(`[data-actual-severity="${selectorEscape(id)}"]`);
+          prediction.status = status;
+          prediction.actualSeverity = clampNumber(severityInput?.value, 0, 10, prediction.predictedSeverity);
+          prediction.resolvedAt = new Date().toISOString();
+          prediction.updatedAt = new Date().toISOString();
+          if (!saveData()) return;
+          renderWorrySection();
+          showToast("걱정을 확인했습니다.");
+        });
+      });
+    }
+    function renderWorrySection() {
+      const summaryBox = $("#worrySummary");
+      const listBox = $("#worryPendingList");
+      if (!summaryBox || !listBox) return;
+      const stats = worryResolutionStats();
+      summaryBox.innerHTML = stats.total
+        ? `<p class="small">확인한 걱정 ${stats.total}건 중 실제로 일어난 것은 ${stats.occurred}건(${Math.round((stats.occurred / stats.total) * 100)}%), 부분적으로 그랬던 것은 ${stats.partial}건, 일어나지 않은 것은 ${stats.didNot}건이었습니다.</p>`
+        : `<p class="small">아직 확인된 걱정 기록이 없습니다. 관찰 기록에서 걱정되는 결과를 남기고, 나중에 여기서 확인해보세요.</p>`;
+      const pending = activePredictions().filter(p => p.status === "pending").sort((a, b) => a.date.localeCompare(b.date));
+      listBox.innerHTML = pending.length ? pending.map(renderWorryPendingItem).join("") : `<div class="empty">확인할 걱정이 없습니다.</div>`;
+      bindWorryActions();
+    }
     function renderTrend() {
+      renderWeeklyHighlights();
       try { drawTrend(); } catch (error) { console.warn("Trend canvas draw failed", error); }
+      renderTrendMovingAverage();
       renderTrendBars();
+      renderTriggerCorrelation();
+      renderWorrySection();
       $("#patternSummary").textContent = buildReflectionSummary();
     }
-    function topItems(values, limit = 3) {
+    function countTags(values) {
       const counts = {};
       values.map(value => String(value || "").trim()).filter(Boolean).forEach(value => {
         counts[value] = (counts[value] || 0) + 1;
       });
-      return Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([value, count]) => `${value} ${count}회`)
-        .join(", ") || "아직 없음";
+      return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([tag, count]) => ({ tag, count }));
+    }
+    function topItems(values, limit = 3) {
+      const top = countTags(values).slice(0, limit);
+      return top.length ? top.map(({ tag, count }) => `${tag} ${count}회`).join(", ") : "아직 없음";
+    }
+    function observationTags(o) {
+      return compactList([
+        ...(Array.isArray(o.triggerPlaces) ? o.triggerPlaces : []),
+        ...(Array.isArray(o.triggerPeople) ? o.triggerPeople : []),
+        ...(Array.isArray(o.triggerTimes) ? o.triggerTimes : []),
+        ...(Array.isArray(o.triggerCustom) ? o.triggerCustom : [])
+      ]);
+    }
+    function triggerCorrelationData(days = 14, limit = 3) {
+      const observations = recentObservations(days);
+      const allTags = observations.flatMap(observationTags);
+      const top = countTags(allTags).slice(0, limit);
+      return top.map(({ tag, count }) => {
+        const withTag = observations.filter(o => observationTags(o).includes(tag));
+        const withoutTag = observations.filter(o => !observationTags(o).includes(tag));
+        return {
+          tag,
+          count,
+          withAvg: withTag.length ? avg(withTag, o => Number(o.urgeScore)) : 0,
+          withoutAvg: withoutTag.length ? avg(withoutTag, o => Number(o.urgeScore)) : 0,
+          withCount: withTag.length,
+          withoutCount: withoutTag.length
+        };
+      });
+    }
+    function renderTriggerCorrelation() {
+      const box = $("#triggerCorrelation");
+      if (!box) return;
+      const data = triggerCorrelationData(trendRangeDays());
+      if (!data.length) {
+        box.innerHTML = `<div class="empty">아직 촉발 단서 기록이 충분하지 않아 비교할 수 없습니다. 관찰 기록에서 촉발 단서를 남기면 여기에 표시됩니다.</div>`;
+        return;
+      }
+      box.innerHTML = `
+        <p class="small">${escapeHtml(trendRangeLabel())} 중 자주 나온 촉발 단서가 있었던 날과 없었던 날의 평균 충동을 비교합니다.</p>
+        <div style="height:8px"></div>
+        ${data.map(item => `
+          <div class="trigger-compare-row">
+            <div class="trigger-label">${escapeHtml(item.tag)} (${item.count}회)</div>
+            <div class="trend-bar-stack">
+              <div class="trend-line obs" style="width:${trendWidth(item.withAvg, item.withCount)}%"><span>있음 · ${item.withCount}일 · ${item.withCount ? item.withAvg.toFixed(1) : "-"}</span></div>
+              <div class="trend-line practice" style="width:${trendWidth(item.withoutAvg, item.withoutCount)}%"><span>없음 · ${item.withoutCount}일 · ${item.withoutCount ? item.withoutAvg.toFixed(1) : "-"}</span></div>
+            </div>
+          </div>
+        `).join("")}
+      `;
     }
     function buildReflectionSummary() {
-      const observations = recentObservations(14);
-      const logs = recentLogs(14);
+      const rangeDays = trendRangeDays();
+      const observations = recentObservations(rangeDays);
+      const logs = recentLogs(rangeDays);
       const highRisk = observations.filter(o => Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4);
       const resisted = observations.filter(o => Number(o.urgeScore) >= 5 && Number(o.actionLevel) <= 1);
       const emotionsSeen = observations.flatMap(o => compactList([o.emotion, o.emotionCustom]));
@@ -1365,7 +1643,7 @@ const TEXT_LIMITS = {
       const emotionVariability = stdDev(observations.map(o => Number(o.emotionScore)));
       const urgeVariability = stdDev(observations.map(o => Number(o.urgeScore)));
       return [
-        "최근 2주 자기성찰 요약",
+        `${trendRangeLabel()} 자기성찰 요약`,
         "",
         `관찰 기록: ${observations.length}건`,
         `실천 기록: ${logs.length}건`,
@@ -1379,7 +1657,7 @@ const TEXT_LIMITS = {
         `도움이 컸던 대처: ${helpfulCoping}`,
         `감정 기복(표준편차): ${emotionVariability.toFixed(1)} · 충동 기복(표준편차): ${urgeVariability.toFixed(1)} (숫자가 클수록 널뛰는 정도가 큼)`,
         "",
-        "재발 신호 (최근 14일, 기록된 날 기준)",
+        `재발 신호 (${trendRangeLabel()}, 기록된 날 기준)`,
         `정서적 재발 신호 있었던 날: ${relapse.stage1Days}일`,
         `인지적 재발 신호 있었던 날: ${relapse.stage2Days}일`,
         `문제 행동이 기록된 날: ${relapse.stage3Days}일${relapse.stage3Dates.length ? ` (${relapse.stage3Dates.join(", ")})` : ""}`,
@@ -1390,9 +1668,10 @@ const TEXT_LIMITS = {
         "3. 다음 24시간 안에 가능한 가장 작은 가치 행동은 무엇인가요?"
       ].join("\n");
     }
-    function trendSeriesData() {
-      const days = Array.from({ length: 14 }, (_, i) => {
-        const d = daysAgo(13 - i);
+    function trendSeriesData(totalDisplayDays = 14) {
+      const displayDays = Math.max(1, Math.min(totalDisplayDays, TREND_DISPLAY_CAP));
+      const days = Array.from({ length: displayDays }, (_, i) => {
+        const d = daysAgo(displayDays - 1 - i);
         return dateToISO(d);
       });
       const observations = activeObservations();
@@ -1415,13 +1694,51 @@ const TEXT_LIMITS = {
       const scoreWidth = Math.round(Math.max(0, Math.min(10, Number(value) || 0)) * 10);
       return hasRecord ? Math.max(6, scoreWidth) : 0;
     }
-    function renderTrendBars() {
-      const box = $("#trendBars");
+    function movingAverageSeries(windowSize = 7, displayDays = 14) {
+      const totalDays = displayDays + windowSize - 1;
+      const days = Array.from({ length: totalDays }, (_, i) => dateToISO(daysAgo(totalDays - 1 - i)));
+      const observations = activeObservations();
+      const logs = activeLogs();
+      const daily = days.map(day => {
+        const dayObservations = observations.filter(o => sameRecordDate(o, day));
+        const dayLogs = logs.filter(l => sameRecordDate(l, day));
+        return {
+          day,
+          observation: avg(dayObservations, observationIntensity),
+          practice: averageDailyLogScore(dayLogs),
+          action: avg(dayObservations, o => Number(o.actionLevel) * 2),
+          hasObs: dayObservations.length > 0,
+          hasLog: dayLogs.length > 0
+        };
+      });
+      const result = [];
+      for (let i = windowSize - 1; i < daily.length; i++) {
+        const windowSlice = daily.slice(i - windowSize + 1, i + 1);
+        const obsWindow = windowSlice.filter(d => d.hasObs);
+        const logWindow = windowSlice.filter(d => d.hasLog);
+        const current = daily[i];
+        result.push({
+          day: current.day,
+          label: current.day.slice(5).replace("-", "/"),
+          observation: obsWindow.length ? avg(obsWindow, d => d.observation) : 0,
+          practice: logWindow.length ? avg(logWindow, d => d.practice) : 0,
+          action: obsWindow.length ? avg(obsWindow, d => d.action) : 0,
+          observationCount: obsWindow.length,
+          logCount: logWindow.length
+        });
+      }
+      return result;
+    }
+    function renderTrendMovingAverage() {
+      const box = $("#trendMovingAverage");
       if (!box) return;
-      const data = trendSeriesData();
+      const rangeDays = trendRangeDays();
+      const windowSize = rangeDays <= 7 ? 3 : 7;
+      const displayDays = Math.min(rangeDays, TREND_DISPLAY_CAP);
+      const data = movingAverageSeries(windowSize, displayDays);
       const hasData = data.some(day => day.observationCount || day.logCount);
       if (!hasData) {
-        box.innerHTML = `<div class="empty">아직 그래프로 볼 관찰 또는 실천 기록이 없습니다.</div>`;
+        box.innerHTML = `<div class="empty">아직 이동평균으로 볼 기록이 없습니다.</div>`;
         return;
       }
       box.innerHTML = `
@@ -1430,7 +1747,39 @@ const TEXT_LIMITS = {
           <span><i class="legend-dot practice"></i>실천수행도</span>
           <span><i class="legend-dot action"></i>문제행동수준</span>
         </div>
-        <div class="trend-status">최근 14일: 관찰 ${data.reduce((sum, day) => sum + day.observationCount, 0)}건, 실천 ${data.reduce((sum, day) => sum + day.logCount, 0)}건</div>
+        <div class="trend-status">${windowSize}일 이동평균 (하루하루의 기복 대신 흐름을 봅니다)</div>
+        <div class="trend-bar-list">
+          ${data.map(day => `
+            <div class="trend-day">
+              <div class="trend-date">${escapeHtml(day.label)}</div>
+              <div class="trend-bar-stack" aria-label="${escapeHtml(day.day)} ${windowSize}일 이동평균">
+                <div class="trend-line obs" style="width:${trendWidth(day.observation, day.observationCount)}%"><span>${day.observationCount ? day.observation.toFixed(1) : ""}</span></div>
+                <div class="trend-line practice" style="width:${trendWidth(day.practice, day.logCount)}%"><span>${day.logCount ? day.practice.toFixed(1) : ""}</span></div>
+                <div class="trend-line action" style="width:${trendWidth(day.action, day.observationCount)}%"><span>${day.observationCount ? day.action.toFixed(1) : ""}</span></div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+    function renderTrendBars() {
+      const box = $("#trendBars");
+      if (!box) return;
+      const rangeDays = trendRangeDays();
+      const data = trendSeriesData(rangeDays);
+      const hasData = data.some(day => day.observationCount || day.logCount);
+      if (!hasData) {
+        box.innerHTML = `<div class="empty">아직 그래프로 볼 관찰 또는 실천 기록이 없습니다.</div>`;
+        return;
+      }
+      const capped = rangeDays > TREND_DISPLAY_CAP;
+      box.innerHTML = `
+        <div class="trend-legend">
+          <span><i class="legend-dot obs"></i>관찰강도</span>
+          <span><i class="legend-dot practice"></i>실천수행도</span>
+          <span><i class="legend-dot action"></i>문제행동수준</span>
+        </div>
+        <div class="trend-status">${escapeHtml(trendRangeLabel())}${capped ? ` 중 최근 ${TREND_DISPLAY_CAP}일` : ""}: 관찰 ${data.reduce((sum, day) => sum + day.observationCount, 0)}건, 실천 ${data.reduce((sum, day) => sum + day.logCount, 0)}건</div>
         <div class="trend-bar-list">
           ${data.map(day => `
             <div class="trend-day">
@@ -1467,7 +1816,7 @@ const TEXT_LIMITS = {
         ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + width, y); ctx.stroke();
         ctx.fillStyle = "#64736d"; ctx.font = "12px sans-serif"; ctx.fillText(String(i * 2), 8, y + 4);
       }
-      const trendData = trendSeriesData();
+      const trendData = trendSeriesData(trendRangeDays());
       const obsSeries = trendData.map(day => day.observation);
       const logSeries = trendData.map(day => day.practice);
       const actionSeries = trendData.map(day => day.action);
@@ -1595,6 +1944,9 @@ const TEXT_LIMITS = {
       if (state.shareRange === "all") return "전체";
       return `최근 ${Number(state.shareRange) === 7 ? "1주" : Number(state.shareRange) === 14 ? "2주" : "4주"}`;
     }
+    function rangeDaysValue() {
+      return state.shareRange === "all" ? "all" : Number(state.shareRange);
+    }
     function buildCsv() {
       const summary = buildSummary("counselorDetail");
       const observations = rangeRecords(activeObservations());
@@ -1602,7 +1954,7 @@ const TEXT_LIMITS = {
       const exportedAt = new Date().toISOString();
       const clientAlias = state.data.settings.alias || "";
       const csvShareMode = "counselor_full";
-      const header = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_label", "payload_json"];
+      const header = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"];
       const rows = [header];
       const addRow = (type, id, date, updatedAt, payload) => {
         rows.push([
@@ -1614,7 +1966,7 @@ const TEXT_LIMITS = {
           exportedAt,
           clientAlias,
           csvShareMode,
-          rangeLabel(),
+          rangeDaysValue(),
           JSON.stringify(payload)
         ]);
       };
@@ -1684,6 +2036,19 @@ const TEXT_LIMITS = {
         });
       });
 
+      const predictions = rangeRecords(activePredictions());
+      predictions.forEach(pr => {
+        addRow("prediction", pr.id, pr.date, pr.updatedAt, {
+          related_observation_id: pr.relatedObservationId || "",
+          worry_text: pr.worryText || "",
+          predicted_severity: pr.predictedSeverity ?? 5,
+          status: pr.status || "pending",
+          actual_severity: pr.actualSeverity ?? "",
+          resolved_at: pr.resolvedAt || "",
+          note: pr.note || ""
+        });
+      });
+
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
       const nameMode = "상담자치료자료";
       return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
@@ -1695,7 +2060,7 @@ const TEXT_LIMITS = {
       const report = {
         ok: true,
         messages: [],
-        counts: { observation: 0, practice_definition: 0, practice_log: 0 }
+        counts: { observation: 0, practice_definition: 0, practice_log: 0, prediction: 0 }
       };
       if (header[0] !== "schema_version" || header[1] !== "record_type") {
         report.ok = false;
@@ -1703,7 +2068,7 @@ const TEXT_LIMITS = {
       }
       const index = {};
       header.forEach((name, i) => index[name] = i);
-      ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_label", "payload_json"].forEach(name => {
+      ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"].forEach(name => {
         if (!(name in index)) {
           report.ok = false;
           report.messages.push(`필수 항목 누락: ${name}`);
@@ -1742,7 +2107,8 @@ const TEXT_LIMITS = {
       const expected = {
         observation: rangeRecords(activeObservations()).length,
         practice_definition: state.data.practices.length,
-        practice_log: rangeRecords(activeLogs()).length
+        practice_log: rangeRecords(activeLogs()).length,
+        prediction: rangeRecords(activePredictions()).length
       };
       Object.entries(expected).forEach(([key, count]) => {
         if (report.counts[key] !== count) {
@@ -1802,7 +2168,7 @@ const TEXT_LIMITS = {
     }
     function renderCsvVerification() {
       const report = verifyCurrentCsv();
-      const countText = `관찰 ${report.counts.observation}개, 실천행동 ${report.counts.practice_definition}개, 수행도 ${report.counts.practice_log}개`;
+      const countText = `관찰 ${report.counts.observation}개, 실천행동 ${report.counts.practice_definition}개, 수행도 ${report.counts.practice_log}개, 걱정기록 ${report.counts.prediction}개`;
       $("#shareInfo").textContent = report.ok
         ? `CSV 복원 점검 통과: ${countText}. 현재 범위의 백업 파일을 다시 읽을 수 있는 구조입니다.`
         : `CSV 복원 점검 필요: ${report.messages.slice(0, 3).join(" / ")}`;
@@ -1843,6 +2209,14 @@ const TEXT_LIMITS = {
       rows.push(row);
       return rows.filter(r => r.some(c => String(c).trim()));
     }
+    function shouldUpsert(existing, newUpdatedAt) {
+      if (!existing) return true;
+      const newTime = Date.parse(newUpdatedAt || "");
+      if (Number.isNaN(newTime)) return false;
+      const existingTime = Date.parse(existing.updatedAt || "");
+      if (Number.isNaN(existingTime)) return true;
+      return newTime > existingTime;
+    }
     function importCsvFile(file) {
       if (!file) {
         showToast("가져올 CSV 파일을 선택해주세요.");
@@ -1870,12 +2244,12 @@ const TEXT_LIMITS = {
         }
         const header = rows.shift() || [];
         if (header[0] !== "schema_version" || header[1] !== "record_type") {
-          $("#importInfo").textContent = "현재 개발용 CSV 구조(maeumgoyo_compact_v2)로 저장한 파일만 가져올 수 있습니다.";
+          $("#importInfo").textContent = "현재 개발용 CSV 구조(maeumgoyo_csv_v1)로 저장한 파일만 가져올 수 있습니다.";
           return;
         }
         const index = {};
         header.forEach((name, i) => index[name] = i);
-        const requiredColumns = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_label", "payload_json"];
+        const requiredColumns = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"];
         const missingColumns = requiredColumns.filter(name => !(name in index));
         if (missingColumns.length) {
           $("#importInfo").textContent = `CSV 필수 항목이 빠져 있습니다: ${missingColumns.join(", ")}`;
@@ -1883,10 +2257,11 @@ const TEXT_LIMITS = {
           return;
         }
         const cell = (row, name) => row[index[name]] ?? "";
-        const before = {
-          observations: state.data.observations.length,
-          practices: state.data.practices.length,
-          logs: state.data.logs.length
+        const stats = {
+          observation: { added: 0, updated: 0 },
+          practice_definition: { added: 0, updated: 0 },
+          practice_log: { added: 0, updated: 0 },
+          prediction: { added: 0, updated: 0 }
         };
         rows.forEach(row => {
           if (cell(row, "schema_version") !== CSV_SCHEMA_VERSION) return;
@@ -1899,10 +2274,13 @@ const TEXT_LIMITS = {
           }
           if (type === "observation") {
             const id = cell(row, "id") || uid();
-            if (state.data.observations.some(o => o.id === id)) return;
+            const updatedAt = cell(row, "updated_at") || new Date().toISOString();
+            const existingIndex = state.data.observations.findIndex(o => o.id === id);
+            const existing = existingIndex >= 0 ? state.data.observations[existingIndex] : null;
+            if (!shouldUpsert(existing, updatedAt)) return;
             const behaviorAreas = Array.isArray(payload.behavior_areas) ? payload.behavior_areas : splitBehaviorCustom(payload.behavior_areas);
             const behaviorCustomAreas = Array.isArray(payload.behavior_custom_areas) ? payload.behavior_custom_areas : splitBehaviorCustom(payload.behavior_custom_areas);
-            state.data.observations.push({
+            const record = {
               id,
               date: cleanDate(cell(row, "date") || todayISO()),
               mode: cleanText(payload.time_slot || "가져오기", TEXT_LIMITS.short),
@@ -1933,13 +2311,19 @@ const TEXT_LIMITS = {
               insight: cleanMultiline(payload.insight, TEXT_LIMITS.reflection),
               value: cleanText(payload.value, TEXT_LIMITS.short),
               valueActionDraft: cleanMultiline(payload.value_action_draft, TEXT_LIMITS.medium),
-              updatedAt: cell(row, "updated_at") || new Date().toISOString()
-            });
+              archived: existing ? existing.archived : false,
+              updatedAt
+            };
+            if (existingIndex >= 0) { state.data.observations[existingIndex] = record; stats.observation.updated++; }
+            else { state.data.observations.push(record); stats.observation.added++; }
           }
           if (type === "practice_definition") {
             const id = cell(row, "id") || uid();
-            if (state.data.practices.some(p => p.id === id)) return;
-            state.data.practices.push({
+            const updatedAt = cell(row, "updated_at") || new Date().toISOString();
+            const existingIndex = state.data.practices.findIndex(p => p.id === id);
+            const existing = existingIndex >= 0 ? state.data.practices[existingIndex] : null;
+            if (!shouldUpsert(existing, updatedAt)) return;
+            const record = {
               id,
               value: cleanText(payload.practice_value, TEXT_LIMITS.short),
               name: cleanMultiline(payload.practice_name, TEXT_LIMITS.medium),
@@ -1953,12 +2337,17 @@ const TEXT_LIMITS = {
               barriers: cleanMultiline(payload.barriers, TEXT_LIMITS.long),
               smallVersion: cleanMultiline(payload.small_version, TEXT_LIMITS.medium),
               archived: payload.archived === "1",
-              updatedAt: cell(row, "updated_at") || new Date().toISOString()
-            });
+              updatedAt
+            };
+            if (existingIndex >= 0) { state.data.practices[existingIndex] = record; stats.practice_definition.updated++; }
+            else { state.data.practices.push(record); stats.practice_definition.added++; }
           }
           if (type === "practice_log") {
             const id = cell(row, "id") || uid();
-            if (state.data.logs.some(log => log.id === id)) return;
+            const updatedAt = cell(row, "updated_at") || new Date().toISOString();
+            const existingIndex = state.data.logs.findIndex(log => log.id === id);
+            const existing = existingIndex >= 0 ? state.data.logs[existingIndex] : null;
+            if (!shouldUpsert(existing, updatedAt)) return;
             const practiceId = payload.practice_id || "";
             if (practiceId && !state.data.practices.some(p => p.id === practiceId)) {
               state.data.practices.push({
@@ -1983,7 +2372,7 @@ const TEXT_LIMITS = {
               ? clampNumber(payload.pleasure_score, 0, 10, importedScore) : importedScore;
             const masteryScore = payload.mastery_score !== undefined && payload.mastery_score !== ""
               ? clampNumber(payload.mastery_score, 0, 10, importedScore) : importedScore;
-            state.data.logs.push({
+            const record = {
               id,
               practiceId,
               date: cleanDate(cell(row, "date") || todayISO()),
@@ -1993,13 +2382,38 @@ const TEXT_LIMITS = {
               expectedPleasureScore: optionalScore(payload.expected_pleasure_score),
               expectedMasteryScore: optionalScore(payload.expected_mastery_score),
               note: cleanMultiline(payload.practice_note, TEXT_LIMITS.long),
-              updatedAt: cell(row, "updated_at") || new Date().toISOString()
-            });
+              archived: existing ? existing.archived : false,
+              updatedAt
+            };
+            if (existingIndex >= 0) { state.data.logs[existingIndex] = record; stats.practice_log.updated++; }
+            else { state.data.logs.push(record); stats.practice_log.added++; }
+          }
+          if (type === "prediction") {
+            const id = cell(row, "id") || uid();
+            const updatedAt = cell(row, "updated_at") || new Date().toISOString();
+            const existingIndex = state.data.predictions.findIndex(p => p.id === id);
+            const existing = existingIndex >= 0 ? state.data.predictions[existingIndex] : null;
+            if (!shouldUpsert(existing, updatedAt)) return;
+            const record = {
+              id,
+              date: cleanDate(cell(row, "date") || todayISO()),
+              relatedObservationId: cleanText(payload.related_observation_id, TEXT_LIMITS.medium),
+              worryText: cleanMultiline(payload.worry_text, TEXT_LIMITS.long),
+              predictedSeverity: clampNumber(payload.predicted_severity, 0, 10, 5),
+              status: PREDICTION_STATUSES.includes(payload.status) ? payload.status : "pending",
+              actualSeverity: optionalScore(payload.actual_severity),
+              resolvedAt: payload.resolved_at || "",
+              note: cleanMultiline(payload.note, TEXT_LIMITS.medium),
+              archived: existing ? existing.archived : false,
+              updatedAt
+            };
+            if (existingIndex >= 0) { state.data.predictions[existingIndex] = record; stats.prediction.updated++; }
+            else { state.data.predictions.push(record); stats.prediction.added++; }
           }
         });
         if (!saveData()) return;
         renderAll();
-        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 ${state.data.observations.length - before.observations}개, 실천행동 ${state.data.practices.length - before.practices}개, 수행도 ${state.data.logs.length - before.logs}개`;
+        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 신규 ${stats.observation.added}개/갱신 ${stats.observation.updated}개, 실천행동 신규 ${stats.practice_definition.added}개/갱신 ${stats.practice_definition.updated}개, 수행도 신규 ${stats.practice_log.added}개/갱신 ${stats.practice_log.updated}개, 걱정기록 신규 ${stats.prediction.added}개/갱신 ${stats.prediction.updated}개`;
         showToast("CSV를 가져왔습니다.");
       };
       reader.readAsText(file, "utf-8");
@@ -2057,6 +2471,22 @@ const TEXT_LIMITS = {
       const index = state.data.observations.findIndex(o => o.id === id);
       if (index >= 0) state.data.observations[index] = entry;
       else state.data.observations.push(entry);
+      const worryText = cleanMultiline($("#worryText").value, TEXT_LIMITS.long);
+      if (worryText) {
+        state.data.predictions.push({
+          id: uid(),
+          date: entry.date,
+          relatedObservationId: id,
+          worryText,
+          predictedSeverity: clampNumber($("#predictedSeverity").value, 0, 10, 5),
+          status: "pending",
+          actualSeverity: null,
+          resolvedAt: "",
+          note: "",
+          archived: false,
+          updatedAt: new Date().toISOString()
+        });
+      }
       if (!saveData()) return;
       $("#observeForm").reset();
       resetObserveDefaults();
@@ -2081,6 +2511,14 @@ const TEXT_LIMITS = {
       state.triggerPeople = [];
       state.triggerTimes = [];
       state.avoidanceTags = [];
+      const triggerDetails = $("#triggerDetails");
+      const avoidanceDetails = $("#avoidanceDetails");
+      const worryDetails = $("#worryDetails");
+      if (triggerDetails) triggerDetails.open = false;
+      if (avoidanceDetails) avoidanceDetails.open = false;
+      if (worryDetails) worryDetails.open = false;
+      $("#predictedSeverity").value = 5;
+      $("#predictedSeverityValue").textContent = "5";
       showRiskFollowup(false);
       const relapseFollowupBox = $("#relapseFollowup");
       if (relapseFollowupBox) { relapseFollowupBox.classList.add("hidden"); relapseFollowupBox.innerHTML = ""; }
@@ -2312,6 +2750,14 @@ const TEXT_LIMITS = {
         state.shareRange = b.dataset.days === "all" ? "all" : Number(b.dataset.days);
         renderSharePreview();
       });
+      $("#trendRangeButtons").addEventListener("click", e => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        $$("#trendRangeButtons button").forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        state.trendRange = b.dataset.days === "all" ? "all" : Number(b.dataset.days);
+        renderTrend();
+      });
       $("#shareModeButtons").addEventListener("click", e => {
         const b = e.target.closest("button");
         if (!b) return;
@@ -2423,6 +2869,8 @@ const TEXT_LIMITS = {
     }
     function init() {
       loadData();
+      const versionTag = $("#appVersion");
+      if (versionTag) versionTag.textContent = APP_VERSION;
       $("#noRecordReminderTime").value = noRecordReminderTime();
       $("#clientAliasInput").value = state.data.settings.alias || "";
       initPickers();

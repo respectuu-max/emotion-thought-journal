@@ -32,7 +32,7 @@
         <div class="brand">
           <img src="./maeumgoyo_logo_large_subtitle.png" alt="마음고요 심리상담센터">
           <div class="brand-title">
-            <h1>마음고요 관찰과 실천</h1>
+            <h1>마음고요 관찰과 실천 <span class="app-version" id="appVersion"></span></h1>
             <p class="subtitle">상담에서 마음과 행동을 이해하고, 일상에서 실천하며, 다시 상담에서 다듬습니다.</p>
           </div>
         </div>
@@ -59,8 +59,7 @@
           <p class="small">1. 오늘 마음과 행동을 관찰합니다.</p>
           <p class="small">2. 내가 중요하게 여기는 가치에서 작은 실천행동을 정합니다.</p>
           <p class="small">3. 기록을 상담에서 함께 보고 조정합니다.</p>
-        </div>
-        <div class="plain-card" style="margin-top:10px;">
+          <div class="card-divider"></div>
           <h3>빠른 시작</h3>
           <div class="quick-actions">
             <button class="solid-btn" type="button" id="quickObserve">30초 관찰하기</button>
@@ -68,7 +67,6 @@
             <button class="ghost-btn" type="button" id="quickBackup">CSV 백업하기</button>
           </div>
         </div>
-        <p class="small" id="notificationStatus"></p>
         <div class="plain-card" id="todayTaskSummary" style="margin-top:10px;"></div>
         <div id="cleanStreakCard" style="margin-top:10px;"></div>
         <div id="relapseStatusCard" style="margin-top:10px;"></div>
@@ -155,131 +153,156 @@
             </div>
             <div class="hidden" id="relapseFollowup" style="margin-top:12px;"></div>
             <div style="height:12px"></div>
-            <div class="form-row">
-              <label for="observeDate">날짜</label>
-              <input id="observeDate" type="date" required>
-            </div>
-            <div class="form-row">
-              <label>기록 방식</label>
-              <div class="segmented" id="observeModeButtons">
-                <button type="button" data-value="오전">오전</button>
-                <button type="button" data-value="오후">오후</button>
-                <button type="button" data-value="저녁" class="active">저녁</button>
-                <button type="button" data-value="충동 발생">충동 발생</button>
+            <div class="section-block">
+              <div class="section-title">1 · 상황과 촉발 단서</div>
+              <div class="form-row">
+                <label for="observeDate">날짜</label>
+                <input id="observeDate" type="date" required>
               </div>
-            </div>
-            <div class="form-row">
-              <label>문제 행동 영역</label>
-              <div class="chip-row" id="behaviorChips"></div>
-              <div style="height:8px"></div>
-              <input id="behaviorCustom" maxlength="160" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
-              <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 여러 영역을 함께 선택할 수 있고, 실제 행동 여부와 정도는 아래 문제행동수준에서 기록합니다.</div>
-            </div>
-            <div class="form-row">
-              <label for="situation">상황</label>
-              <textarea id="situation" maxlength="600" placeholder="언제, 어디서, 어떤 상황이었나요?"></textarea>
-            </div>
-            <div class="form-row">
-              <label>촉발 단서 (선택)</label>
-              <div class="small">반복되는 장소·사람·시간대를 표시해두면, 추세보기에서 자주 나타나는 패턴을 확인할 수 있습니다.</div>
-              <div style="height:6px"></div>
-              <div class="small" style="font-weight:800;">장소</div>
-              <div class="chip-row" id="triggerPlaceChips"></div>
-              <div style="height:8px"></div>
-              <div class="small" style="font-weight:800;">사람/상황</div>
-              <div class="chip-row" id="triggerPeopleChips"></div>
-              <div style="height:8px"></div>
-              <div class="small" style="font-weight:800;">시간대</div>
-              <div class="chip-row" id="triggerTimeChips"></div>
-              <div style="height:8px"></div>
-              <input id="triggerCustom" maxlength="160" placeholder="기타 촉발 단서. 여러 개면 쉼표로 구분">
-            </div>
-            <div class="form-row">
-              <label for="thoughtText">그때 든 생각</label>
-              <textarea id="thoughtText" maxlength="600" placeholder="자동적으로 떠오른 생각을 한두 문장으로 적습니다."></textarea>
-            </div>
-            <div class="form-row">
-              <label>감정 종류</label>
-              <div class="chip-row" id="emotionChips"></div>
-              <div style="height:8px"></div>
-              <input id="emotionCustom" maxlength="10" placeholder="기타 감정 10자 이내">
-            </div>
-            <div class="form-row">
-              <label>몸 반응</label>
-              <div class="chip-row" id="bodyChips"></div>
-              <div style="height:8px"></div>
-              <input id="bodyCustom" maxlength="10" placeholder="기타 몸 반응 10자 이내">
-            </div>
-            <div class="form-row">
-              <label>오늘의 회피 신호 (선택)</label>
-              <div class="small">문제 행동과 별개로, 활동이 줄어들고 있다는 신호도 회복에 중요한 정보입니다.</div>
-              <div style="height:6px"></div>
-              <div class="chip-row" id="avoidanceChips"></div>
-              <div style="height:8px"></div>
-              <input id="avoidanceCustom" maxlength="160" placeholder="기타 회피 신호. 여러 개면 쉼표로 구분">
-            </div>
-            <div class="form-row">
-              <label>강도 기록</label>
-              <div class="slider-card">
-                <div class="slider-top"><span>문제 행동 관련 생각</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
-                <input id="thoughtScore" type="range" min="0" max="10" value="0">
-                <div class="range-labels"><span>없음</span><span>매우 강함</span></div>
-              </div>
-              <div class="slider-card">
-                <div class="slider-top"><span>불편한 감정</span><span class="slider-value" id="emotionScoreValue">0</span></div>
-                <input id="emotionScore" type="range" min="0" max="10" value="0">
-                <div class="range-labels"><span>안정</span><span>매우 불편</span></div>
-              </div>
-              <div class="slider-card">
-                <div class="slider-top"><span>하고 싶은 마음/충동 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
-                <input id="urgeScore" type="range" min="0" max="10" value="0">
-                <div class="range-labels"><span>없음</span><span>통제 어려움</span></div>
-              </div>
-              <div class="hidden" id="urgeCurveBox">
-                <p class="small">충동은 시간이 지나면 대개 저절로 가라앉습니다. 시작할 때, 가장 강했을 때, 지금(또는 끝났을 때)을 각각 남기면 그 흐름을 눈으로 확인할 수 있습니다.</p>
-                <div class="slider-card">
-                  <div class="slider-top"><span>충동 · 처음 느꼈을 때</span><span class="slider-value" id="urgeInitialScoreValue">0</span></div>
-                  <input id="urgeInitialScore" type="range" min="0" max="10" value="0">
-                </div>
-                <div class="slider-card">
-                  <div class="slider-top"><span>충동 · 지금(또는 끝났을 때)</span><span class="slider-value" id="urgeEndScoreValue">0</span></div>
-                  <input id="urgeEndScore" type="range" min="0" max="10" value="0">
+              <div class="form-row">
+                <label>기록 방식</label>
+                <div class="segmented" id="observeModeButtons">
+                  <button type="button" data-value="오전">오전</button>
+                  <button type="button" data-value="오후">오후</button>
+                  <button type="button" data-value="저녁" class="active">저녁</button>
+                  <button type="button" data-value="충동 발생">충동 발생</button>
                 </div>
               </div>
-              <div class="slider-card">
-                <div class="slider-top"><span>문제행동수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
-                <input id="actionLevel" type="range" min="0" max="5" value="0">
-                <div class="range-labels"><span>멈춤</span><span>멈추기 어려움</span></div>
+              <div class="form-row">
+                <label>문제 행동 영역</label>
+                <div class="chip-row" id="behaviorChips"></div>
+                <div style="height:8px"></div>
+                <input id="behaviorCustom" maxlength="160" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
+                <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 여러 영역을 함께 선택할 수 있고, 실제 행동 여부와 정도는 아래 문제행동수준에서 기록합니다.</div>
+              </div>
+              <div class="form-row">
+                <label for="situation">문제 촉발 상황</label>
+                <textarea id="situation" maxlength="600" placeholder="어떤 상황이 문제 행동에 대한 생각이나 충동을 촉발했나요? (언제, 어디서, 무슨 일이 있었는지)"></textarea>
+              </div>
+              <details class="form-row" id="triggerDetails">
+                <summary>촉발 단서 추가하기 (선택)</summary>
+                <div style="height:8px"></div>
+                <div class="small">반복되는 장소·사람·시간대를 표시해두면, 추세보기에서 자주 나타나는 패턴을 확인할 수 있습니다.</div>
+                <div style="height:6px"></div>
+                <div class="small" style="font-weight:800;">장소</div>
+                <div class="chip-row" id="triggerPlaceChips"></div>
+                <div style="height:8px"></div>
+                <div class="small" style="font-weight:800;">사람/상황</div>
+                <div class="chip-row" id="triggerPeopleChips"></div>
+                <div style="height:8px"></div>
+                <div class="small" style="font-weight:800;">시간대</div>
+                <div class="chip-row" id="triggerTimeChips"></div>
+                <div style="height:8px"></div>
+                <input id="triggerCustom" maxlength="160" placeholder="기타 촉발 단서. 여러 개면 쉼표로 구분">
+              </details>
+            </div>
+            <div class="section-block">
+              <div class="section-title">2 · 마음 관찰</div>
+              <div class="form-row">
+                <label for="thoughtText">그때 든 생각</label>
+                <textarea id="thoughtText" maxlength="600" placeholder="자동적으로 떠오른 생각을 한두 문장으로 적습니다."></textarea>
+              </div>
+              <details class="form-row" id="worryDetails">
+                <summary>구체적으로 걱정되는 결과 기록하기 (선택)</summary>
+                <div style="height:8px"></div>
+                <div class="small">나중에 그 일이 실제로 어떻게 됐는지 돌아볼 수 있도록, 지금 걱정되는 구체적인 결과를 남겨두세요. 판단하지 않고 그냥 비교해보는 용도입니다.</div>
+                <div style="height:8px"></div>
+                <textarea id="worryText" maxlength="600" placeholder="예: 면접에서 완전히 얼어붙을 것 같다"></textarea>
+                <div style="height:8px"></div>
+                <div class="slider-card">
+                  <div class="slider-top"><span>그 일이 일어날 것 같은 정도</span><span class="slider-value" id="predictedSeverityValue">5</span></div>
+                  <input id="predictedSeverity" type="range" min="0" max="10" value="5">
+                </div>
+              </details>
+              <div class="form-row">
+                <label>감정 종류</label>
+                <div class="chip-row" id="emotionChips"></div>
+                <div style="height:8px"></div>
+                <input id="emotionCustom" maxlength="10" placeholder="기타 감정 10자 이내">
+              </div>
+              <div class="form-row">
+                <label>몸 반응</label>
+                <div class="chip-row" id="bodyChips"></div>
+                <div style="height:8px"></div>
+                <input id="bodyCustom" maxlength="10" placeholder="기타 몸 반응 10자 이내">
+              </div>
+              <details class="form-row" id="avoidanceDetails">
+                <summary>오늘의 회피 신호 추가하기 (선택)</summary>
+                <div style="height:8px"></div>
+                <div class="small">문제 행동과 별개로, 활동이 줄어들고 있다는 신호도 회복에 중요한 정보입니다.</div>
+                <div style="height:6px"></div>
+                <div class="chip-row" id="avoidanceChips"></div>
+                <div style="height:8px"></div>
+                <input id="avoidanceCustom" maxlength="160" placeholder="기타 회피 신호. 여러 개면 쉼표로 구분">
+              </details>
+            </div>
+            <div class="section-block">
+              <div class="section-title">3 · 강도 기록</div>
+              <div class="form-row">
+                <div class="slider-card">
+                  <div class="slider-top"><span>문제 행동 관련 생각</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
+                  <input id="thoughtScore" type="range" min="0" max="10" value="0">
+                  <div class="range-labels"><span>없음</span><span>매우 강함</span></div>
+                </div>
+                <div class="slider-card">
+                  <div class="slider-top"><span>불편한 감정</span><span class="slider-value" id="emotionScoreValue">0</span></div>
+                  <input id="emotionScore" type="range" min="0" max="10" value="0">
+                  <div class="range-labels"><span>안정</span><span>매우 불편</span></div>
+                </div>
+                <div class="slider-card">
+                  <div class="slider-top"><span>하고 싶은 마음/충동 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
+                  <input id="urgeScore" type="range" min="0" max="10" value="0">
+                  <div class="range-labels"><span>없음</span><span>통제 어려움</span></div>
+                </div>
+                <div class="hidden" id="urgeCurveBox">
+                  <p class="small">충동은 시간이 지나면 대개 저절로 가라앉습니다. 시작할 때, 가장 강했을 때, 지금(또는 끝났을 때)을 각각 남기면 그 흐름을 눈으로 확인할 수 있습니다.</p>
+                  <div class="slider-card">
+                    <div class="slider-top"><span>충동 · 처음 느꼈을 때</span><span class="slider-value" id="urgeInitialScoreValue">0</span></div>
+                    <input id="urgeInitialScore" type="range" min="0" max="10" value="0">
+                  </div>
+                  <div class="slider-card">
+                    <div class="slider-top"><span>충동 · 지금(또는 끝났을 때)</span><span class="slider-value" id="urgeEndScoreValue">0</span></div>
+                    <input id="urgeEndScore" type="range" min="0" max="10" value="0">
+                  </div>
+                </div>
+                <div class="slider-card">
+                  <div class="slider-top"><span>문제행동수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
+                  <input id="actionLevel" type="range" min="0" max="5" value="0">
+                  <div class="range-labels"><span>멈춤</span><span>멈추기 어려움</span></div>
+                </div>
               </div>
             </div>
-            <div class="form-row">
-              <label for="coping">대처행동</label>
-              <textarea id="coping" maxlength="600" placeholder="멈춤, 한 걸음 뒤로, 호흡, 장소 바꾸기, 연락하기 등"></textarea>
-            </div>
-            <div class="form-row">
-              <label>대처 후 도움 정도</label>
-              <div class="slider-card">
-                <div class="slider-top"><span>도움 정도</span><span class="slider-value" id="copingScoreValue">0</span></div>
-                <input id="copingScore" type="range" min="0" max="10" value="0">
+            <div class="section-block">
+              <div class="section-title">4 · 대처와 성찰</div>
+              <div class="form-row">
+                <label for="coping">대처행동</label>
+                <textarea id="coping" maxlength="600" placeholder="멈춤, 한 걸음 뒤로, 호흡, 장소 바꾸기, 연락하기 등"></textarea>
               </div>
-            </div>
-            <div class="form-row">
-              <label for="gratitude">감사 기록</label>
-              <textarea id="gratitude" maxlength="160" placeholder="오늘 고마웠던 사람, 일, 또는 나에게 고마운 점"></textarea>
-            </div>
-            <div class="form-row">
-              <label for="insight">오늘 알아차린 점</label>
-              <textarea id="insight" maxlength="800" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
-            </div>
-            <div class="form-row">
-              <label>오늘 지키고 싶은 가치</label>
-              <div class="chip-row" id="valueChips"></div>
-              <div style="height:8px"></div>
-              <input id="valueCustom" maxlength="40" placeholder="직접 입력">
-            </div>
-            <div class="form-row">
-              <label for="valueActionDraft">그 가치를 위한 아주 작은 행동</label>
-              <textarea id="valueActionDraft" maxlength="160" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
+              <div class="form-row">
+                <label>대처 후 도움 정도</label>
+                <div class="slider-card">
+                  <div class="slider-top"><span>도움 정도</span><span class="slider-value" id="copingScoreValue">0</span></div>
+                  <input id="copingScore" type="range" min="0" max="10" value="0">
+                </div>
+              </div>
+              <div class="form-row">
+                <label for="gratitude">감사 기록</label>
+                <textarea id="gratitude" maxlength="160" placeholder="오늘 고마웠던 사람, 일, 또는 나에게 고마운 점"></textarea>
+              </div>
+              <div class="form-row">
+                <label for="insight">오늘 알아차린 점</label>
+                <textarea id="insight" maxlength="800" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
+              </div>
+              <div class="form-row">
+                <label>오늘 지키고 싶은 가치</label>
+                <div class="chip-row" id="valueChips"></div>
+                <div style="height:8px"></div>
+                <input id="valueCustom" maxlength="40" placeholder="직접 입력">
+              </div>
+              <div class="form-row">
+                <label for="valueActionDraft">그 가치를 위한 아주 작은 행동</label>
+                <textarea id="valueActionDraft" maxlength="160" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
+              </div>
             </div>
             <div class="button-row">
               <button class="solid-btn" type="submit">관찰 저장</button>
@@ -404,17 +427,42 @@
       </section>
 
       <section class="view" id="trendView">
+        <div class="form-row">
+          <label>추세 기간</label>
+          <div class="segmented" id="trendRangeButtons">
+            <button type="button" data-days="7">최근 7일</button>
+            <button type="button" data-days="14" class="active">최근 14일</button>
+            <button type="button" data-days="28">최근 4주</button>
+            <button type="button" data-days="all">전체</button>
+          </div>
+        </div>
+        <div id="weeklyHighlights" style="margin-bottom:12px;"></div>
         <div class="grid">
           <div class="card">
             <h2>관찰과 실천 함께 보기</h2>
             <p class="small">완벽한 성공보다 변화의 방향을 봅니다.</p>
             <div class="chart-wrap"><canvas id="trendCanvas"></canvas></div>
-            <div id="trendBars" class="trend-bars"></div>
+            <div id="trendMovingAverage" class="trend-bars" style="margin-top:12px;"></div>
+            <details class="form-row" style="margin-top:10px;">
+              <summary>일별 상세 보기</summary>
+              <div style="height:8px"></div>
+              <div id="trendBars" class="trend-bars"></div>
+            </details>
           </div>
           <div class="card">
             <h2>패턴 요약</h2>
             <div id="patternSummary" class="summary-box"></div>
           </div>
+        </div>
+        <div class="plain-card" style="margin-top:14px;">
+          <h3>촉발 단서와 충동의 관계</h3>
+          <div id="triggerCorrelation"></div>
+        </div>
+        <div class="plain-card" style="margin-top:14px;">
+          <h3>걱정 확인</h3>
+          <p class="small">기록해둔 걱정이 실제로 어떻게 됐는지 돌아봅니다. 생각이 맞았는지 틀렸는지를 따지려는 것이 아니라, 예상과 실제 사이의 차이를 있는 그대로 보기 위한 것입니다.</p>
+          <div id="worrySummary" style="margin-top:8px;"></div>
+          <div id="worryPendingList" class="list" style="margin-top:10px;"></div>
         </div>
       </section>
 
@@ -422,6 +470,7 @@
         <div class="lead">
           재발은 대개 한 순간에 일어나지 않습니다. 정서적 재발 → 인지적 재발 → 행동적 재발 순서로 조용히 진행되는 경우가 많고, 처음 두 단계가 겹쳐서 함께 나타나기도 합니다. 이 화면은 진단이나 예측이 아니라, 신호를 먼저 알아차리고 스스로 조치할 기회를 드리기 위한 것입니다.
         </div>
+        <div class="plain-card" id="relapseRiskBars" style="margin-top:10px;"></div>
         <div id="relapseStatusFull" style="margin-top:10px;"></div>
 
         <div class="section-head">
