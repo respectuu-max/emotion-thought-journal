@@ -33,7 +33,7 @@ const TEXT_LIMITS = {
       customDays: [],
       shareRange: 7,
       shareMode: "counselorDetail",
-      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], settings: { alias: "", noRecordReminderTime: "20:00" } },
+      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00" } },
       lastActive: Date.now()
     };
 
@@ -201,6 +201,16 @@ const TEXT_LIMITS = {
         updatedAt: record.updatedAt || new Date().toISOString()
       };
     }
+    function normalizeBehaviorAliases(value) {
+      const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      const result = {};
+      Object.entries(source).slice(0, 30).forEach(([key, alias]) => {
+        const cleanKey = cleanText(key, TEXT_LIMITS.short);
+        const cleanAlias = cleanText(alias, TEXT_LIMITS.short);
+        if (cleanKey && cleanAlias) result[cleanKey] = cleanAlias;
+      });
+      return result;
+    }
     function normalizeData(data) {
       const settings = data.settings || {};
       return {
@@ -210,6 +220,7 @@ const TEXT_LIMITS = {
         logs: Array.isArray(data.logs) ? data.logs.map(normalizeLog) : [],
         settings: {
           alias: cleanText(settings.alias, TEXT_LIMITS.short),
+          behaviorAliases: normalizeBehaviorAliases(settings.behaviorAliases),
           noRecordReminderTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(settings.noRecordReminderTime || "") ? settings.noRecordReminderTime : "20:00",
           lastBackupAt: settings.lastBackupAt || ""
         }
@@ -314,7 +325,7 @@ const TEXT_LIMITS = {
       box.innerHTML = items.map(item => `
         <label class="chip ${selected.has(item) ? "active" : ""}">
           <input type="checkbox" value="${escapeHtml(item)}" ${selected.has(item) ? "checked" : ""}>
-          ${escapeHtml(item)}
+          ${escapeHtml(displayBehaviorLabel(item))}
         </label>
       `).join("");
       box.addEventListener("change", () => {
@@ -326,10 +337,9 @@ const TEXT_LIMITS = {
       });
     }
     function initPickers() {
-      const alias = state.data.settings.alias || "";
-      const aliasItems = alias && !["도박", "성행동", "쇼핑"].includes(alias) ? [alias] : [];
-      const behaviorItems = ["도박", "성행동", ...aliasItems, ...defaultBehaviors.filter(v => !["도박", "성행동"].includes(v))];
-      setBehaviorGroup(behaviorItems);
+      setBehaviorGroup(defaultBehaviors);
+      renderAliasTargetOptions();
+      renderAliasList();
       setChipGroup("#emotionChips", emotions, "emotion", state.emotion);
       setChipGroup("#bodyChips", bodies, "body");
       setChipGroup("#valueChips", values, "value", state.value);
@@ -346,6 +356,24 @@ const TEXT_LIMITS = {
         if (state.customDays.includes(day)) state.customDays = state.customDays.filter(v => v !== day);
         else state.customDays.push(day);
       });
+    }
+    function renderAliasTargetOptions() {
+      const select = $("#aliasTarget");
+      if (!select) return;
+      const previous = select.value;
+      select.innerHTML = defaultBehaviors.map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("");
+      if (previous && defaultBehaviors.includes(previous)) select.value = previous;
+      const map = behaviorAliasMap();
+      const input = $("#aliasInput");
+      if (input && document.activeElement !== input) input.value = map[select.value] || "";
+    }
+    function renderAliasList() {
+      const box = $("#aliasList");
+      if (!box) return;
+      const entries = Object.entries(behaviorAliasMap());
+      box.textContent = entries.length
+        ? `현재 별칭: ${entries.map(([original, alias]) => `${original} → ${alias}`).join(", ")}`
+        : "설정된 별칭이 없습니다. 항목은 원래 이름 그대로 화면에 표시됩니다.";
     }
     function bindSliders() {
       [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"]].forEach(([input, label]) => {
@@ -383,9 +411,19 @@ const TEXT_LIMITS = {
       if (record.behavior) return [record.behavior];
       return [];
     }
+    function behaviorAliasMap() {
+      return state.data.settings.behaviorAliases || {};
+    }
+    function displayBehaviorLabel(original) {
+      const map = behaviorAliasMap();
+      return map[original] || original;
+    }
+    function displayBehaviorList(list) {
+      return (Array.isArray(list) ? list : []).map(displayBehaviorLabel);
+    }
     function behaviorAreaText(record) {
       const areas = behaviorAreasFromRecord(record);
-      return areas.length ? areas.join(", ") : "-";
+      return areas.length ? displayBehaviorList(areas).join(", ") : "-";
     }
     function behaviorCustomText(record) {
       return Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.join(", ") : "";
@@ -413,6 +451,12 @@ const TEXT_LIMITS = {
       return avg(dayPracticeAverages, value => value);
     }
     function observationIntensity(o) { return (Number(o.thoughtScore) + Number(o.emotionScore) + Number(o.urgeScore)) / 3; }
+    function dailyAchievedFraction(practiceId, iso, target) {
+      const logs = logsFor(practiceId, iso).slice(0, target);
+      if (!logs.length) return 0;
+      const scoreSum = logs.reduce((sum, log) => sum + clampNumber(log.score, 0, 10, 0) / 10, 0);
+      return Math.min(target, scoreSum);
+    }
     function updateMetrics() {
       const today = todayISO();
       const todayObs = activeObservations().filter(o => sameRecordDate(o, today));
@@ -426,14 +470,14 @@ const TEXT_LIMITS = {
           if (isPracticeDue(p, d)) {
             const target = targetCount(p);
             dueCount += target;
-            achievedCount += Math.min(logsFor(p.id, d).length, target);
+            achievedCount += dailyAchievedFraction(p.id, d, target);
           }
         }
       });
       const restart = weekLogs.filter(l => Number(l.score) > 0).filter(l => {
         const prev = state.data.logs
           .filter(x => !x.archived && x.practiceId === l.practiceId && dateObj(recordDate(x)) < dateObj(recordDate(l)))
-          .sort((a,b) => b.date.localeCompare(a.date))[0];
+          .sort((a,b) => b.date.localeCompare(a.date) || String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))[0];
         return prev && Number(prev.score) === 0;
       }).length;
       $("#todayLabel").textContent = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
@@ -1730,13 +1774,41 @@ const TEXT_LIMITS = {
       $("#unlockPin").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
       $("#resetLockedApp").addEventListener("click", resetLockedApp);
       $("#restoreHiddenRecords").addEventListener("click", restoreHiddenRecords);
-      $("#saveAlias").addEventListener("click", () => {
-        const alias = cleanText($("#aliasInput").value, TEXT_LIMITS.short);
-        if (!alias) return showToast("별칭을 입력해주세요.");
+      $("#saveClientAlias").addEventListener("click", () => {
+        const alias = cleanText($("#clientAliasInput").value, TEXT_LIMITS.short);
         state.data.settings.alias = alias;
         if (!saveData()) return;
+        showToast(alias ? "내담자 별칭을 저장했습니다." : "내담자 별칭을 비웠습니다. CSV의 client_alias가 빈 값으로 저장됩니다.");
+      });
+      $("#aliasTarget").addEventListener("change", () => {
+        const map = behaviorAliasMap();
+        $("#aliasInput").value = map[$("#aliasTarget").value] || "";
+      });
+      $("#saveAlias").addEventListener("click", () => {
+        const target = $("#aliasTarget").value;
+        const alias = cleanText($("#aliasInput").value, TEXT_LIMITS.short);
+        if (!target) return showToast("별칭을 적용할 항목을 선택해주세요.");
+        if (!alias) return showToast("별칭을 입력해주세요.");
+        state.data.settings.behaviorAliases = { ...behaviorAliasMap(), [target]: alias };
+        if (!saveData()) return;
+        renderAliasList();
+        renderAliasTargetOptions();
         initPickers();
-        showToast("별칭을 저장했습니다.");
+        renderAll();
+        showToast(`"${target}" 항목이 화면에는 "${alias}"(으)로 표시됩니다.`);
+      });
+      $("#clearAlias").addEventListener("click", () => {
+        const target = $("#aliasTarget").value;
+        const map = { ...behaviorAliasMap() };
+        if (!target || !(target in map)) return showToast("이 항목에는 설정된 별칭이 없습니다.");
+        delete map[target];
+        state.data.settings.behaviorAliases = map;
+        if (!saveData()) return;
+        $("#aliasInput").value = "";
+        renderAliasList();
+        initPickers();
+        renderAll();
+        showToast(`"${target}" 항목의 별칭을 해제하고 원래 이름으로 되돌렸습니다.`);
       });
       ["click", "keydown", "touchstart"].forEach(name => document.addEventListener(name, touchActivity, { passive: true }));
       setInterval(() => {
@@ -1751,6 +1823,7 @@ const TEXT_LIMITS = {
     function init() {
       loadData();
       $("#noRecordReminderTime").value = noRecordReminderTime();
+      $("#clientAliasInput").value = state.data.settings.alias || "";
       initPickers();
       bindSliders();
       setupEvents();

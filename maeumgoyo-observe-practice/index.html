@@ -114,7 +114,7 @@
               <div class="plain-card metric">
                 <div class="metric-label">최근 7일 실천률</div>
                 <div class="metric-value" id="practiceRate">0%</div>
-                <div class="metric-note">목표 대비 기록</div>
+                <div class="metric-note">목표 대비 수행 점수 가중 평균</div>
               </div>
               <div class="plain-card metric">
                 <div class="metric-label">다시 시작</div>
@@ -471,13 +471,30 @@
             </div>
           </div>
           <div class="card">
-            <h2>안전한 언어 설정</h2>
-            <p class="small">민감한 문제행동 명칭은 사용자가 안전하게 느끼는 별칭으로 바꿀 수 있습니다. 이는 숨기기 위한 기능이 아니라 정직한 기록을 가능하게 하는 언어 설정입니다.</p>
+            <h2>내담자 별칭 (CSV용)</h2>
+            <p class="small">CSV의 client_alias 항목에 저장될 이름입니다. 실제 이름 대신 상담에서 함께 정한 별칭을 사용하면, 파일이 잘못 전달되어도 신원이 바로 드러나지 않습니다.</p>
             <div class="form-row">
-              <label for="aliasInput">문제 행동 별칭</label>
+              <label for="clientAliasInput">내담자 별칭</label>
+              <input id="clientAliasInput" maxlength="40" placeholder="예: 내담자A, 초록나무">
+            </div>
+            <button class="ghost-btn full" id="saveClientAlias" type="button">내담자 별칭 저장</button>
+          </div>
+          <div class="card">
+            <h2>안전한 언어 설정 (화면 표시용)</h2>
+            <p class="small">문제 행동 영역은 원래 이름 그대로 자유롭게 선택할 수 있습니다. 다만 화면에 그 단어가 그대로 보이는 것이 부담스럽다면, 항목별로 별칭을 지정해 화면에는 별칭만 보이도록 할 수 있습니다. CSV로 상담자에게 전달되는 실제 자료는 항목 이름이 그대로 유지되어 분석에는 영향이 없습니다.</p>
+            <div class="form-row">
+              <label for="aliasTarget">별칭을 적용할 항목</label>
+              <select id="aliasTarget"></select>
+            </div>
+            <div class="form-row">
+              <label for="aliasInput">화면에 표시할 별칭</label>
               <input id="aliasInput" maxlength="40" placeholder="예: A행동, 자동반응, 관계 위험 신호">
             </div>
-            <button class="ghost-btn full" id="saveAlias" type="button">별칭 저장</button>
+            <div class="button-row">
+              <button class="ghost-btn" id="saveAlias" type="button">별칭 저장</button>
+              <button class="ghost-btn" id="clearAlias" type="button">이 항목 별칭 해제</button>
+            </div>
+            <div id="aliasList" class="small" style="margin-top:10px"></div>
             <div style="height:12px"></div>
             <div class="lead">
               가족이나 배우자에게 모든 원자료를 공개하는 것이 항상 치료적인 것은 아닙니다. 정직한 개인기록은 상담에서 다루고, 가족에게는 회복 노력과 변화 과정이 전달되도록 공유 범위를 조정할 수 있습니다.

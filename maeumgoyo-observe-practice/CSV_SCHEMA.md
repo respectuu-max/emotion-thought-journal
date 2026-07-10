@@ -89,6 +89,12 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 }
 ```
 
+## 화면 표시 별칭과 CSV의 관계
+
+- 앱 화면(문제 행동 영역 칩, 기록 카드 등)에는 사용자가 보호하기 화면에서 설정한 별칭이 대신 표시될 수 있습니다.
+- 그러나 CSV의 `behavior_areas`, `behavior_custom_areas` 값은 항상 원래 항목 이름(예: `도박`, `성행동`)으로 저장되며, 화면 표시 별칭의 영향을 받지 않습니다.
+- 따라서 상담자 분석 앱은 이 문서에 정의된 원래 항목 이름을 기준으로 안정적으로 분석할 수 있습니다.
+
 ## 상담자 분석 앱에서의 권장 처리
 
 - `schema_version`이 `maeumgoyo_compact_v2`인지 먼저 확인합니다.
