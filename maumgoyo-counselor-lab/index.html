@@ -31,6 +31,7 @@
           <input id="csvInput" type="file" accept=".csv,text/csv">
         </label>
         <div id="fileMeta" class="file-meta">아직 불러온 파일이 없습니다.</div>
+        <div id="importStatus" class="import-status" role="status" aria-live="polite" hidden></div>
         <div id="shareModeInfo" class="share-mode-card">
           <span>공유 모드</span>
           <strong>CSV를 불러오면 표시됩니다.</strong>
@@ -41,10 +42,12 @@
 
       <section class="panel">
         <h2>위험 기준</h2>
+        <label>정서적 재발 경고 기준 <input id="emotionThreshold" type="number" min="0" max="10" step="1" value="7"></label>
+        <label>인지적 재발 주의 기준 <input id="cognitiveUrgeThreshold" type="number" min="0" max="10" step="1" value="6"></label>
         <label>충동 높음 기준 <input id="urgeThreshold" type="number" min="0" max="10" step="1" value="8"></label>
         <label>문제행동 기준 <input id="actionThreshold" type="number" min="0" max="5" step="1" value="4"></label>
         <label>실천 저수행 기준 <input id="practiceThreshold" type="number" min="0" max="10" step="1" value="0"></label>
-        <p class="privacy-note">상담 스타일에 맞게 기준을 조정하면 모든 작업판이 즉시 다시 계산됩니다.</p>
+        <p class="privacy-note">정서·인지 신호는 순서대로만 나타나지 않으며 함께 경고될 수 있습니다. 기준을 조정하면 모든 작업판이 즉시 다시 계산됩니다.</p>
       </section>
 
       <section class="panel">

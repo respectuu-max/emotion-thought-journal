@@ -10,7 +10,10 @@ const state = {
   shareMode: "",
   shareModeLabel: "",
   rangeLabel: "",
+  importMessages: [],
   thresholds: {
+    emotion: 7,
+    cognitiveUrge: 6,
     urge: 8,
     action: 4,
     practice: 0,
@@ -21,6 +24,7 @@ const els = {
   csvInput: document.getElementById("csvInput"),
   dropZone: document.getElementById("dropZone"),
   fileMeta: document.getElementById("fileMeta"),
+  importStatus: document.getElementById("importStatus"),
   shareModeInfo: document.getElementById("shareModeInfo"),
   schemaInfo: document.getElementById("schemaInfo"),
   metrics: document.getElementById("metrics"),
@@ -29,6 +33,8 @@ const els = {
   chainList: document.getElementById("chainList"),
   activeStepLabel: document.getElementById("activeStepLabel"),
   notes: document.getElementById("notes"),
+  emotionThreshold: document.getElementById("emotionThreshold"),
+  cognitiveUrgeThreshold: document.getElementById("cognitiveUrgeThreshold"),
   urgeThreshold: document.getElementById("urgeThreshold"),
   actionThreshold: document.getElementById("actionThreshold"),
   practiceThreshold: document.getElementById("practiceThreshold"),
@@ -44,7 +50,7 @@ const VIEWS = [
   ["data", "1. 자료 확인", "공유 모드, 민감정보 제외, 분석 가능 범위"],
   ["feedback", "2. 오늘의 측정 피드백", "개인 내 변화, 좋아진 점, 주의할 점"],
   ["readiness", "3. 피드백 준비도", "변화언어, 유지언어, 피드백 제시 방식"],
-  ["safety", "4. 위험·위기: STOP/TIPP 호흡훈련", "행동화 위기, 알아차림, 마음챙김 호흡"],
+  ["safety", "4. 재발 조기경보·위기대처", "정서·인지 신호, STOP/TIPP, 조기 도움요청"],
   ["chain", "5. 연쇄 이해", "트리거-생각-감정-몸-충동-행동"],
   ["success", "6. 성공·강도감소", "부분 성공, 보호요인, 행동 강도 감소"],
   ["practice", "7. 가치기반 실천·회복 유지", "작은 실천, 가치, 회복 유지 위험"],
@@ -65,7 +71,7 @@ maeumgoyo_compact_v2,observation,o1,2026-07-07,2026-07-07,2026-07-10,K-001,couns
 maeumgoyo_compact_v2,observation,o2,2026-07-08,2026-07-08,2026-07-10,K-001,counselor_full,최근 7일,"{""situation"":""친구의 권유를 받음"",""thought_text"":""거절하면 관계가 어색해질 것이다"",""emotion"":""불안"",""body_reactions"":[""손에 땀""],""urge_score"":8,""action_level"":1,""coping"":""잠깐 화장실에 가서 STOP을 떠올림"",""coping_score"":7,""value"":""회복을 우선하기"",""value_action_draft"":""오늘은 약속이 있다고 말하기""}"
 maeumgoyo_compact_v2,practice_definition,p1,2026-07-08,2026-07-08,2026-07-10,K-001,counselor_full,최근 7일,"{""practice_id"":""p1"",""practice_name"":""귀가 후 10분 산책"",""practice_value"":""몸을 먼저 안정시키기""}"
 maeumgoyo_compact_v2,practice_log,l1,2026-07-09,2026-07-09,2026-07-10,K-001,counselor_full,최근 7일,"{""practice_id"":""p1"",""practice_score"":0,""memo"":""비가 와서 못 했다. 대신 바로 누웠다.""}"
-maeumgoyo_compact_v2,observation,o3,2026-07-09,2026-07-09,2026-07-10,K-001,counselor_summary,최근 7일,"{""situation"":""민감 내용 제외"",""thought_text"":""나는 결국 못 바뀐다"",""emotion"":""수치심"",""body_reactions"":[""무기력""],""urge_score"":7,""action_level"":0,""coping"":""상담 메모 보기"",""coping_score"":5,""value"":""건강 회복"",""value_action_draft"":""내일 오전 병원 예약 확인""}"`;
+maeumgoyo_compact_v2,observation,o3,2026-07-09,2026-07-09,2026-07-10,K-001,counselor_full,최근 7일,"{""situation"":""민감 내용 제외"",""thought_text"":""나는 결국 못 바뀐다"",""emotion"":""수치심"",""body_reactions"":[""무기력""],""urge_score"":7,""action_level"":0,""coping"":""상담 메모 보기"",""coping_score"":5,""value"":""건강 회복"",""value_action_draft"":""내일 오전 병원 예약 확인""}"`;
 
 function init() {
   renderMenu();
@@ -96,7 +102,7 @@ function bindEvents() {
     if (file) readFile(file);
   });
 
-  [els.urgeThreshold, els.actionThreshold, els.practiceThreshold].forEach((input) => {
+  [els.emotionThreshold, els.cognitiveUrgeThreshold, els.urgeThreshold, els.actionThreshold, els.practiceThreshold].forEach((input) => {
     input.addEventListener("input", () => {
       readThresholds();
       rebuildChains();
@@ -130,19 +136,71 @@ function renderMenu() {
 }
 
 function readFile(file) {
+  if (file.size > 5 * 1024 * 1024) {
+    showImportMessages(["파일이 5MB를 초과합니다. 필요한 기간과 한 명의 내담자 자료만 포함한 CSV를 사용하세요."]);
+    return;
+  }
   const reader = new FileReader();
-  reader.onload = () => ingestCsv(String(reader.result || ""), file.name);
-  reader.readAsText(file, "utf-8");
+  reader.onload = () => ingestCsv(decodeCsv(reader.result), file.name);
+  reader.onerror = () => showImportMessages(["파일을 읽지 못했습니다. CSV 파일인지와 파일 접근 권한을 확인하세요."]);
+  reader.readAsArrayBuffer(file);
 }
 
 function ingestCsv(text, fileName) {
   resetDataOnly();
   state.fileName = fileName;
   state.rows = parseCsv(text);
+  const validation = validateRows(state.rows);
+  if (validation.errors.length) {
+    state.importMessages = validation.errors;
+    state.rows = [];
+    state.fileName = "";
+    render();
+    return;
+  }
   state.records = normalizeRows(state.rows);
+  state.importMessages = validation.warnings;
   detectMeta();
   rebuildChains();
   render();
+}
+
+function decodeCsv(buffer) {
+  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array();
+  let text = new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/^\uFEFF/, "");
+  if (text.includes("�")) {
+    try {
+      const korean = new TextDecoder("euc-kr", { fatal: false }).decode(bytes).replace(/^\uFEFF/, "");
+      if (!korean.includes("�")) text = korean;
+    } catch (error) {
+      // Keep UTF-8 text when this browser cannot decode euc-kr.
+    }
+  }
+  return text;
+}
+
+function validateRows(rows) {
+  const errors = [];
+  const warnings = [];
+  if (!rows.length) return { errors: ["CSV에 읽을 수 있는 행이 없습니다."], warnings };
+  const headers = Object.keys(rows[0]);
+  const isCompact = rows.some((row) => row.schema_version === "maeumgoyo_compact_v2");
+  if (isCompact) {
+    ["schema_version", "record_type", "id", "payload_json"].forEach((header) => {
+      if (!headers.includes(header)) errors.push(`필수 열 '${header}'이 없습니다.`);
+    });
+    rows.forEach((row, index) => {
+      if (row.payload_json && parsePayload(row.payload_json) === null) errors.push(`${index + 2}행의 payload_json 형식이 올바르지 않습니다.`);
+    });
+  } else {
+    warnings.push("표준 마음고요 CSV 형식을 확인하지 못했습니다. 일반 CSV로 제한적으로 해석합니다.");
+  }
+  const clients = unique(rows.map((row) => row.client_alias || row.client_id || row.client));
+  if (clients.length > 1) errors.push("한 번에 한 명의 내담자 CSV만 분석할 수 있습니다. 내담자별로 파일을 분리하세요.");
+  const modes = unique(rows.map((row) => row.share_mode));
+  if (modes.length > 1) errors.push("공유 모드가 섞여 있습니다. 하나의 공유 모드로 내보낸 CSV만 사용하세요.");
+  if (modes[0] && modes[0] !== "counselor_full") warnings.push("요약·가족 공유 모드입니다. 표시되는 문장이 공유 승인된 내용인지 확인한 뒤 저장·인쇄하세요.");
+  return { errors: unique(errors), warnings: unique(warnings) };
 }
 
 function parseCsv(text) {
@@ -195,7 +253,7 @@ function normalizeRows(rows) {
 
 function normalizeCompactRows(rows) {
   const practiceDefs = new Map();
-  const parsed = rows.map((row, index) => ({ row, index, payload: parsePayload(row.payload_json) }));
+  const parsed = rows.map((row, index) => ({ row, index, payload: parsePayload(row.payload_json) || {} }));
 
   parsed.forEach(({ row, payload }) => {
     if (row.record_type !== "practice_definition") return;
@@ -230,10 +288,11 @@ function normalizeCompactRows(rows) {
     if (row.record_type === "practice_log") {
       const def = practiceDefs.get(payload.practice_id) || {};
       const score = score10(payload.practice_score);
+      const linkedObservation = payload.observation_id || payload.chain_id || payload.episode_id;
       pushRecord(
         records,
         base,
-        `practice-${payload.practice_id || row.id || index + 1}`,
+        linkedObservation ? `observation-${linkedObservation}` : `practice-${payload.practice_id || row.id || index + 1}`,
         "practice",
         def.practice_name || payload.practice_name || "실천행동 수행",
         joinText([def.practice_value, def.practice_name, payload.memo]),
@@ -284,8 +343,8 @@ function pushRecord(records, base, chainId, category, title, content, intensity 
     createdAt: base.createdAt,
     category,
     title,
-    content: isRedacted(content) ? "" : String(content),
-    redacted: isRedacted(content),
+    content: isRedacted(content, base.payload, category) ? "" : String(content),
+    redacted: isRedacted(content, base.payload, category),
     intensity,
     recordType: base.recordType,
     shareMode: base.shareMode,
@@ -352,6 +411,8 @@ function rebuildChains() {
 }
 
 function readThresholds() {
+  state.thresholds.emotion = clamp(Number(els.emotionThreshold.value), 0, 10, 7);
+  state.thresholds.cognitiveUrge = clamp(Number(els.cognitiveUrgeThreshold.value), 0, 10, 6);
   state.thresholds.urge = clamp(Number(els.urgeThreshold.value), 0, 10, 8);
   state.thresholds.action = clamp(Number(els.actionThreshold.value), 0, 5, 4);
   state.thresholds.practice = clamp(Number(els.practiceThreshold.value), 0, 10, 0);
@@ -381,6 +442,7 @@ function renderMeta() {
     <strong>${escapeHtml(state.shareModeLabel || "CSV를 불러오면 표시됩니다.")}</strong>
     <p>${escapeHtml(privacy)}</p>
   `;
+  showImportMessages(state.importMessages);
 
   const redacted = state.records.filter((record) => record.redacted).length;
   els.schemaInfo.innerHTML = infoRows([
@@ -392,12 +454,19 @@ function renderMeta() {
   ]);
 }
 
+function showImportMessages(messages = []) {
+  els.importStatus.hidden = !messages.length;
+  els.importStatus.textContent = messages.join(" ");
+}
+
 function renderMetrics() {
   const highRisk = chains((chain) => chain.highUrge && chain.actionized).length;
-  const success = chains((chain) => chain.highUrge && !chain.actionized).length;
+  const success = chains(isControlled).length;
   const missed = chains((chain) => chain.missedPractice).length;
   const feedbackSignals = chains((chain) => isMotivationDip(chain) || isLatentChain(chain) || isPartialSuccess(chain)).length;
   const redacted = state.records.filter((record) => record.redacted).length;
+  const emotionalWarnings = chains((chain) => relapseSignals(chain).emotional.length > 0).length;
+  const cognitiveWarnings = chains((chain) => relapseSignals(chain).cognitive.length > 0).length;
   els.metrics.innerHTML = [
     ["분석 기록", state.records.length],
     ["연쇄", state.chains.length],
@@ -405,6 +474,8 @@ function renderMetrics() {
     ["성공/억제", success],
     ["실천 조정", missed],
     ["피드백 신호", feedbackSignals],
+    ["정서 주의", emotionalWarnings],
+    ["인지 주의", cognitiveWarnings],
     ["민감 제외", redacted],
   ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
 }
@@ -423,7 +494,7 @@ function renderIntro(viewId) {
     data: ["CSV 구조 확인", "공유 모드 확인", "민감정보 제외 확인", "새 자료 사용 시 이전 분석 초기화"],
     feedback: ["평균/최고 충동", "문제행동 수준", "실천행동 수행도", "개인 내 변화 피드백"],
     readiness: ["변화언어 확인", "유지언어 확인", "양가감정 반영", "피드백 제시 방식 선택"],
-    safety: ["행동화 위기 후보", "생각·충동 알아차림", "마음챙김 호흡 적용", "방해요인과 30초 과제"],
+    safety: ["정서·인지 신호 동시 점검", "단계별 자가관리", "STOP/TIPP 위기대처", "행동 후 조기 도움요청"],
     chain: ["상황/트리거", "생각-감정-몸반응", "충동-문제행동", "고위험/저충동 잠복 연쇄"],
     success: ["충동 속 멈춤", "행동 강도 감소", "보호요인", "다음 주 재현 조건"],
     practice: ["가치 연결 실천", "작은 성공 경험", "회복 유지 위험", "다음 주 1% 행동"],
@@ -446,7 +517,7 @@ function renderWorkbench(viewId) {
     data: renderDataView,
     feedback: renderMeasurementFeedbackView,
     readiness: renderFeedbackReadinessView,
-    safety: renderSafetyView,
+    safety: renderRelapseEarlyWarningView,
     chain: renderChainUnderstandingView,
     success: renderSuccessView,
     practice: renderValuePracticeView,
@@ -498,7 +569,7 @@ function renderDataView() {
 
 function renderMeasurementFeedbackView() {
   const highRisk = chains((chain) => chain.highUrge && chain.actionized).slice(0, 3).map((chain) => chainCard(chain, "주의할 위험 피드백", "warn"));
-  const success = chains((chain) => chain.highUrge && !chain.actionized).slice(0, 3).map((chain) => chainCard(chain, "좋아진 점 피드백", "ok"));
+  const success = chains(isControlled).slice(0, 3).map((chain) => chainCard(chain, "좋아진 점 피드백", "ok"));
   const partial = chains(isPartialSuccess).slice(0, 3).map((chain) => chainCard(chain, "강도감소 피드백", "ok"));
   const maintenance = chains(isMotivationDip).slice(0, 3).map((chain) => chainCard(chain, "회복 유지 위험", "focus"));
   const visual = visualFeedback(
@@ -513,7 +584,7 @@ function renderMeasurementFeedbackView() {
     ],
     renderBarSummary([
       ["고위험", chains((chain) => chain.highUrge && chain.actionized).length * 20, "warn"],
-      ["성공/억제", chains((chain) => chain.highUrge && !chain.actionized).length * 20, "ok"],
+      ["성공/억제", chains(isControlled).length * 20, "ok"],
       ["회복 유지 위험", chains(isMotivationDip).length * 20, "focus"],
     ]),
     ["urge", "action", "practice"],
@@ -572,7 +643,7 @@ function renderFeedbackReadinessView() {
 
 function renderFocusView() {
   const highRisk = chains((chain) => chain.highUrge && chain.actionized).slice(0, 3).map((chain) => chainCard(chain, "위험 연쇄", "warn"));
-  const success = chains((chain) => chain.highUrge && !chain.actionized).slice(0, 3).map((chain) => chainCard(chain, "성공/억제 연쇄", "ok"));
+  const success = chains(isControlled).slice(0, 3).map((chain) => chainCard(chain, "성공/억제 연쇄", "ok"));
   const motivationDip = chains(isMotivationDip).slice(0, 4).map((chain) => chainCard(chain, "동기저하 신호", "focus"));
   const partial = chains(isPartialSuccess).slice(0, 3).map((chain) => chainCard(chain, "강도감소 성공", "ok"));
   const practice = chains((chain) => chain.missedPractice).slice(0, 3).map((chain) => chainCard(chain, "실천 조정", "focus"));
@@ -584,9 +655,81 @@ function renderFocusView() {
   ]);
 }
 
+function renderRelapseEarlyWarningView() {
+  const signalRows = state.chains.map((chain) => ({ chain, signals: relapseSignals(chain) }));
+  const emotional = signalRows.filter((item) => item.signals.emotional.length).slice(0, 6);
+  const cognitive = signalRows.filter((item) => item.signals.cognitive.length).slice(0, 6);
+  const behavioral = signalRows.filter((item) => item.signals.behavior.length).slice(0, 6);
+  const overlap = signalRows.filter((item) => item.signals.emotional.length && item.signals.cognitive.length).slice(0, 6);
+  const visual = visualFeedback(
+    "6일 기록 기반 재발 조기경보",
+    "정서적 재발과 인지적 재발은 순서대로만 나타나지 않으며, 같은 기록에서 함께 경고될 수 있습니다. 이 화면은 진단이 아니라 스스로 개입할 시점을 찾기 위한 안내입니다.",
+    renderBarSummary([
+      ["정서 신호", emotional.length * 16, "focus"],
+      ["인지 신호", cognitive.length * 16, "warn"],
+      ["두 신호 겹침", overlap.length * 20, "warn"],
+      ["행동 후 연결", behavioral.length * 20, "warn"],
+    ]),
+    [
+      `정서 점수 ${state.thresholds.emotion}/10 이상, 부정정서 표현, 실천 저수행을 먼저 확인합니다.`,
+      `충동 ${state.thresholds.cognitiveUrge}/10 이상 또는 문제행동을 미화·합리화하는 생각을 인지 신호로 봅니다.`,
+      "경고가 보이면 충동이 더 커지기 전에 한 가지 활동을 선택하고, 실행 뒤 다시 점수를 기록합니다.",
+      "자해·타해·응급 위험, 통제 어려움이 있으면 혼자 해결하려 하지 말고 즉시 지역 응급체계·의료기관·신뢰할 수 있는 사람에게 연결합니다.",
+    ],
+  );
+  return visual + workbench([
+    ["1. 정서적 재발 주의", emotional.map(({ chain, signals }) => relapseCard(chain, "emotional", signals.emotional))],
+    ["2. 인지적 재발 경고", cognitive.map(({ chain, signals }) => relapseCard(chain, "cognitive", signals.cognitive))],
+    ["정서·인지 신호 겹침", overlap.map(({ chain, signals }) => relapseCard(chain, "overlap", signals.emotional.concat(signals.cognitive)))],
+    ["3. 행동 후 조기 회복", behavioral.map(({ chain, signals }) => relapseCard(chain, "behavior", signals.behavior)).concat([
+      card("행동 기록이 없더라도 안전계획을 준비합니다", "", "focus", [
+        "연락할 사람 1명과 안전한 장소 1곳을 미리 적어 둡니다.",
+        "행동이 발생하면 숨기거나 처벌하지 말고, 가능한 빨리 사실을 인정하고 도움을 요청합니다.",
+        "다음 상담 전이라도 통제가 어렵다면 상담기관·회복모임·의료 및 응급 자원에 연결합니다.",
+      ]),
+    ])],
+  ]);
+}
+
+function relapseCard(chain, type, reasons) {
+  const guidance = {
+    emotional: [
+      "정서에 이름 붙이기: ‘지금은 불안/수치심/분노가 올라온다’고 짧게 말해 봅니다.",
+      "정서 안정화: 수면·식사·물·가벼운 걷기·샤워 중 지금 가능한 한 가지를 10분 실행합니다.",
+      "압도되면 TIPP를 사용합니다: 안전한 범위의 온도 변화, 짧은 신체활동, 4초 들이마시고 6초 내쉬는 호흡, 근육 이완.",
+      "심혈관·호흡기 등 의학적 문제가 있거나 어지러우면 온도 변화·강한 운동은 건너뛰고 의료진에게 확인합니다.",
+      "고립 대신 신뢰할 사람에게 ‘지금 정서가 흔들린다’는 한 문장을 보냅니다.",
+    ],
+    cognitive: [
+      "영화를 결말까지 돌리기: 문제행동 직후뿐 아니라 다음 날·다음 주에 생길 결과까지 적어 봅니다.",
+      "미루기: 30분만 미루고 그동안 장소를 바꾸거나 신뢰할 사람에게 연락합니다.",
+      "STOP: 멈추기 → 한 걸음 물러서서 호흡하기 → 생각·감정·몸을 관찰하기 → 목표와 가치에 맞게 주의 깊게 진행하기.",
+      "생각을 사실로 따르지 말고 ‘문제행동을 권하는 생각이 지나가고 있다’고 알아차립니다.",
+    ],
+    overlap: [
+      "정서와 생각이 함께 올라온 구간입니다. 먼저 TIPP 또는 4–6 호흡으로 몸의 각성을 낮춘 뒤 STOP을 적용합니다.",
+      "혼자 판단하지 말고, 30분 미루기와 신뢰할 사람에게 연락하기를 함께 실행합니다.",
+      "실행 뒤 충동·정서 점수를 다시 기록해 변화가 있었는지 확인합니다.",
+    ],
+    behavior: [
+      "실수를 즉시 인정합니다. 이는 실패 판정이 아니라 더 큰 재발을 막는 조기 개입입니다.",
+      "가능한 빨리 상담자·회복지원자·신뢰할 사람에게 사실과 현재 위험을 알립니다.",
+      "오늘의 촉발요인·생각·감정·행동·도움 요청을 기록하고, 회복계획과 환경을 다시 조정합니다.",
+    ],
+  }[type];
+  const title = {
+    emotional: "정서적 재발 주의 신호",
+    cognitive: "인지적 재발 경고 신호",
+    overlap: "정서·인지 재발 신호 겹침",
+    behavior: "행동적 재발 후 조기 회복",
+  }[type];
+  const kind = type === "emotional" ? "focus" : type === "behavior" || type === "overlap" ? "warn" : "warn";
+  return card(title, `<p><strong>${escapeHtml(formatDate(chain.date))}</strong> · ${escapeHtml(reasons.join(" / "))}</p><p>${escapeHtml(chainSummary(chain))}</p><p>${escapeHtml(scoreLine(chain))}</p>`, kind, guidance);
+}
+
 function renderSafetyView() {
   const risky = chains((chain) => chain.highUrge || chain.actionized || hasSafetyWord(chain)).slice(0, 6);
-  const breathingSuccess = chains((chain) => chain.highUrge && !chain.actionized && texts(chain, "practice")).slice(0, 6);
+  const breathingSuccess = chains((chain) => isControlled(chain) && texts(chain, "practice")).slice(0, 6);
   const breathingBlocked = chains((chain) => chain.highUrge && chain.actionized && (chain.scores.practice === null || chain.scores.practice <= state.thresholds.practice)).slice(0, 6);
   const visual = visualFeedback(
     "위기 순간의 충동-행동화-실천 흐름",
@@ -669,7 +812,7 @@ function renderRelapseView() {
 }
 
 function renderSuccessView() {
-  const success = chains((chain) => chain.highUrge && !chain.actionized).slice(0, 6);
+  const success = chains(isControlled).slice(0, 6);
   const partial = chains(isPartialSuccess).slice(0, 6);
   const coping = chains((chain) => texts(chain, "practice")).slice(0, 6);
   const visual = visualFeedback(
@@ -706,7 +849,7 @@ function renderMotivationView() {
 }
 
 function renderActivationView() {
-  const smallWins = chains((chain) => chain.highUrge && !chain.actionized).concat(chains((chain) => chain.scores.practice !== null && chain.scores.practice > state.thresholds.practice)).slice(0, 8);
+  const smallWins = chains(isControlled).concat(chains((chain) => chain.scores.practice !== null && chain.scores.practice > state.thresholds.practice)).slice(0, 8);
   return workbench([
     ["작은 긍정 경험", smallWins.map((chain) => chainCard(chain, "행동활성화 단서", "ok"))],
     ["자기효능감", smallWins.map((chain) => card("해낸 조건 찾기", `<p>${texts(chain, "practice") || chainSummary(chain)}</p>`, "ok", ["무엇이 0점이 아니라 1점을 만들었나?", "어떤 장소/시간/사람이 도움이 되었나?", "더 작은 버전으로 반복한다면?"]))],
@@ -734,7 +877,7 @@ function renderValuePracticeView() {
       "다음 주에는 더 작은 1% 행동으로 만들 것인가?",
     ]);
   });
-  const smallWins = chains((chain) => chain.highUrge && !chain.actionized)
+  const smallWins = chains(isControlled)
     .concat(chains((chain) => chain.scores.practice !== null && chain.scores.practice > state.thresholds.practice))
     .slice(0, 6);
   const valueChains = chains((chain) => texts(chain, "practice") || valueWords(chain.text)).slice(0, 6);
@@ -790,7 +933,7 @@ function renderPracticeView() {
 function renderSessionFeedbackSummaryView() {
   const risky = chains((chain) => chain.highUrge && chain.actionized).slice(0, 3);
   const latent = chains(isLatentChain).slice(0, 3);
-  const success = chains((chain) => chain.highUrge && !chain.actionized).concat(chains(isPartialSuccess)).slice(0, 4);
+  const success = chains(isControlled).concat(chains(isPartialSuccess)).slice(0, 4);
   const maintenance = chains(isMotivationDip).slice(0, 3);
   const changeTalk = detectMotivation("change").slice(0, 3);
   const visual = visualFeedback(
@@ -826,7 +969,7 @@ function renderSessionFeedbackSummaryView() {
 
 function renderSummaryView() {
   const risky = chains((chain) => chain.highUrge && chain.actionized).slice(0, 3);
-  const success = chains((chain) => chain.highUrge && !chain.actionized).slice(0, 3);
+  const success = chains(isControlled).slice(0, 3);
   const feedback = chains((chain) => isMotivationDip(chain) || isLatentChain(chain) || isPartialSuccess(chain)).slice(0, 4);
   const changeTalk = detectMotivation("change").slice(0, 3);
   return workbench([
@@ -985,12 +1128,23 @@ function renderEmpty() {
   return `<div class="empty">CSV를 불러오면 이 작업 순서에 맞춘 내담자 자료 기반 분석이 표시됩니다.</div>`;
 }
 
-function copySessionSummary() {
+async function copySessionSummary() {
   const text = buildSummaryText();
-  navigator.clipboard?.writeText(text);
+  try {
+    if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+    await navigator.clipboard.writeText(text);
+    showImportMessages(["회기 요약을 클립보드에 복사했습니다. 민감정보가 포함될 수 있으니 필요한 곳에만 붙여넣으세요."]);
+  } catch (error) {
+    showImportMessages(["요약을 복사하지 못했습니다. 브라우저의 클립보드 권한을 허용한 뒤 다시 시도하세요."]);
+  }
 }
 
 function exportSummary() {
+  if (!state.records.length) {
+    showImportMessages(["저장할 분석 자료가 없습니다. CSV를 먼저 불러오세요."]);
+    return;
+  }
+  if (!window.confirm("요약 파일에는 실제 기록 문장과 상담 메모가 포함될 수 있습니다. 승인된 보관 위치에 저장하시겠습니까?")) return;
   const payload = {
     app: "마음고요 상담분석실",
     version: APP_VERSION,
@@ -1006,11 +1160,14 @@ function exportSummary() {
       records: state.records.length,
       chains: state.chains.length,
       highRiskChains: chains((chain) => chain.highUrge && chain.actionized).length,
-      successChains: chains((chain) => chain.highUrge && !chain.actionized).length,
+      successChains: chains(isControlled).length,
       missedPracticeChains: chains((chain) => chain.missedPractice).length,
       motivationDipChains: chains(isMotivationDip).length,
       latentChainCandidates: chains(isLatentChain).length,
       partialSuccessChains: chains(isPartialSuccess).length,
+      emotionalRelapseWarnings: chains((chain) => relapseSignals(chain).emotional.length > 0).length,
+      cognitiveRelapseWarnings: chains((chain) => relapseSignals(chain).cognitive.length > 0).length,
+      behavioralRelapseSignals: chains((chain) => relapseSignals(chain).behavior.length > 0).length,
     },
     notes: els.notes.value,
     sessionSummary: buildSummaryText(),
@@ -1034,11 +1191,14 @@ function buildSummaryText() {
     `자료: ${state.fileName || "-"}`,
     `공유 모드: ${state.shareModeLabel || "-"}`,
     `위험 연쇄: ${chains((chain) => chain.highUrge && chain.actionized).length}개`,
-    `성공/억제 연쇄: ${chains((chain) => chain.highUrge && !chain.actionized).length}개`,
+    `성공/억제 연쇄: ${chains(isControlled).length}개`,
     `실천 조정 후보: ${chains((chain) => chain.missedPractice).length}개`,
     `동기저하 신호: ${chains(isMotivationDip).length}개`,
     `저충동 잠복 연쇄: ${chains(isLatentChain).length}개`,
     `강도감소 성공: ${chains(isPartialSuccess).length}개`,
+    `정서적 재발 주의: ${chains((chain) => relapseSignals(chain).emotional.length > 0).length}개`,
+    `인지적 재발 경고: ${chains((chain) => relapseSignals(chain).cognitive.length > 0).length}개`,
+    `행동 후 조기 도움 신호: ${chains((chain) => relapseSignals(chain).behavior.length > 0).length}개`,
     "원본 CSV는 저장하지 않고 현재 분석 요약만 저장됨.",
   ].join("\n");
 }
@@ -1086,13 +1246,14 @@ function resetDataOnly() {
   state.shareMode = "";
   state.shareModeLabel = "";
   state.rangeLabel = "";
+  state.importMessages = [];
 }
 
 function parsePayload(value) {
   try {
     return JSON.parse(value || "{}");
   } catch (error) {
-    return {};
+    return null;
   }
 }
 
@@ -1153,6 +1314,31 @@ function isPartialSuccess(chain) {
   return chain.highUrge && chain.scores.action !== null && chain.scores.action > 0 && chain.scores.action < state.thresholds.action;
 }
 
+function isControlled(chain) {
+  return chain.highUrge && chain.scores.action !== null && !chain.actionized;
+}
+
+function relapseSignals(chain) {
+  const emotional = [];
+  const cognitive = [];
+  const behavior = [];
+  const emotionText = texts(chain, "emotion");
+  const thoughtText = texts(chain, "thought");
+  const cognitiveWords = ["한 번", "해볼", "괜찮", "마지막", "보상", "몰래", "들키", "사용", "도박", "술", "약물", "음란물", "계획"];
+
+  if (chain.scores.emotion !== null && chain.scores.emotion >= state.thresholds.emotion) emotional.push(`정서 강도 ${chain.scores.emotion}/10`);
+  if (negativeWords(emotionText)) emotional.push("부정정서 표현");
+  if (chain.missedPractice) emotional.push("실천 저수행");
+
+  if (chain.scores.urge !== null && chain.scores.urge >= state.thresholds.cognitiveUrge) cognitive.push(`충동 ${chain.scores.urge}/10`);
+  if (thoughtText && cognitiveWords.some((word) => thoughtText.includes(word))) cognitive.push("문제행동 접근 생각");
+  if (detectMotivation("sustain").some((item) => item.record.chainId === chain.chainId)) cognitive.push("유지·합리화 언어");
+
+  if (chain.scores.action !== null && chain.scores.action > 0) behavior.push(`행동화 ${chain.scores.action}/5`);
+  if (chain.actionized) behavior.push("행동화 기준 초과");
+  return { emotional: unique(emotional), cognitive: unique(cognitive), behavior: unique(behavior) };
+}
+
 function riskTags(chain) {
   const tags = [];
   if (chain.highUrge) tags.push(`<span class="tag warn">고충동</span>`);
@@ -1161,6 +1347,10 @@ function riskTags(chain) {
   if (isMotivationDip(chain)) tags.push(`<span class="tag">동기저하</span>`);
   if (isLatentChain(chain)) tags.push(`<span class="tag">잠복연쇄</span>`);
   if (isPartialSuccess(chain)) tags.push(`<span class="tag ok">강도감소</span>`);
+  const relapse = relapseSignals(chain);
+  if (relapse.emotional.length) tags.push(`<span class="tag">정서 주의</span>`);
+  if (relapse.cognitive.length) tags.push(`<span class="tag warn">인지 경고</span>`);
+  if (relapse.behavior.length) tags.push(`<span class="tag warn">조기 도움</span>`);
   if (chain.redactedCount) tags.push(`<span class="tag muted-tag">민감 제외 ${chain.redactedCount}</span>`);
   if (!tags.length) tags.push(`<span class="tag ok">안정</span>`);
   return tags.join("");
@@ -1224,8 +1414,9 @@ function inferCategory(value) {
   return "situation";
 }
 
-function isRedacted(value) {
-  return String(value || "").trim() === "민감 내용 제외";
+function isRedacted(value, payload = null, category = "") {
+  const fields = Array.isArray(payload?.redacted_fields) ? payload.redacted_fields.map((field) => String(field).trim()) : [];
+  return fields.includes(category) || String(value || "").trim() === "민감 내용 제외";
 }
 
 function actionLabel(value) {
@@ -1254,12 +1445,12 @@ function formatDate(date) {
 
 function score10(value) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return null;
-  return clamp(number > 10 ? Math.round(number / 10) : Math.round(number), 0, 10, null);
+  if (!Number.isFinite(number) || number < 0 || number > 10) return null;
+  return Math.round(number);
 }
 
 function score5(value) {
-  if (value === true || value === "true" || value === "yes" || value === "1") return 5;
+  if (value === true || value === "true" || value === "yes") return 5;
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   return clamp(Math.round(number), 0, 5, null);

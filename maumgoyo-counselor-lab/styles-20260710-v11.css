@@ -47,6 +47,14 @@ button:hover {
   border-color: var(--primary);
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+.drop-zone:focus-within {
+  outline: 3px solid rgba(23, 107, 91, 0.35);
+  outline-offset: 2px;
+}
+
 .primary {
   background: var(--primary);
   border-color: var(--primary);
@@ -239,6 +247,22 @@ h3 {
   border-radius: 8px;
   background: var(--soft);
   font-size: 13px;
+}
+
+.import-status {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e4b4a2;
+  border-radius: 8px;
+  background: var(--warn-soft);
+  color: #7c321e;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.drop-zone.dragging {
+  border-color: var(--primary);
+  background: var(--soft);
 }
 
 .share-mode-card span {
