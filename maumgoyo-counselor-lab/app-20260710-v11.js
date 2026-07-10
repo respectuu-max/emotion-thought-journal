@@ -21,6 +21,7 @@ const state = {
 };
 
 const els = {
+  versionBadge: document.querySelector(".version-badge"),
   csvInput: document.getElementById("csvInput"),
   dropZone: document.getElementById("dropZone"),
   fileMeta: document.getElementById("fileMeta"),
@@ -74,6 +75,8 @@ maeumgoyo_compact_v2,practice_log,l1,2026-07-09,2026-07-09,2026-07-10,K-001,coun
 maeumgoyo_compact_v2,observation,o3,2026-07-09,2026-07-09,2026-07-10,K-001,counselor_full,최근 7일,"{""situation"":""민감 내용 제외"",""thought_text"":""나는 결국 못 바뀐다"",""emotion"":""수치심"",""body_reactions"":[""무기력""],""urge_score"":7,""action_level"":0,""coping"":""상담 메모 보기"",""coping_score"":5,""value"":""건강 회복"",""value_action_draft"":""내일 오전 병원 예약 확인""}"`;
 
 function init() {
+  if (els.versionBadge) els.versionBadge.textContent = APP_VERSION;
+  document.title = `마음고요 상담분석실 ${APP_VERSION}`;
   renderMenu();
   bindEvents();
   render();
