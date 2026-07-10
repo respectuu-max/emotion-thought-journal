@@ -17,7 +17,94 @@ const TEXT_LIMITS = {
     const emotions = ["불안", "외로움", "분노", "공허함", "수치심", "우울", "초조", "지루함", "피곤함", "무기력"];
     const bodies = ["가슴 답답함", "두근거림", "근육 긴장", "열감", "손 떨림", "시선 고정", "멍함", "얼어붙음", "호흡 짧음"];
     const defaultBehaviors = ["도박", "성행동", "쇼핑", "음주", "게임", "스마트폰/인터넷", "회피/미루기", "분노표출", "과식", "자기비난", "무기력"];
+    const triggerPlaces = ["집", "직장/학교", "이동 중(차·대중교통)", "술자리/모임", "온라인/SNS"];
+    const triggerPeople = ["혼자 있을 때", "특정 인물과 함께", "갈등 직후", "사교 모임 상황"];
+    const triggerTimes = ["아침", "낮", "저녁", "밤/늦은 시간", "주말"];
+    const avoidanceTags = ["약속/모임에 안 나감", "연락에 답하지 않음", "씻기/식사를 미룸", "하루 종일 집에만 있음", "해야 할 일을 미룸"];
     const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+
+    // ===== 재발 신호 분석 (정서적 · 인지적 · 행동적 재발) =====
+    // 상담이 없는 6일 동안의 관찰 기록(불편한 감정/문제 행동 관련 생각/충동/문제행동수준/대처)을 근거로
+    // 세 단계의 재발 신호를 참고용으로 안내합니다. 진단이나 예측이 아니라, 스스로 조치할 기회를 알리는 장치입니다.
+    const RELAPSE_WINDOW_DAYS = 3;          // "최근 상태"를 볼 때 쓰는 기본 관찰 창
+    const RELAPSE_COMPARE_DAYS = 3;         // 추세 비교에 쓰는 그 이전 구간 길이
+    const RELAPSE_EMOTION_HIGH = 6;         // 불편한 감정 0~10점 중 이 이상이면 높음
+    const RELAPSE_EMOTION_TREND_RISE = 2;   // 이전 구간 대비 이만큼 오르면 상승 추세로 봄
+    const RELAPSE_COPING_LOW = 3;           // 대처 후 도움 정도 0~10점 중 이 이하면 낮음
+    const RELAPSE_COPING_TREND_DROP = 2;    // 이전 구간 대비 이만큼 떨어지면 하락 추세로 봄
+    const RELAPSE_THOUGHT_HIGH = 6;         // 문제 행동 관련 생각 0~10점 중 이 이상이면 높음
+    const RELAPSE_URGE_HIGH = 7;            // 충동 0~10점 중 이 이상이면 높음
+    const RELAPSE_ACTION_ANY = 1;           // 문제행동수준 0~5점 중 1점 이상이면 행동적 재발로 봄
+    const RELAPSE_ACTION_SEVERE = 4;        // 기존 고위험 기준과 동일(멈추기 어려운 수준)
+    const RELAPSE_EMOTION_VARIABILITY_HIGH = 2.5; // 감정 점수 표준편차가 이 이상이면 "기복이 크다"로 봄 (0~10점 척도 기준)
+
+    const RELAPSE_STAGE1_ACTIONS = [
+      { title: "스트레스 낮추기", detail: "가벼운 운동, 산책, 좋아하는 취미를 10분만 해보세요. 감정을 건강하게 내보내는 데 도움이 됩니다." },
+      { title: "지원 시스템에 연결하기", detail: "가족, 친구, 회복 모임 중 한 사람에게 지금 감정을 짧게 나눠보세요. 혼자 안고 있지 않는 것이 중요합니다." },
+      { title: "생활 리듬 챙기기", detail: "오늘 식사와 수면 중 무너진 부분이 있는지 확인하고, 한 가지만이라도 챙겨보세요." },
+      { title: "마음챙김 1분", detail: "잠시 호흡에 집중하며 지금 느껴지는 감정에 이름을 붙여보세요. '지금 나는 ○○을 느끼고 있다.'" },
+      { title: "필요하면 전문가에게 미리 알리기", detail: "이런 상태가 며칠째 이어진다면, 다음 상담을 기다리지 말고 상담자에게 먼저 연락하는 것도 방법입니다." }
+    ];
+    const RELAPSE_STAGE2_TECHNIQUES = [
+      { title: "STOP 기법", detail: "멈추기(Stop) → 한 걸음 물러서기(Take a step back, 깊게 숨쉬기) → 관찰하기(Observe, 판단 없이 지금 상태 보기) → 마음챙김으로 행동하기(Proceed mindfully, 목표와 가치를 생각해 선택하기)." },
+      { title: "TIPP 기법", detail: "압도되는 감정을 빠르게 낮추는 응급 도구입니다. 찬물로 세수하기(온도) · 10분 빠르게 걷거나 몸 움직이기(강한 운동) · 4초 들이쉬고 6초 내쉬기(조절 호흡) · 근육을 5초 힘줬다 풀기(점진적 이완) 중 하나를 시도해보세요." },
+      { title: "생각과 거리두기 (탈융합)", detail: "'한 번쯤 해도 되지 않을까'라는 생각이 들면, 그 생각을 사실로 여기지 말고 '지금 이런 생각이 떠올랐구나' 하고 한 걸음 떨어져서 바라보세요. 생각은 명령이 아니라 마음이 만들어낸 하나의 사건일 뿐입니다." },
+      { title: "영화를 결말까지 돌려보기", detail: "그 행동을 하는 상상의 하이라이트만 보지 말고, 그 이후 벌어질 일까지 끝까지 재생해보세요." },
+      { title: "미루기 전술", detail: "지금 결정하지 말고 30분에서 1시간만 미뤄보겠다고 스스로에게 말하세요. 그 사이 충동은 대개 약해지거나 감당할 수 있는 크기로 줄어듭니다." },
+      { title: "결과 생각해보기", detail: "이 행동을 한 뒤 내일의 나는 어떤 기분일지, 무엇을 잃게 될지 짧게 적어보세요." },
+      { title: "믿을 수 있는 사람과 대화하기", detail: "지금 드는 생각을 누군가에게 말하는 것만으로도 그 생각의 힘이 줄어듭니다." },
+      { title: "트리거(촉발요인) 피하기", detail: "지금 있는 장소·사람·상황에서 잠시라도 벗어날 수 있는지 확인해보세요." }
+    ];
+    const RELAPSE_STAGE3_STEPS = [
+      { title: "즉시 인정하기", detail: "지금 있었던 일을 스스로에게 숨기지 말고 인정하세요. 부정은 오히려 상황을 길게 만듭니다." },
+      { title: "지원 요청하기", detail: "신뢰할 수 있는 사람이나 상담자에게 지금 상황을 알리세요. 솔직하게 이야기하는 것이 도움과 안내로 가는 문을 엽니다." },
+      { title: "회복계획 다시 보기", detail: "다음 상담에서 이번 상황을 함께 검토할 수 있도록 무엇이 계기였는지 짧게 기록해두세요." },
+      { title: "자기연민 연습하기", detail: "이것은 실패가 아니라 회복 여정의 일부입니다. 자신을 탓하기보다 다음 행동에 집중하세요." }
+    ];
+    const STOP_STEPS = [
+      {
+        title: "S · 멈추기 (Stop)",
+        detail: "감정에 압도되거나 충동적으로 반응하려는 순간임을 알아차리면, 그대로 멈추세요. 몸을, 특히 말과 표정을 그대로 멈추고 움직이지 않습니다. 감정에 이름을 붙여보세요. '지금 나는 ○○을 느끼고 있다.'",
+        questions: ["지금 이 강한 감정을 촉발한 상황은 무엇인가요?", "나는 지금 어떤 기분인가요?", "내가 막으려는 충동적 반응은 무엇인가요?"]
+      },
+      {
+        title: "T · 한 걸음 물러서기 (Take a step back)",
+        detail: "상황에서 몸과 마음 모두 한 걸음 물러서세요. 잠시 자리를 벗어나거나 깊게 숨을 쉬는 것도 방법입니다. 즉각 결정해야 하는 상황은 생각보다 많지 않습니다.",
+        questions: ["지금 상황에서 잠깐의 거리를 어떻게 만들 수 있을까요?", "무엇이 나를 더 안정된 상태로 느끼게 해줄까요?"]
+      },
+      {
+        title: "O · 관찰하기 (Observe)",
+        detail: "판단 없이 내 안과 주변에서 일어나는 일을 살펴보세요. 감정, 생각, 몸의 감각뿐 아니라 주변 사람들이 하는 말과 행동에도 주의를 기울입니다. 성급하게 결론 내리지 말고 관련된 사실을 먼저 모으세요. 떠오르는 생각은 '지금 이런 생각이 스쳐가고 있다'고만 알아차리세요. 생각은 사실이 아니라 마음이 만들어낸 하나의 사건일 뿐이며, 반드시 따라야 할 명령이 아닙니다.",
+        questions: ["나는 정서적으로 무엇을 느끼고 있나요?", "어떤 신체 감각을 알아차리고 있나요?", "어떤 생각들이 마음속을 스쳐가고 있나요?", "이 생각이 '사실'이 아니라 '지금 떠오른 생각'이라고 말해보면 어떤가요?"]
+      },
+      {
+        title: "P · 마음챙김으로 행동하기 (Proceed mindfully)",
+        detail: "멈추고, 물러서고, 관찰하는 시간을 가진 뒤에는 충동적으로 반응하기보다 목표와 가치에 맞는 반응을 의식적으로 선택하세요.",
+        questions: ["이 상황을 다루는 가장 효과적인 방법은 무엇일까요?", "내 목표와 가치에 맞는 반응은 무엇일까요?", "지금 나 자신을 돌보기 위해 무엇을 할 수 있을까요?"]
+      }
+    ];
+    const TIPP_STEPS = [
+      {
+        title: "T · 온도 변화 (Temperature)",
+        detail: "감정이 압도적일 때는 대개 심박수가 올라가 있습니다. 차가운 자극은 심박수를 낮추는 데 도움이 됩니다. 반대로 우울하거나 기운이 가라앉아 있을 때는 따뜻한 자극이 도움이 될 수 있습니다.",
+        tips: ["찬물로 얼굴 씻기, 또는 얼음을 손이나 얼굴에 잠시 대기", "기운이 없을 땐 따뜻한 차를 마시거나 담요를 덮고 몸을 데우기"]
+      },
+      {
+        title: "I · 강한 운동 (Intense Exercise)",
+        detail: "강한 감정으로 몸에 쌓인 에너지를 움직임으로 소모하세요. 특별한 장비 없이 10~15분 정도면 충분합니다.",
+        tips: ["빠르게 걷거나 가볍게 뛰기", "제자리에서 점핑잭이나 줄넘기", "음악을 틀고 잠깐 춤추기"]
+      },
+      {
+        title: "P · 조절 호흡 (Paced Breathing)",
+        detail: "날숨을 들숨보다 길게 하면 신체 각성이 가라앉습니다.",
+        tips: ["코로 4초 들이마시고 입으로 6초 내쉬기를 1~2분 반복하기"]
+      },
+      {
+        title: "P · 점진적 근육 이완 (Progressive Muscle Relaxation)",
+        detail: "긴장된 근육을 부위별로 5초간 힘을 주었다가 풀어주며 이완합니다.",
+        tips: ["어깨와 등 → 팔 → 배와 허리 → 엉덩이 → 허벅지 → 종아리 순서로 진행하기"]
+      }
+    ];
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => Array.from(document.querySelectorAll(selector));
     const state = {
@@ -30,6 +117,10 @@ const TEXT_LIMITS = {
       body: [],
       bodyCustom: "",
       value: "",
+      triggerPlaces: [],
+      triggerPeople: [],
+      triggerTimes: [],
+      avoidanceTags: [],
       customDays: [],
       shareRange: 7,
       shareMode: "counselorDetail",
@@ -66,7 +157,7 @@ const TEXT_LIMITS = {
       return date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
     }
     function escapeCsv(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
-    function practiceScoreText(score) {
+    function masteryScoreText(score) {
       const value = clampNumber(score, 0, 10, 0);
       return [
         "0점: 전혀 하지 못함",
@@ -80,6 +171,22 @@ const TEXT_LIMITS = {
         "8점: 거의 계획대로 수행함",
         "9점: 계획대로 수행하고 흐름도 좋았음",
         "10점: 계획한 대로 충분히 수행함"
+      ][value];
+    }
+    function pleasureScoreText(score) {
+      const value = clampNumber(score, 0, 10, 0);
+      return [
+        "0점: 전혀 즐겁지 않았음",
+        "1점: 거의 즐겁지 않았음",
+        "2점: 조금 즐거웠음",
+        "3점: 약간 즐거웠음",
+        "4점: 보통보다 조금 낮음",
+        "5점: 보통 정도 즐거웠음",
+        "6점: 보통보다 조금 즐거웠음",
+        "7점: 꽤 즐거웠음",
+        "8점: 많이 즐거웠음",
+        "9점: 매우 즐거웠음",
+        "10점: 기대 이상으로 즐거웠음"
       ][value];
     }
     function escapeHtml(value) {
@@ -98,6 +205,11 @@ const TEXT_LIMITS = {
       const number = Number(value);
       if (!Number.isFinite(number)) return fallback;
       return Math.max(min, Math.min(max, number));
+    }
+    function optionalScore(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? Math.max(0, Math.min(10, number)) : null;
     }
     function cleanDate(value, fallback = todayISO()) {
       const normalized = toCanonicalDate(value);
@@ -140,6 +252,12 @@ const TEXT_LIMITS = {
       const body = Array.isArray(record.body) ? record.body.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       const behaviorAreas = Array.isArray(record.behaviorAreas) ? record.behaviorAreas.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       const behaviorCustomAreas = Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const triggerPlacesValue = Array.isArray(record.triggerPlaces) ? record.triggerPlaces.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const triggerPeopleValue = Array.isArray(record.triggerPeople) ? record.triggerPeople.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const triggerTimesValue = Array.isArray(record.triggerTimes) ? record.triggerTimes.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const triggerCustomValue = Array.isArray(record.triggerCustom) ? record.triggerCustom.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const avoidanceTagsValue = Array.isArray(record.avoidanceTags) ? record.avoidanceTags.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const avoidanceCustomValue = Array.isArray(record.avoidanceCustom) ? record.avoidanceCustom.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       return {
         ...record,
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
@@ -149,14 +267,22 @@ const TEXT_LIMITS = {
         behaviorAreas,
         behaviorCustomAreas,
         situation: cleanMultiline(record.situation, TEXT_LIMITS.long),
+        triggerPlaces: triggerPlacesValue,
+        triggerPeople: triggerPeopleValue,
+        triggerTimes: triggerTimesValue,
+        triggerCustom: triggerCustomValue,
         thoughtText: cleanMultiline(record.thoughtText, TEXT_LIMITS.long),
         emotion: cleanText(record.emotion, TEXT_LIMITS.short),
         emotionCustom: cleanText(record.emotionCustom, 10),
         body,
         bodyCustom: cleanText(record.bodyCustom, 10),
+        avoidanceTags: avoidanceTagsValue,
+        avoidanceCustom: avoidanceCustomValue,
         thoughtScore: clampNumber(record.thoughtScore, 0, 10, 0),
         emotionScore: clampNumber(record.emotionScore, 0, 10, 0),
         urgeScore: clampNumber(record.urgeScore, 0, 10, 0),
+        urgeInitialScore: optionalScore(record.urgeInitialScore),
+        urgeEndScore: optionalScore(record.urgeEndScore),
         actionLevel: clampNumber(record.actionLevel, 0, 5, 0),
         coping: cleanMultiline(record.coping, TEXT_LIMITS.long),
         copingScore: clampNumber(record.copingScore, 0, 10, 0),
@@ -190,12 +316,19 @@ const TEXT_LIMITS = {
       };
     }
     function normalizeLog(record) {
+      const legacyScore = clampNumber(record.score, 0, 10, 0);
+      const pleasureScore = clampNumber(record.pleasureScore, 0, 10, legacyScore);
+      const masteryScore = clampNumber(record.masteryScore, 0, 10, legacyScore);
       return {
         ...record,
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
         practiceId: cleanText(record.practiceId, TEXT_LIMITS.medium),
         date: cleanDate(record.date),
-        score: clampNumber(record.score, 0, 10, 0),
+        pleasureScore,
+        masteryScore,
+        score: Math.round((pleasureScore + masteryScore) / 2),
+        expectedPleasureScore: optionalScore(record.expectedPleasureScore),
+        expectedMasteryScore: optionalScore(record.expectedMasteryScore),
         note: cleanMultiline(record.note, TEXT_LIMITS.long),
         archived: boolFlag(record.archived),
         updatedAt: record.updatedAt || new Date().toISOString()
@@ -268,6 +401,8 @@ const TEXT_LIMITS = {
       $$("#observeModeButtons button").forEach(button => {
         button.classList.toggle("active", button.dataset.value === mode);
       });
+      const curveBox = $("#urgeCurveBox");
+      if (curveBox) curveBox.classList.toggle("hidden", mode !== "충동 발생");
     }
     function showRiskFollowup(show = true) {
       const box = $("#riskFollowup");
@@ -316,6 +451,22 @@ const TEXT_LIMITS = {
         state[key] = button.dataset.value;
       });
     }
+    function setMultiChipGroup(containerId, items, stateKey) {
+      const oldBox = $(containerId);
+      const freshBox = oldBox.cloneNode(false);
+      oldBox.replaceWith(freshBox);
+      const box = $(containerId);
+      const selected = new Set(state[stateKey] || []);
+      box.innerHTML = items.map(item => `<button type="button" class="chip ${selected.has(item) ? "active" : ""}" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("");
+      box.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        button.classList.toggle("active");
+        const value = button.dataset.value;
+        const list = state[stateKey] || [];
+        state[stateKey] = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
+      });
+    }
     function setBehaviorGroup(items) {
       const oldBox = $("#behaviorChips");
       const freshBox = oldBox.cloneNode(false);
@@ -343,6 +494,10 @@ const TEXT_LIMITS = {
       setChipGroup("#emotionChips", emotions, "emotion", state.emotion);
       setChipGroup("#bodyChips", bodies, "body");
       setChipGroup("#valueChips", values, "value", state.value);
+      setMultiChipGroup("#triggerPlaceChips", triggerPlaces, "triggerPlaces");
+      setMultiChipGroup("#triggerPeopleChips", triggerPeople, "triggerPeople");
+      setMultiChipGroup("#triggerTimeChips", triggerTimes, "triggerTimes");
+      setMultiChipGroup("#avoidanceChips", avoidanceTags, "avoidanceTags");
       const oldDayBox = $("#weekdayChips");
       const freshDayBox = oldDayBox.cloneNode(false);
       oldDayBox.replaceWith(freshDayBox);
@@ -376,7 +531,7 @@ const TEXT_LIMITS = {
         : "설정된 별칭이 없습니다. 항목은 원래 이름 그대로 화면에 표시됩니다.";
     }
     function bindSliders() {
-      [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"]].forEach(([input, label]) => {
+      [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["urgeInitialScore", "urgeInitialScoreValue"], ["urgeEndScore", "urgeEndScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"]].forEach(([input, label]) => {
         $("#" + input).addEventListener("input", () => $("#" + label).textContent = $("#" + input).value);
       });
     }
@@ -440,6 +595,12 @@ const TEXT_LIMITS = {
     function recentObservations(days = 7) { return activeObservations().filter(o => dateObj(recordDate(o)) >= daysAgo(days - 1)); }
     function recentLogs(days = 7) { return activeLogs().filter(l => dateObj(recordDate(l)) >= daysAgo(days - 1)); }
     function avg(items, getter) { return items.length ? items.reduce((sum, item) => sum + getter(item), 0) / items.length : 0; }
+    function stdDev(values) {
+      if (values.length < 2) return 0;
+      const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+      const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+      return Math.sqrt(variance);
+    }
     function averageDailyLogScore(logs) {
       const groups = {};
       logs.forEach(log => {
@@ -451,11 +612,253 @@ const TEXT_LIMITS = {
       return avg(dayPracticeAverages, value => value);
     }
     function observationIntensity(o) { return (Number(o.thoughtScore) + Number(o.emotionScore) + Number(o.urgeScore)) / 3; }
+
+    function relapseRecentObservations(days = RELAPSE_WINDOW_DAYS) {
+      return activeObservations().filter(o => dateObj(recordDate(o)) >= daysAgo(days - 1));
+    }
+    function relapseCompareObservations() {
+      const start = daysAgo(RELAPSE_WINDOW_DAYS + RELAPSE_COMPARE_DAYS - 1);
+      const end = daysAgo(RELAPSE_WINDOW_DAYS);
+      return activeObservations().filter(o => {
+        const d = dateObj(recordDate(o));
+        return d >= start && d < end;
+      });
+    }
+    // 최근 며칠(기본 3일)의 평균/추세를 보는 "지금 상태" 판단. 오늘 화면과 관찰 기록 직후 안내에 사용합니다.
+    function computeRelapseSignal() {
+      const recent = relapseRecentObservations();
+      const result = {
+        hasData: recent.length > 0,
+        stage1: false, stage2: false, stage3: false, stage3Severe: false,
+        avgEmotion: 0, avgThought: 0, avgUrge: 0, avgCoping: 0, emotionStdDev: 0,
+        behavioralDays: [],
+        reasons: { stage1: [], stage2: [], stage3: [] }
+      };
+      if (!recent.length) return result;
+      const compare = relapseCompareObservations();
+      const avgEmotion = avg(recent, o => Number(o.emotionScore));
+      const avgThought = avg(recent, o => Number(o.thoughtScore));
+      const avgUrge = avg(recent, o => Number(o.urgeScore));
+      const avgCoping = avg(recent, o => Number(o.copingScore));
+      const emotionStdDev = stdDev(recent.map(o => Number(o.emotionScore)));
+      result.avgEmotion = avgEmotion; result.avgThought = avgThought; result.avgUrge = avgUrge; result.avgCoping = avgCoping;
+      result.emotionStdDev = emotionStdDev;
+
+      const highEmotionCount = recent.filter(o => Number(o.emotionScore) >= RELAPSE_EMOTION_HIGH).length;
+      const compareAvgEmotion = compare.length ? avg(compare, o => Number(o.emotionScore)) : null;
+      const compareAvgCoping = compare.length ? avg(compare, o => Number(o.copingScore)) : null;
+      const emotionRising = compareAvgEmotion !== null && (avgEmotion - compareAvgEmotion) >= RELAPSE_EMOTION_TREND_RISE;
+      const copingDropping = compareAvgCoping !== null && (compareAvgCoping - avgCoping) >= RELAPSE_COPING_TREND_DROP;
+      const copingLow = avgCoping <= RELAPSE_COPING_LOW && recent.length >= 2;
+      const emotionUnstable = recent.length >= 3 && emotionStdDev >= RELAPSE_EMOTION_VARIABILITY_HIGH;
+
+      if (avgEmotion >= RELAPSE_EMOTION_HIGH) result.reasons.stage1.push(`최근 ${recent.length}일 평균 불편한 감정 ${avgEmotion.toFixed(1)}/10`);
+      if (highEmotionCount >= 2) result.reasons.stage1.push(`불편한 감정 ${RELAPSE_EMOTION_HIGH}점 이상 기록 ${highEmotionCount}회`);
+      if (emotionRising) result.reasons.stage1.push("최근 감정 강도가 이전보다 높아지는 추세");
+      if (copingDropping) result.reasons.stage1.push("대처 후 도움 정도가 이전보다 낮아지는 추세");
+      if (copingLow) result.reasons.stage1.push("대처 후 도움 정도가 낮게 유지됨");
+      if (emotionUnstable) result.reasons.stage1.push(`감정 기복이 큼 (최근 ${recent.length}일 표준편차 ${emotionStdDev.toFixed(1)})`);
+      result.stage1 = result.reasons.stage1.length > 0;
+
+      const highThoughtCount = recent.filter(o => Number(o.thoughtScore) >= RELAPSE_THOUGHT_HIGH).length;
+      const thinkingWithoutActing = recent.filter(o => Number(o.urgeScore) >= RELAPSE_URGE_HIGH && Number(o.actionLevel) === 0).length;
+      if (avgThought >= RELAPSE_THOUGHT_HIGH) result.reasons.stage2.push(`최근 ${recent.length}일 평균 문제 행동 관련 생각 ${avgThought.toFixed(1)}/10`);
+      if (highThoughtCount >= 2) result.reasons.stage2.push(`문제 행동 관련 생각 ${RELAPSE_THOUGHT_HIGH}점 이상 기록 ${highThoughtCount}회`);
+      if (thinkingWithoutActing >= 2) result.reasons.stage2.push(`충동은 높지만(${RELAPSE_URGE_HIGH}점 이상) 아직 멈춘 상태로 기록된 경우 ${thinkingWithoutActing}회`);
+      if (avgUrge >= RELAPSE_URGE_HIGH) result.reasons.stage2.push(`최근 평균 충동 ${avgUrge.toFixed(1)}/10`);
+      result.stage2 = result.reasons.stage2.length > 0;
+
+      const behavioralEvents = recent.filter(o => Number(o.actionLevel) >= RELAPSE_ACTION_ANY);
+      result.behavioralDays = behavioralEvents.map(o => recordDate(o));
+      result.stage3 = behavioralEvents.length > 0;
+      result.stage3Severe = recent.some(o => Number(o.actionLevel) >= RELAPSE_ACTION_SEVERE);
+      if (result.stage3) result.reasons.stage3.push(`최근 ${recent.length}일 중 문제행동수준 ${RELAPSE_ACTION_ANY}점 이상 기록 ${behavioralEvents.length}회`);
+      return result;
+    }
+    // 하루 단위 판정. 추세보기와 상담자 요약처럼 기간 전체를 되짚어 볼 때 사용합니다.
+    function classifyDayRelapseStage(dayObservations) {
+      if (!dayObservations.length) return { stage1: false, stage2: false, stage3: false, stage3Severe: false };
+      const emotionScore = avg(dayObservations, o => Number(o.emotionScore));
+      const thoughtScore = avg(dayObservations, o => Number(o.thoughtScore));
+      const urgeScore = avg(dayObservations, o => Number(o.urgeScore));
+      const copingScore = avg(dayObservations, o => Number(o.copingScore));
+      const actionMax = Math.max(...dayObservations.map(o => Number(o.actionLevel)));
+      return {
+        stage1: emotionScore >= RELAPSE_EMOTION_HIGH || copingScore <= RELAPSE_COPING_LOW,
+        stage2: thoughtScore >= RELAPSE_THOUGHT_HIGH || urgeScore >= RELAPSE_URGE_HIGH,
+        stage3: actionMax >= RELAPSE_ACTION_ANY,
+        stage3Severe: actionMax >= RELAPSE_ACTION_SEVERE
+      };
+    }
+    function relapseSummaryForRange(observations) {
+      const byDate = {};
+      observations.forEach(o => { (byDate[o.date] ||= []).push(o); });
+      let stage1Days = 0, stage2Days = 0, stage3Days = 0, stage3SevereDays = 0;
+      const stage3Dates = [];
+      Object.entries(byDate).forEach(([date, list]) => {
+        const c = classifyDayRelapseStage(list);
+        if (c.stage1) stage1Days++;
+        if (c.stage2) stage2Days++;
+        if (c.stage3) { stage3Days++; stage3Dates.push(date); }
+        if (c.stage3Severe) stage3SevereDays++;
+      });
+      return { stage1Days, stage2Days, stage3Days, stage3SevereDays, stage3Dates: stage3Dates.sort(), totalDays: Object.keys(byDate).length };
+    }
+    function relapseStageLabel(signal) {
+      if (signal.stage3Severe) return { level: "danger", text: "행동적 재발 · 지금 확인" };
+      if (signal.stage3) return { level: "danger", text: "행동적 재발 신호" };
+      if (signal.stage1 && signal.stage2) return { level: "warn", text: "정서적·인지적 재발 신호" };
+      if (signal.stage2) return { level: "warn", text: "인지적 재발 신호" };
+      if (signal.stage1) return { level: "warn", text: "정서적 재발 신호" };
+      return { level: "ok", text: "특별한 재발 신호 없음" };
+    }
+    function relapseLevelClass(level) {
+      if (level === "danger") return "level-danger";
+      if (level === "warn") return "level-warn";
+      return "level-ok";
+    }
+    function techniqueCardsHtml(items) {
+      return items.map(item => `
+        <div class="technique-card">
+          <h4>${escapeHtml(item.title)}</h4>
+          <p class="small">${escapeHtml(item.detail)}</p>
+        </div>
+      `).join("");
+    }
+    function stopTippCardsHtml(steps) {
+      return steps.map(step => `
+        <div class="technique-card">
+          <h4>${escapeHtml(step.title)}</h4>
+          <p class="small">${escapeHtml(step.detail)}</p>
+          ${Array.isArray(step.questions) && step.questions.length ? `
+            <div class="small" style="margin-top:6px;"><strong>스스로에게 물어볼 질문</strong></div>
+            <ul style="margin:4px 0 0; padding-left:18px;">${step.questions.map(q => `<li class="small">${escapeHtml(q)}</li>`).join("")}</ul>
+          ` : ""}
+          ${Array.isArray(step.tips) && step.tips.length ? `
+            <div class="small" style="margin-top:6px;"><strong>시도해볼 행동</strong></div>
+            <ul style="margin:4px 0 0; padding-left:18px;">${step.tips.map(t => `<li class="small">${escapeHtml(t)}</li>`).join("")}</ul>
+          ` : ""}
+        </div>
+      `).join("");
+    }
+    function relapseStatusCardHtml(signal, { compact = false } = {}) {
+      if (!signal.hasData) {
+        return `<div class="relapse-status level-ok"><h3>재발 신호</h3><p class="small">최근 ${RELAPSE_WINDOW_DAYS}일 동안의 관찰 기록이 아직 없습니다. 관찰을 기록하면 신호를 확인할 수 있습니다.</p></div>`;
+      }
+      const label = relapseStageLabel(signal);
+      const reasons = [...signal.reasons.stage1, ...signal.reasons.stage2, ...signal.reasons.stage3];
+      const reasonsHtml = reasons.length && !compact
+        ? `<ul>${reasons.slice(0, 6).map(r => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
+        : (reasons.length && compact ? `<p class="small">${escapeHtml(reasons[0])}</p>` : "");
+      const jumpButton = compact ? `<div style="margin-top:8px;"><button class="ghost-btn" type="button" data-jump="relapse">자세히 보고 지금 해볼 것 찾기</button></div>` : "";
+      return `
+        <div class="relapse-status ${relapseLevelClass(label.level)}">
+          <h3>${escapeHtml(label.text)}</h3>
+          <p class="small">최근 ${RELAPSE_WINDOW_DAYS}일 평균 · 감정 ${signal.avgEmotion.toFixed(1)} · 생각 ${signal.avgThought.toFixed(1)} · 충동 ${signal.avgUrge.toFixed(1)} · 대처 도움 ${signal.avgCoping.toFixed(1)} (10점 만점)</p>
+          ${reasonsHtml}
+          ${jumpButton}
+        </div>
+      `;
+    }
+    function renderRelapseToday() {
+      const box = $("#relapseStatusCard");
+      if (!box) return;
+      box.innerHTML = relapseStatusCardHtml(computeRelapseSignal(), { compact: true });
+      $$("#relapseStatusCard [data-jump]").forEach(b => b.addEventListener("click", () => setView(b.dataset.jump)));
+    }
+    function renderRelapseView() {
+      const signal = computeRelapseSignal();
+      const fullBox = $("#relapseStatusFull");
+      if (fullBox) fullBox.innerHTML = relapseStatusCardHtml(signal, { compact: false });
+      const stage1Box = $("#stage1TechniqueList");
+      if (stage1Box) stage1Box.innerHTML = techniqueCardsHtml(RELAPSE_STAGE1_ACTIONS);
+      const stage2Box = $("#stage2TechniqueList");
+      if (stage2Box) stage2Box.innerHTML = techniqueCardsHtml(RELAPSE_STAGE2_TECHNIQUES);
+      const stage3Box = $("#stage3TechniqueList");
+      if (stage3Box) stage3Box.innerHTML = techniqueCardsHtml(RELAPSE_STAGE3_STEPS);
+      const stopBox = $("#stopStepList");
+      if (stopBox) stopBox.innerHTML = stopTippCardsHtml(STOP_STEPS);
+      const tippBox = $("#tippStepList");
+      if (tippBox) tippBox.innerHTML = stopTippCardsHtml(TIPP_STEPS);
+    }
+    function showRelapseFollowup(entry) {
+      const box = $("#relapseFollowup");
+      if (!box) return;
+      const signal = computeRelapseSignal();
+      const behavioralNow = Number(entry.actionLevel) >= RELAPSE_ACTION_ANY;
+      if (!behavioralNow && !signal.stage1 && !signal.stage2) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+        return;
+      }
+      const sections = [];
+      if (behavioralNow) {
+        sections.push({ heading: "지금 바로: 문제 행동을 실수로 했다면", items: RELAPSE_STAGE3_STEPS });
+      } else {
+        if (signal.stage2) sections.push({ heading: "인지적 재발 신호 · 지금 해볼 수 있는 것", items: RELAPSE_STAGE2_TECHNIQUES.slice(0, 4) });
+        if (signal.stage1) sections.push({ heading: "정서적 재발 신호 · 지금 해볼 수 있는 것", items: RELAPSE_STAGE1_ACTIONS.slice(0, 4) });
+      }
+      box.innerHTML = `
+        <div class="safety-card">
+          <h3>${behavioralNow ? "문제 행동이 기록되었습니다" : "재발 신호가 보입니다"}</h3>
+          <p class="small">${behavioralNow ? "실수는 회복 여정의 끝이 아닙니다. 아래 순서대로 지금 조치해보세요." : "충동이 더 심해지기 전에, 지금 시도해볼 수 있는 방법입니다."}</p>
+        </div>
+        ${sections.map(section => `
+          <div style="margin-top:10px;">
+            <h3 style="font-size:15px;">${escapeHtml(section.heading)}</h3>
+            ${techniqueCardsHtml(section.items)}
+          </div>
+        `).join("")}
+        <div class="button-row" style="margin-top:6px;">
+          <button class="ghost-btn" type="button" data-jump="relapse">재발예방 탭에서 더 보기</button>
+        </div>
+      `;
+      box.classList.remove("hidden");
+      $$("#relapseFollowup [data-jump]").forEach(b => b.addEventListener("click", () => setView(b.dataset.jump)));
+    }
     function dailyAchievedFraction(practiceId, iso, target) {
       const logs = logsFor(practiceId, iso).slice(0, target);
       if (!logs.length) return 0;
       const scoreSum = logs.reduce((sum, log) => sum + clampNumber(log.score, 0, 10, 0) / 10, 0);
       return Math.min(target, scoreSum);
+    }
+    // 오늘부터 거슬러 올라가며, isDayBrokenFn이 true를 반환하는 날을 만나면 멈춥니다.
+    // earliestDateStr 이전으로는 "기록이 없어서 알 수 없는 기간"으로 보고 계산하지 않습니다.
+    function computeBackwardStreak(earliestDateStr, isDayBrokenFn) {
+      if (!earliestDateStr) return null;
+      const earliestObj = dateObj(earliestDateStr);
+      let streak = 0;
+      for (let i = 0; i < 3650; i++) {
+        const iso = dateToISO(daysAgo(i));
+        if (dateObj(iso) < earliestObj) break;
+        if (isDayBrokenFn(iso)) break;
+        streak += 1;
+      }
+      return streak;
+    }
+    // 문제행동 없이 보낸 연속일수 (양성 강화 지표). 기록이 없는 날은 끊긴 것으로 보지 않고,
+    // 문제행동수준이 1점 이상 기록된 날만 연속기록을 끊는 날로 봅니다.
+    function cleanStreakDays() {
+      const observations = activeObservations();
+      if (!observations.length) return null;
+      const earliest = observations.reduce((min, o) => {
+        const d = recordDate(o);
+        return !min || d < min ? d : min;
+      }, null);
+      return computeBackwardStreak(earliest, iso => observations.some(o => sameRecordDate(o, iso) && Number(o.actionLevel) >= RELAPSE_ACTION_ANY));
+    }
+    // 관찰 또는 실천 기록을 이어온 연속일수 (참여도 지표). 상담자 요약에서 이탈 조짐을 조기에 확인하는 용도입니다.
+    function engagementStreakDays() {
+      const observations = activeObservations();
+      const logs = activeLogs();
+      if (!observations.length && !logs.length) return null;
+      const all = [...observations, ...logs];
+      const earliest = all.reduce((min, r) => {
+        const d = recordDate(r);
+        return !min || d < min ? d : min;
+      }, null);
+      const dateSet = new Set(all.map(recordDate));
+      return computeBackwardStreak(earliest, iso => !dateSet.has(iso));
     }
     function updateMetrics() {
       const today = todayISO();
@@ -524,10 +927,30 @@ const TEXT_LIMITS = {
       if (ageDays >= 7) return `CSV 백업 후 ${ageDays}일이 지났습니다. 기록을 잃지 않도록 다시 저장해두세요.`;
       return "";
     }
+    function renderCleanStreak() {
+      const box = $("#cleanStreakCard");
+      if (!box) return;
+      const streak = cleanStreakDays();
+      if (streak === null) {
+        box.innerHTML = "";
+        return;
+      }
+      const text = streak === 0
+        ? "오늘부터 다시 새로 시작하는 중입니다. 지금 남기는 기록이 다음 연속일수의 첫날이 됩니다."
+        : `문제행동 없이 <strong>${streak}일째</strong> 이어가는 중입니다.`;
+      box.innerHTML = `
+        <div class="relapse-status level-ok">
+          <h3>연속 기록</h3>
+          <p class="small">${text}</p>
+        </div>
+      `;
+    }
     function renderToday() {
       updateMetrics();
       renderNotificationStatus();
       renderTodayTaskSummary();
+      renderCleanStreak();
+      renderRelapseToday();
       const today = todayISO();
       const obs = activeObservations().filter(o => sameRecordDate(o, today)).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
       $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
@@ -536,12 +959,26 @@ const TEXT_LIMITS = {
       bindTodayLogButtons();
       bindObservationActions();
     }
+    function triggerText(o) {
+      const items = compactList([...(Array.isArray(o.triggerPlaces) ? o.triggerPlaces : []), ...(Array.isArray(o.triggerPeople) ? o.triggerPeople : []), ...(Array.isArray(o.triggerTimes) ? o.triggerTimes : []), ...(Array.isArray(o.triggerCustom) ? o.triggerCustom : [])]);
+      return items.join(", ");
+    }
+    function avoidanceText(o) {
+      const items = compactList([...(Array.isArray(o.avoidanceTags) ? o.avoidanceTags : []), ...(Array.isArray(o.avoidanceCustom) ? o.avoidanceCustom : [])]);
+      return items.join(", ");
+    }
     function renderObservationItem(o) {
       const risk = Number(o.urgeScore) >= 8 || Number(o.actionLevel) >= 4;
+      const hasCurve = o.urgeInitialScore !== null && o.urgeInitialScore !== undefined && o.urgeEndScore !== null && o.urgeEndScore !== undefined;
+      const triggers = triggerText(o);
+      const avoidance = avoidanceText(o);
       return `<div class="record-item">
         <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
         <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
         <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제행동수준 ${o.actionLevel}/5</div>
+        ${hasCurve ? `<div class="small">충동 흐름: 처음 ${o.urgeInitialScore} → 정점 ${o.urgeScore} → 끝 ${o.urgeEndScore}</div>` : ""}
+        ${triggers ? `<div class="small">촉발 단서: ${escapeHtml(triggers)}</div>` : ""}
+        ${avoidance ? `<div class="small">회피 신호: ${escapeHtml(avoidance)}</div>` : ""}
         ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${escapeHtml(o.valueActionDraft)}</div>` : ""}
         <div class="button-row record-actions">
           <button class="ghost-btn" type="button" data-edit-observation="${escapeHtml(o.id)}">수정</button>
@@ -553,15 +990,18 @@ const TEXT_LIMITS = {
       const today = todayISO();
       const due = isPracticeDue(p, today);
       const todayLogs = logsFor(p.id, today);
-      const log = todayLogs[0];
       const target = targetCount(p);
       const todayAverage = averageDailyLogScore(todayLogs);
-      const currentScore = log ? clampNumber(log.score, 0, 10, 0) : 0;
       const logHistory = todayLogs.length ? `
         <div style="height:8px"></div>
         <div class="small"><strong>오늘 기록 ${todayLogs.length}/${target}회 · 하루 평균 ${todayAverage.toFixed(1)}점</strong></div>
         <div class="list">
-          ${todayLogs.slice(0, 4).map(item => `<div class="plain-card small">수행도 ${escapeHtml(item.score)}/10 · ${escapeHtml(formatSavedTime(item.updatedAt))}${item.note ? `<br>${escapeHtml(item.note)}` : ""}<div class="button-row record-actions"><button class="danger-btn" type="button" data-delete-log="${escapeHtml(item.id)}">수행 기록 숨김</button></div></div>`).join("")}
+          ${todayLogs.slice(0, 4).map(item => {
+            const expectedText = item.expectedPleasureScore !== null && item.expectedMasteryScore !== null
+              ? ` · 예상 즐거움 ${item.expectedPleasureScore}/숙달감 ${item.expectedMasteryScore}`
+              : "";
+            return `<div class="plain-card small">즐거움 ${escapeHtml(item.pleasureScore)}/10 · 숙달감 ${escapeHtml(item.masteryScore)}/10${expectedText} · ${escapeHtml(formatSavedTime(item.updatedAt))}${item.note ? `<br>${escapeHtml(item.note)}` : ""}<div class="button-row record-actions"><button class="danger-btn" type="button" data-delete-log="${escapeHtml(item.id)}">수행 기록 숨김</button></div></div>`;
+          }).join("")}
         </div>
       ` : "";
       return `<div class="record-item">
@@ -569,10 +1009,30 @@ const TEXT_LIMITS = {
         <div class="small">오늘 약속: ${target}회 · 현재 ${todayLogs.length}회 기록</div>
         <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
         <div style="height:8px"></div>
+        <label class="checkline">
+          <input type="checkbox" data-expect-toggle="${escapeHtml(p.id)}"> 시작하기 전 예상도 함께 남기기 (선택)
+        </label>
+        <div class="hidden" data-expect-box="${escapeHtml(p.id)}">
+          <div class="small">막상 해보면 예상과 다를 때가 많습니다. 그 차이 자체가 유용한 정보입니다.</div>
+          <div class="slider-card">
+            <div class="slider-top"><span>예상 즐거움</span><span class="slider-value" data-practice-expected-pleasure-value="${escapeHtml(p.id)}">5</span></div>
+            <input data-practice-expected-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5">
+          </div>
+          <div class="slider-card">
+            <div class="slider-top"><span>예상 숙달감</span><span class="slider-value" data-practice-expected-mastery-value="${escapeHtml(p.id)}">5</span></div>
+            <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5">
+          </div>
+        </div>
+        <div style="height:4px"></div>
         <div class="slider-card">
-          <div class="slider-top"><span>오늘 수행도</span><span class="slider-value" data-practice-score-value="${escapeHtml(p.id)}">${currentScore}</span></div>
-          <input data-practice-score="${escapeHtml(p.id)}" type="range" min="0" max="10" value="${currentScore}">
-          <div class="small score-help" data-practice-score-help="${escapeHtml(p.id)}">${escapeHtml(practiceScoreText(currentScore))}</div>
+          <div class="slider-top"><span>실제 즐거움</span><span class="slider-value" data-practice-pleasure-value="${escapeHtml(p.id)}">0</span></div>
+          <input data-practice-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0">
+          <div class="small score-help" data-practice-pleasure-help="${escapeHtml(p.id)}">${escapeHtml(pleasureScoreText(0))}</div>
+        </div>
+        <div class="slider-card">
+          <div class="slider-top"><span>실제 숙달감</span><span class="slider-value" data-practice-mastery-value="${escapeHtml(p.id)}">0</span></div>
+          <input data-practice-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0">
+          <div class="small score-help" data-practice-mastery-help="${escapeHtml(p.id)}">${escapeHtml(masteryScoreText(0))}</div>
         </div>
         <textarea data-practice-note="${escapeHtml(p.id)}" maxlength="600" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
         <div style="height:8px"></div>
@@ -581,25 +1041,75 @@ const TEXT_LIMITS = {
       </div>`;
     }
     function bindTodayLogButtons() {
-      $$("[data-practice-score]").forEach(input => {
+      $$("[data-expect-toggle]").forEach(checkbox => {
+        checkbox.addEventListener("change", () => {
+          const id = checkbox.dataset.expectToggle;
+          const container = checkbox.closest(".record-item");
+          const box = container ? container.querySelector("[data-expect-box]") : $(`[data-expect-box="${selectorEscape(id)}"]`);
+          if (box) box.classList.toggle("hidden", !checkbox.checked);
+        });
+      });
+      $$("[data-practice-expected-pleasure]").forEach(input => {
         input.addEventListener("input", () => {
-          const id = input.dataset.practiceScore;
           const container = input.closest(".record-item");
-          const label = container ? container.querySelector("[data-practice-score-value]") : $(`[data-practice-score-value="${selectorEscape(id)}"]`);
-          const help = container ? container.querySelector("[data-practice-score-help]") : $(`[data-practice-score-help="${selectorEscape(id)}"]`);
+          const label = container ? container.querySelector("[data-practice-expected-pleasure-value]") : null;
           if (label) label.textContent = input.value;
-          if (help) help.textContent = practiceScoreText(input.value);
+        });
+      });
+      $$("[data-practice-expected-mastery]").forEach(input => {
+        input.addEventListener("input", () => {
+          const container = input.closest(".record-item");
+          const label = container ? container.querySelector("[data-practice-expected-mastery-value]") : null;
+          if (label) label.textContent = input.value;
+        });
+      });
+      $$("[data-practice-pleasure]").forEach(input => {
+        input.addEventListener("input", () => {
+          const id = input.dataset.practicePleasure;
+          const container = input.closest(".record-item");
+          const label = container ? container.querySelector("[data-practice-pleasure-value]") : $(`[data-practice-pleasure-value="${selectorEscape(id)}"]`);
+          const help = container ? container.querySelector("[data-practice-pleasure-help]") : $(`[data-practice-pleasure-help="${selectorEscape(id)}"]`);
+          if (label) label.textContent = input.value;
+          if (help) help.textContent = pleasureScoreText(input.value);
+        });
+      });
+      $$("[data-practice-mastery]").forEach(input => {
+        input.addEventListener("input", () => {
+          const id = input.dataset.practiceMastery;
+          const container = input.closest(".record-item");
+          const label = container ? container.querySelector("[data-practice-mastery-value]") : $(`[data-practice-mastery-value="${selectorEscape(id)}"]`);
+          const help = container ? container.querySelector("[data-practice-mastery-help]") : $(`[data-practice-mastery-help="${selectorEscape(id)}"]`);
+          if (label) label.textContent = input.value;
+          if (help) help.textContent = masteryScoreText(input.value);
         });
       });
       $$("[data-save-log]").forEach(button => {
         button.addEventListener("click", () => {
           const id = button.dataset.saveLog;
           const container = button.closest(".record-item");
-          const scoreInput = container ? container.querySelector("[data-practice-score]") : $(`[data-practice-score="${selectorEscape(id)}"]`);
-          const noteInput = container ? container.querySelector("[data-practice-note]") : $(`[data-practice-note="${selectorEscape(id)}"]`);
-          const score = clampNumber(scoreInput?.value, 0, 10, 0);
+          const find = (attr) => container ? container.querySelector(`[${attr}="${selectorEscape(id)}"]`) : $(`[${attr}="${selectorEscape(id)}"]`);
+          const pleasureInput = find("data-practice-pleasure");
+          const masteryInput = find("data-practice-mastery");
+          const noteInput = find("data-practice-note");
+          const expectToggle = find("data-expect-toggle");
+          const expectedPleasureInput = find("data-practice-expected-pleasure");
+          const expectedMasteryInput = find("data-practice-expected-mastery");
+          const pleasureScore = clampNumber(pleasureInput?.value, 0, 10, 0);
+          const masteryScore = clampNumber(masteryInput?.value, 0, 10, 0);
           const note = cleanMultiline(noteInput?.value, TEXT_LIMITS.long);
-          const entry = { id: uid(), practiceId: id, date: todayISO(), score, note, updatedAt: new Date().toISOString() };
+          const includeExpected = Boolean(expectToggle?.checked);
+          const entry = {
+            id: uid(),
+            practiceId: id,
+            date: todayISO(),
+            pleasureScore,
+            masteryScore,
+            score: Math.round((pleasureScore + masteryScore) / 2),
+            expectedPleasureScore: includeExpected ? clampNumber(expectedPleasureInput?.value, 0, 10, null) : null,
+            expectedMasteryScore: includeExpected ? clampNumber(expectedMasteryInput?.value, 0, 10, null) : null,
+            note,
+            updatedAt: new Date().toISOString()
+          };
           state.data.logs.push(entry);
           if (!saveData()) return;
           renderAll();
@@ -633,7 +1143,13 @@ const TEXT_LIMITS = {
       state.emotion = record.emotion || "";
       state.body = Array.isArray(record.body) ? record.body.slice() : [];
       state.value = record.value || "";
+      state.triggerPlaces = Array.isArray(record.triggerPlaces) ? record.triggerPlaces.slice() : [];
+      state.triggerPeople = Array.isArray(record.triggerPeople) ? record.triggerPeople.slice() : [];
+      state.triggerTimes = Array.isArray(record.triggerTimes) ? record.triggerTimes.slice() : [];
+      state.avoidanceTags = Array.isArray(record.avoidanceTags) ? record.avoidanceTags.slice() : [];
       $("#behaviorCustom").value = Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.join(", ") : "";
+      $("#triggerCustom").value = Array.isArray(record.triggerCustom) ? record.triggerCustom.join(", ") : "";
+      $("#avoidanceCustom").value = Array.isArray(record.avoidanceCustom) ? record.avoidanceCustom.join(", ") : "";
       $("#situation").value = record.situation || "";
       $("#thoughtText").value = record.thoughtText || "";
       $("#emotionCustom").value = record.emotionCustom || "";
@@ -641,6 +1157,8 @@ const TEXT_LIMITS = {
       $("#thoughtScore").value = clampNumber(record.thoughtScore, 0, 10, 0);
       $("#emotionScore").value = clampNumber(record.emotionScore, 0, 10, 0);
       $("#urgeScore").value = clampNumber(record.urgeScore, 0, 10, 0);
+      $("#urgeInitialScore").value = record.urgeInitialScore !== null && record.urgeInitialScore !== undefined ? record.urgeInitialScore : clampNumber(record.urgeScore, 0, 10, 0);
+      $("#urgeEndScore").value = record.urgeEndScore !== null && record.urgeEndScore !== undefined ? record.urgeEndScore : clampNumber(record.urgeScore, 0, 10, 0);
       $("#actionLevel").value = clampNumber(record.actionLevel, 0, 5, 0);
       $("#coping").value = record.coping || "";
       $("#copingScore").value = clampNumber(record.copingScore, 0, 10, 0);
@@ -648,7 +1166,7 @@ const TEXT_LIMITS = {
       $("#insight").value = record.insight || "";
       $("#valueCustom").value = record.value || "";
       $("#valueActionDraft").value = record.valueActionDraft || "";
-      ["thoughtScore","emotionScore","urgeScore","actionLevel","copingScore"].forEach(field => {
+      ["thoughtScore","emotionScore","urgeScore","urgeInitialScore","urgeEndScore","actionLevel","copingScore"].forEach(field => {
         $("#" + field + "Value").textContent = $("#" + field).value;
       });
       showRiskFollowup(clampNumber(record.urgeScore, 0, 10, 0) >= 8 || clampNumber(record.actionLevel, 0, 5, 0) >= 4);
@@ -689,7 +1207,7 @@ const TEXT_LIMITS = {
           <div class="small">알림: ${escapeHtml(reminderLabel(p))}</div>
           <div class="small">방해요인: ${escapeHtml(p.barriers || "-")}</div>
           <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
-          <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)}</div>
+          <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)} (즐거움 ${avg(logs, l => Number(l.pleasureScore)).toFixed(1)} · 숙달감 ${avg(logs, l => Number(l.masteryScore)).toFixed(1)})</div>
           <div style="height:8px"></div>
           <div class="button-row">
             <button class="ghost-btn" type="button" data-edit-practice="${escapeHtml(p.id)}">수정</button>
@@ -835,12 +1353,17 @@ const TEXT_LIMITS = {
       const resisted = observations.filter(o => Number(o.urgeScore) >= 5 && Number(o.actionLevel) <= 1);
       const emotionsSeen = observations.flatMap(o => compactList([o.emotion, o.emotionCustom]));
       const bodiesSeen = observations.flatMap(o => compactList([...(Array.isArray(o.body) ? o.body : []), o.bodyCustom]));
+      const triggersSeen = observations.flatMap(o => compactList([...(Array.isArray(o.triggerPlaces) ? o.triggerPlaces : []), ...(Array.isArray(o.triggerPeople) ? o.triggerPeople : []), ...(Array.isArray(o.triggerTimes) ? o.triggerTimes : []), ...(Array.isArray(o.triggerCustom) ? o.triggerCustom : [])]));
+      const avoidanceSeen = observations.flatMap(o => compactList([...(Array.isArray(o.avoidanceTags) ? o.avoidanceTags : []), ...(Array.isArray(o.avoidanceCustom) ? o.avoidanceCustom : [])]));
       const valuesSeen = observations.map(o => o.value).concat(state.data.practices.map(p => p.value));
       const helpfulCoping = observations
         .filter(o => Number(o.copingScore) >= 6 && o.coping)
         .map(o => o.coping)
         .slice(0, 3)
         .join(" / ") || "아직 없음";
+      const relapse = relapseSummaryForRange(observations);
+      const emotionVariability = stdDev(observations.map(o => Number(o.emotionScore)));
+      const urgeVariability = stdDev(observations.map(o => Number(o.urgeScore)));
       return [
         "최근 2주 자기성찰 요약",
         "",
@@ -848,10 +1371,18 @@ const TEXT_LIMITS = {
         `실천 기록: ${logs.length}건`,
         `자주 나온 감정: ${topItems(emotionsSeen)}`,
         `자주 나온 몸 반응: ${topItems(bodiesSeen)}`,
+        `자주 나온 촉발 단서: ${topItems(triggersSeen)}`,
+        `자주 나온 회피 신호: ${topItems(avoidanceSeen)}`,
         `자주 선택한 가치: ${topItems(valuesSeen)}`,
         `고위험 신호: ${highRisk.length}건`,
         `충동은 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
         `도움이 컸던 대처: ${helpfulCoping}`,
+        `감정 기복(표준편차): ${emotionVariability.toFixed(1)} · 충동 기복(표준편차): ${urgeVariability.toFixed(1)} (숫자가 클수록 널뛰는 정도가 큼)`,
+        "",
+        "재발 신호 (최근 14일, 기록된 날 기준)",
+        `정서적 재발 신호 있었던 날: ${relapse.stage1Days}일`,
+        `인지적 재발 신호 있었던 날: ${relapse.stage2Days}일`,
+        `문제 행동이 기록된 날: ${relapse.stage3Days}일${relapse.stage3Dates.length ? ` (${relapse.stage3Dates.join(", ")})` : ""}`,
         "",
         "이번 주 점검 질문",
         "1. 위험 신호가 올라오기 전 가장 먼저 나타난 단서는 무엇이었나요?",
@@ -990,6 +1521,15 @@ const TEXT_LIMITS = {
       const topValues = Object.entries(valueCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(v => v[0]).join(", ") || "아직 없음";
       const barrierText = practices.map(p => p.barriers).filter(Boolean).slice(0, 4).join(" / ") || "아직 없음";
       const helpful = observations.map(o => o.coping).filter(Boolean).slice(0, 4).join(" / ") || "아직 없음";
+      const triggersSeen = observations.flatMap(o => compactList([...(Array.isArray(o.triggerPlaces) ? o.triggerPlaces : []), ...(Array.isArray(o.triggerPeople) ? o.triggerPeople : []), ...(Array.isArray(o.triggerTimes) ? o.triggerTimes : []), ...(Array.isArray(o.triggerCustom) ? o.triggerCustom : [])]));
+      const avoidanceSeen = observations.flatMap(o => compactList([...(Array.isArray(o.avoidanceTags) ? o.avoidanceTags : []), ...(Array.isArray(o.avoidanceCustom) ? o.avoidanceCustom : [])]));
+      const relapse = relapseSummaryForRange(observations);
+      const emotionVariability = stdDev(observations.map(o => Number(o.emotionScore)));
+      const urgeVariability = stdDev(observations.map(o => Number(o.urgeScore)));
+      const periodDays = state.shareRange === "all" ? null : Number(state.shareRange);
+      const recordedObsDays = new Set(observations.map(o => o.date)).size;
+      const recordedLogDays = new Set(logs.map(l => l.date)).size;
+      const engagementStreak = engagementStreakDays();
       const keySummary = [
         "핵심 요약:",
         `- 이번 기간 가장 높았던 위험 신호: ${highRisk.length}건`,
@@ -1022,17 +1562,33 @@ const TEXT_LIMITS = {
         `실천 기록: ${logs.length}건`,
         `주요 가치: ${topValues}`,
         `사고·감정·충동 평균: ${avg(observations, observationIntensity).toFixed(1)}점`,
+        `감정 기복(표준편차): ${emotionVariability.toFixed(1)} · 충동 기복(표준편차): ${urgeVariability.toFixed(1)}`,
         `문제행동수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
         `고위험 신호: ${highRisk.length}건`,
         `충동이 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
         `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
         `반복 방해요인: ${barrierText}`,
         `도움이 된 대처행동: ${helpful}`,
+        `자주 나온 촉발 단서: ${topItems(triggersSeen)}`,
+        `자주 나온 회피 신호: ${topItems(avoidanceSeen)}`,
+        "",
+        "참여도 (기록 자체를 이어가고 있는지 확인):",
+        `- 관찰 기록한 날: ${recordedObsDays}일${periodDays ? ` / ${periodDays}일 중` : ""}`,
+        `- 실천 기록한 날: ${recordedLogDays}일${periodDays ? ` / ${periodDays}일 중` : ""}`,
+        `- 현재 연속 기록일수(관찰 또는 실천, 오늘까지): ${engagementStreak ?? 0}일`,
+        "",
+        "재발 신호 요약 (해당 기간, 기록된 날 기준):",
+        `- 정서적 재발 신호가 있었던 날: ${relapse.stage1Days}일 / ${relapse.totalDays}일 중`,
+        `- 인지적 재발 신호가 있었던 날: ${relapse.stage2Days}일 / ${relapse.totalDays}일 중`,
+        `- 문제 행동이 기록된 날: ${relapse.stage3Days}일${relapse.stage3Dates.length ? ` (${relapse.stage3Dates.join(", ")})` : ""}`,
+        `- 그중 즉시 개입이 필요한 수준(문제행동수준 ${RELAPSE_ACTION_SEVERE}점 이상): ${relapse.stage3SevereDays}일`,
         "",
         "다음 상담 질문:",
         "1. 실천행동의 30% 버전이 충분히 작았는지 점검하기",
         "2. 고위험 시간대와 방해요인을 더 구체적으로 조정하기",
-        "3. 선택한 가치가 실제 행동으로 이어지는지 확인하기"
+        "3. 선택한 가치가 실제 행동으로 이어지는지 확인하기",
+        "4. 정서적·인지적 재발 신호가 있었던 날, 어떤 자기관리 조치를 시도했는지 확인하기",
+        "5. 기록한 날이 줄어드는 시기가 있었다면, 그 시기에 무슨 일이 있었는지 확인하기"
       ].join("\n");
     }
     function rangeLabel() {
@@ -1073,10 +1629,18 @@ const TEXT_LIMITS = {
           body_reactions: Array.isArray(o.body) ? o.body : [],
           body_custom: o.bodyCustom || "",
           situation: o.situation || "",
+          trigger_places: Array.isArray(o.triggerPlaces) ? o.triggerPlaces : [],
+          trigger_people: Array.isArray(o.triggerPeople) ? o.triggerPeople : [],
+          trigger_times: Array.isArray(o.triggerTimes) ? o.triggerTimes : [],
+          trigger_custom: Array.isArray(o.triggerCustom) ? o.triggerCustom : [],
+          avoidance_tags: Array.isArray(o.avoidanceTags) ? o.avoidanceTags : [],
+          avoidance_custom: Array.isArray(o.avoidanceCustom) ? o.avoidanceCustom : [],
           thought_text: o.thoughtText || "",
           thought_score: o.thoughtScore ?? 0,
           emotion_score: o.emotionScore ?? 0,
           urge_score: o.urgeScore ?? 0,
+          urge_initial_score: o.urgeInitialScore ?? "",
+          urge_end_score: o.urgeEndScore ?? "",
           action_level: o.actionLevel ?? 0,
           coping: o.coping || "",
           coping_score: o.copingScore ?? 0,
@@ -1112,6 +1676,10 @@ const TEXT_LIMITS = {
           practice_name: p.name || "",
           target_count: targetCount(p),
           practice_score: l.score ?? 0,
+          pleasure_score: l.pleasureScore ?? l.score ?? 0,
+          mastery_score: l.masteryScore ?? l.score ?? 0,
+          expected_pleasure_score: l.expectedPleasureScore ?? "",
+          expected_mastery_score: l.expectedMasteryScore ?? "",
           practice_note: l.note || ""
         });
       });
@@ -1342,6 +1910,12 @@ const TEXT_LIMITS = {
               behaviorAreas,
               behaviorCustomAreas,
               situation: cleanMultiline(payload.situation, TEXT_LIMITS.long),
+              triggerPlaces: Array.isArray(payload.trigger_places) ? payload.trigger_places : [],
+              triggerPeople: Array.isArray(payload.trigger_people) ? payload.trigger_people : [],
+              triggerTimes: Array.isArray(payload.trigger_times) ? payload.trigger_times : [],
+              triggerCustom: Array.isArray(payload.trigger_custom) ? payload.trigger_custom : [],
+              avoidanceTags: Array.isArray(payload.avoidance_tags) ? payload.avoidance_tags : [],
+              avoidanceCustom: Array.isArray(payload.avoidance_custom) ? payload.avoidance_custom : [],
               thoughtText: cleanMultiline(payload.thought_text, TEXT_LIMITS.long),
               emotion: cleanText(payload.emotion, TEXT_LIMITS.short),
               emotionCustom: cleanText(payload.emotion_custom, 10),
@@ -1350,6 +1924,8 @@ const TEXT_LIMITS = {
               thoughtScore: clampNumber(payload.thought_score, 0, 10, 0),
               emotionScore: clampNumber(payload.emotion_score, 0, 10, 0),
               urgeScore: clampNumber(payload.urge_score, 0, 10, 0),
+              urgeInitialScore: optionalScore(payload.urge_initial_score),
+              urgeEndScore: optionalScore(payload.urge_end_score),
               actionLevel: clampNumber(payload.action_level, 0, 5, 0),
               coping: cleanMultiline(payload.coping, TEXT_LIMITS.long),
               copingScore: clampNumber(payload.coping_score, 0, 10, 0),
@@ -1402,11 +1978,20 @@ const TEXT_LIMITS = {
                 updatedAt: new Date().toISOString()
               });
             }
+            const importedScore = clampNumber(payload.practice_score, 0, 10, 0);
+            const pleasureScore = payload.pleasure_score !== undefined && payload.pleasure_score !== ""
+              ? clampNumber(payload.pleasure_score, 0, 10, importedScore) : importedScore;
+            const masteryScore = payload.mastery_score !== undefined && payload.mastery_score !== ""
+              ? clampNumber(payload.mastery_score, 0, 10, importedScore) : importedScore;
             state.data.logs.push({
               id,
               practiceId,
               date: cleanDate(cell(row, "date") || todayISO()),
-              score: clampNumber(payload.practice_score, 0, 10, 0),
+              score: Math.round((pleasureScore + masteryScore) / 2),
+              pleasureScore,
+              masteryScore,
+              expectedPleasureScore: optionalScore(payload.expected_pleasure_score),
+              expectedMasteryScore: optionalScore(payload.expected_mastery_score),
               note: cleanMultiline(payload.practice_note, TEXT_LIMITS.long),
               updatedAt: cell(row, "updated_at") || new Date().toISOString()
             });
@@ -1444,14 +2029,22 @@ const TEXT_LIMITS = {
         behaviorAreas,
         behaviorCustomAreas,
         situation: cleanMultiline($("#situation").value, TEXT_LIMITS.long),
+        triggerPlaces: state.triggerPlaces.slice(),
+        triggerPeople: state.triggerPeople.slice(),
+        triggerTimes: state.triggerTimes.slice(),
+        triggerCustom: splitBehaviorCustom($("#triggerCustom").value),
         thoughtText: cleanMultiline($("#thoughtText").value, TEXT_LIMITS.long),
         emotion: cleanText(state.emotion, TEXT_LIMITS.short),
         emotionCustom: shortCustomValue("#emotionCustom"),
         body: state.body.slice(),
         bodyCustom: shortCustomValue("#bodyCustom"),
+        avoidanceTags: state.avoidanceTags.slice(),
+        avoidanceCustom: splitBehaviorCustom($("#avoidanceCustom").value),
         thoughtScore: clampNumber($("#thoughtScore").value, 0, 10, 0),
         emotionScore: clampNumber($("#emotionScore").value, 0, 10, 0),
         urgeScore: clampNumber($("#urgeScore").value, 0, 10, 0),
+        urgeInitialScore: state.observeMode === "충동 발생" ? clampNumber($("#urgeInitialScore").value, 0, 10, 0) : null,
+        urgeEndScore: state.observeMode === "충동 발생" ? clampNumber($("#urgeEndScore").value, 0, 10, 0) : null,
         actionLevel: clampNumber($("#actionLevel").value, 0, 5, 0),
         coping: cleanMultiline($("#coping").value, TEXT_LIMITS.long),
         copingScore: clampNumber($("#copingScore").value, 0, 10, 0),
@@ -1470,6 +2063,7 @@ const TEXT_LIMITS = {
       renderAll();
       const isHighRisk = entry.urgeScore >= 8 || entry.actionLevel >= 4;
       showRiskFollowup(isHighRisk);
+      showRelapseFollowup(entry);
       showToast(isHighRisk ? "고위험 신호를 저장했습니다. 지금은 안전한 장소와 연락을 먼저 챙겨주세요." : "관찰 기록을 저장했습니다.");
     }
     function resetObserveDefaults() {
@@ -1483,8 +2077,14 @@ const TEXT_LIMITS = {
       state.body = [];
       state.bodyCustom = "";
       state.value = "";
+      state.triggerPlaces = [];
+      state.triggerPeople = [];
+      state.triggerTimes = [];
+      state.avoidanceTags = [];
       showRiskFollowup(false);
-      ["thoughtScore","emotionScore","urgeScore","actionLevel","copingScore"].forEach(id => {
+      const relapseFollowupBox = $("#relapseFollowup");
+      if (relapseFollowupBox) { relapseFollowupBox.classList.add("hidden"); relapseFollowupBox.innerHTML = ""; }
+      ["thoughtScore","emotionScore","urgeScore","urgeInitialScore","urgeEndScore","actionLevel","copingScore"].forEach(id => {
         $("#" + id).value = 0;
         $("#" + id + "Value").textContent = "0";
       });
@@ -1609,6 +2209,7 @@ const TEXT_LIMITS = {
       renderPracticeLogList();
       renderPracticeList();
       if (state.view === "trend") renderTrend();
+      if (state.view === "relapse") renderRelapseView();
       if (state.view === "share") renderSharePreview();
       renderHiddenRecordStatus();
     }

@@ -39,7 +39,7 @@
     .contact { color: var(--muted); font-size: 12px; white-space: nowrap; }
     .tabs {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(7, 1fr);
       gap: 6px;
       margin-top: 12px;
     }
@@ -270,6 +270,16 @@
     }
     .lock-screen.active { display: flex; }
     .lock-box { width: min(420px, 100%); }
+    .relapse-status { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--line); }
+    .relapse-status.level-ok { background: #f0f7f1; border-color: #cfe3d2; color: #234a2c; }
+    .relapse-status.level-warn { background: #fff8ef; border-color: #ead1ad; color: #3f2b12; }
+    .relapse-status.level-danger { background: #fff5f4; border-color: #edcac7; color: #5c211d; }
+    .relapse-status h3 { margin: 0 0 6px; }
+    .relapse-status ul { margin: 6px 0 0; padding-left: 18px; }
+    .relapse-status li { margin-bottom: 3px; line-height: 1.5; }
+    .technique-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fff; margin-bottom: 8px; }
+    .technique-card h4 { margin: 0 0 4px; font-size: 14px; }
+    .technique-card p { margin: 0; }
     @media (max-width: 820px) {
       .app { padding-left: 10px; padding-right: 10px; }
       .topbar { margin-left: -10px; margin-right: -10px; }
