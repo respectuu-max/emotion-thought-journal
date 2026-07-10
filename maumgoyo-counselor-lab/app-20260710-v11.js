@@ -1,4 +1,4 @@
-const APP_VERSION = "20260710v12";
+const APP_VERSION = "20260710v13";
 
 const state = {
   rows: [],
@@ -11,6 +11,7 @@ const state = {
   shareModeLabel: "",
   rangeLabel: "",
   importMessages: [],
+  practicePlans: [],
   thresholds: {
     emotion: 7,
     cognitiveUrge: 6,
@@ -70,7 +71,7 @@ const CATEGORY_LABELS = {
 const sampleCsv = `schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mode,range_label,payload_json
 maeumgoyo_compact_v2,observation,o1,2026-07-07,2026-07-07,2026-07-10,K-001,counselor_full,최근 7일,"{""situation"":""퇴근 후 혼자 집에 있었고 술 생각이 강해짐"",""thought_text"":""오늘은 너무 힘들었으니 한 잔 정도는 괜찮다"",""emotion"":""공허감"",""body_reactions"":[""가슴 답답함"",""초조함""],""urge_score"":9,""action_level"":4,""coping"":""편의점 앞에서 10분 걷기"",""coping_score"":3,""value"":""가족과 약속 지키기"",""value_action_draft"":""집에 오면 바로 샤워하고 따뜻한 차 마시기""}"
 maeumgoyo_compact_v2,observation,o2,2026-07-08,2026-07-08,2026-07-10,K-001,counselor_full,최근 7일,"{""situation"":""친구의 권유를 받음"",""thought_text"":""거절하면 관계가 어색해질 것이다"",""emotion"":""불안"",""body_reactions"":[""손에 땀""],""urge_score"":8,""action_level"":1,""coping"":""잠깐 화장실에 가서 STOP을 떠올림"",""coping_score"":7,""value"":""회복을 우선하기"",""value_action_draft"":""오늘은 약속이 있다고 말하기""}"
-maeumgoyo_compact_v2,practice_definition,p1,2026-07-08,2026-07-08,2026-07-10,K-001,counselor_full,최근 7일,"{""practice_id"":""p1"",""practice_name"":""귀가 후 10분 산책"",""practice_value"":""몸을 먼저 안정시키기""}"
+maeumgoyo_compact_v2,practice_definition,p1,2026-07-08,2026-07-08,2026-07-10,K-001,counselor_full,최근 7일,"{""practice_id"":""p1"",""practice_name"":""귀가 후 10분 산책"",""practice_value"":""몸을 먼저 안정시키기"",""planned_days_per_week"":3,""planned_times_per_day"":1}"
 maeumgoyo_compact_v2,practice_log,l1,2026-07-09,2026-07-09,2026-07-10,K-001,counselor_full,최근 7일,"{""practice_id"":""p1"",""practice_score"":0,""memo"":""비가 와서 못 했다. 대신 바로 누웠다.""}"
 maeumgoyo_compact_v2,observation,o3,2026-07-09,2026-07-09,2026-07-10,K-001,counselor_full,최근 7일,"{""situation"":""민감 내용 제외"",""thought_text"":""나는 결국 못 바뀐다"",""emotion"":""수치심"",""body_reactions"":[""무기력""],""urge_score"":7,""action_level"":0,""coping"":""상담 메모 보기"",""coping_score"":5,""value"":""건강 회복"",""value_action_draft"":""내일 오전 병원 예약 확인""}"`;
 
@@ -161,11 +162,31 @@ function ingestCsv(text, fileName) {
     render();
     return;
   }
+  state.practicePlans = extractPracticePlans(state.rows);
   state.records = normalizeRows(state.rows);
   state.importMessages = validation.warnings;
   detectMeta();
   rebuildChains();
   render();
+}
+
+function extractPracticePlans(rows) {
+  return rows
+    .filter((row) => row.record_type === "practice_definition")
+    .map((row) => {
+      const payload = parsePayload(row.payload_json) || {};
+      const days = wholeNumber(firstDefined(payload.planned_days_per_week, payload.frequency_per_week, payload.days_per_week, payload.weekly_frequency, payload.frequency, payload["빈도"]));
+      const times = wholeNumber(firstDefined(payload.planned_times_per_day, payload.practice_times_per_day, payload.times_per_day, payload.daily_frequency, payload["실천 약속 횟수"]));
+      const explicitTotal = wholeNumber(firstDefined(payload.planned_total_count, payload.planned_count));
+      return {
+        id: payload.practice_id || row.id || "",
+        name: payload.practice_name || row.title || "실천행동",
+        plannedDays: days,
+        plannedTimes: times,
+        plannedTotal: explicitTotal ?? (days !== null && times !== null ? days * times : null),
+      };
+    })
+    .filter((plan) => plan.id || plan.name);
 }
 
 function decodeCsv(buffer) {
@@ -292,6 +313,7 @@ function normalizeCompactRows(rows) {
       const def = practiceDefs.get(payload.practice_id) || {};
       const score = score10(payload.practice_score);
       const linkedObservation = payload.observation_id || payload.chain_id || payload.episode_id;
+      const completedCount = reportedCompletionCount(payload, score);
       pushRecord(
         records,
         base,
@@ -300,7 +322,7 @@ function normalizeCompactRows(rows) {
         def.practice_name || payload.practice_name || "실천행동 수행",
         joinText([def.practice_value, def.practice_name, payload.memo]),
         score,
-        { practiceScore: score },
+        { practiceScore: score, practiceId: payload.practice_id || row.id || "", completedCount, recordedScore: score !== null },
       );
     }
   });
@@ -873,7 +895,7 @@ function renderValuePracticeView() {
   const groups = groupPractice();
   const performanceCards = groups.slice(0, 8).map((group) => {
     const kind = group.misses ? "warn" : "ok";
-    return card(group.name, `<p>기록 ${group.count}개 · 평균 ${group.avg ?? "-"} / 10 · 저수행 ${group.misses}개</p><p>${escapeHtml(group.sample || "메모 없음")}</p>`, kind, [
+    return card(group.name, `${practiceStatsHtml(group)}<p>${escapeHtml(group.sample || "메모 없음")}</p>`, kind, [
       "과제가 너무 큰가?",
       "언제, 어디서, 무엇을 할지 충분히 구체적인가?",
       "이 행동은 어떤 가치와 연결되는가?",
@@ -896,7 +918,7 @@ function renderValuePracticeView() {
       "0이 아니라 1이 된 작은 행동은 무엇인가요?",
       "다음 주 가치 쪽으로 움직이는 1% 행동은 무엇인가요?",
     ],
-    renderBarSummary(groups.slice(0, 4).map((group) => [group.name.slice(0, 8), group.avg === null ? 0 : group.avg * 10, group.misses ? "warn" : "ok"])),
+    renderBarSummary(groups.slice(0, 4).map((group) => [group.name.slice(0, 8), group.plannedAverage === null ? 0 : group.plannedAverage * 10, group.misses ? "warn" : "ok"])),
     ["urge", "practice"],
   );
   return visual + workbench([
@@ -924,7 +946,7 @@ function renderPracticeView() {
   const groups = groupPractice();
   const cards = groups.slice(0, 8).map((group) => {
     const kind = group.misses ? "warn" : "ok";
-    return card(group.name, `<p>기록 ${group.count}개 · 평균 ${group.avg ?? "-"} / 10 · 저수행 ${group.misses}개</p><p>${escapeHtml(group.sample || "메모 없음")}</p>`, kind, ["과제가 너무 큰가?", "언제/어디서/무엇을 할지 충분히 구체적인가?", "위기기술을 앞에 붙여야 하는가?", "다음 주에는 더 작은 버전으로 할 것인가?"]);
+    return card(group.name, `${practiceStatsHtml(group)}<p>${escapeHtml(group.sample || "메모 없음")}</p>`, kind, ["과제가 너무 큰가?", "언제/어디서/무엇을 할지 충분히 구체적인가?", "위기기술을 앞에 붙여야 하는가?", "다음 주에는 더 작은 버전으로 할 것인가?"]);
   });
   return workbench([
     ["수행도", cards],
@@ -1250,6 +1272,7 @@ function resetDataOnly() {
   state.shareModeLabel = "";
   state.rangeLabel = "";
   state.importMessages = [];
+  state.practicePlans = [];
 }
 
 function parsePayload(value) {
@@ -1388,22 +1411,40 @@ function negativeWords(text) {
 
 function groupPractice() {
   const map = new Map();
-  state.records.filter((record) => record.category === "practice").forEach((record) => {
-    const key = record.title || record.chainId;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(record);
+  state.practicePlans.forEach((plan) => {
+    map.set(plan.id || plan.name, { ...plan, records: [] });
   });
-  return [...map.entries()].map(([name, records]) => {
-    const scores = records.map((record) => record.sourceScores.practiceScore ?? record.intensity).filter((value) => Number.isFinite(Number(value))).map(Number);
-    const avg = scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : null;
+  state.records.filter((record) => record.category === "practice").forEach((record) => {
+    const key = record.sourceScores?.practiceId || record.title || record.chainId;
+    if (!map.has(key)) map.set(key, { id: key, name: record.title || "실천행동", plannedDays: null, plannedTimes: null, plannedTotal: null, records: [] });
+    map.get(key).records.push(record);
+  });
+  return [...map.values()].map((group) => {
+    const scores = group.records.map((record) => record.sourceScores.practiceScore ?? record.intensity).filter((value) => Number.isFinite(Number(value))).map(Number);
+    const scoreSum = scores.reduce((sum, value) => sum + value, 0);
+    const completedCount = group.records.reduce((sum, record) => sum + (Number(record.sourceScores?.completedCount) || 0), 0);
+    const recordedCount = group.records.filter((record) => record.sourceScores?.recordedScore || Number.isFinite(Number(record.sourceScores?.practiceScore ?? record.intensity))).length;
+    const plannedTotal = group.plannedTotal;
     return {
-      name,
-      count: records.length,
-      avg,
-      misses: scores.filter((score) => score <= state.thresholds.practice).length,
-      sample: records.map((record) => record.content).filter(Boolean).slice(0, 2).join(" / "),
+      name: group.name,
+      count: group.records.length,
+      plannedTotal,
+      completedCount,
+      recordedCount,
+      completionRate: plannedTotal ? Math.round((completedCount / plannedTotal) * 100) : null,
+      recordingRate: plannedTotal ? Math.round((recordedCount / plannedTotal) * 100) : null,
+      plannedAverage: plannedTotal ? Math.round((scoreSum / plannedTotal) * 10) / 10 : null,
+      misses: plannedTotal === null ? scores.filter((score) => score <= state.thresholds.practice).length : Math.max(0, plannedTotal - completedCount),
+      sample: group.records.map((record) => record.content).filter(Boolean).slice(0, 2).join(" / "),
     };
   });
+}
+
+function practiceStatsHtml(group) {
+  if (group.plannedTotal === null || group.plannedTotal === 0) {
+    return `<p>계획 횟수 정보 없음 · 기록 ${group.count}개</p><p class="muted">계획 반영 평균을 계산하려면 주당 일수와 하루 약속 횟수가 필요합니다.</p>`;
+  }
+  return `<p>약속 ${group.plannedTotal}회 · 완료 ${group.completedCount}회 (${group.completionRate}%) · 기록 ${group.recordedCount}회 (${group.recordingRate}%)</p><p><strong>계획 반영 평균 실천점수 ${group.plannedAverage} / 10</strong> · 미완료 ${group.misses}회</p>`;
 }
 
 function inferCategory(value) {
@@ -1457,6 +1498,19 @@ function score5(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   return clamp(Math.round(number), 0, 5, null);
+}
+
+function wholeNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number) : null;
+}
+
+function reportedCompletionCount(payload, score) {
+  const explicit = wholeNumber(firstDefined(payload.completed_count, payload.completedCount, payload.completion_count));
+  if (explicit !== null) return explicit;
+  if (payload.completed === true || payload.completed === "true" || payload.completed === "yes") return 1;
+  if (payload.completed === false || payload.completed === "false" || payload.completed === "no") return 0;
+  return score !== null && score > 0 ? 1 : 0;
 }
 
 function firstDefined(...values) {
