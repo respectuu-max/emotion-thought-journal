@@ -1,4 +1,4 @@
-const APP_VERSION = "20260710-v11";
+const APP_VERSION = "20260710v12";
 
 const state = {
   rows: [],
