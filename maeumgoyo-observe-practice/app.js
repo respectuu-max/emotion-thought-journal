@@ -1,4 +1,4 @@
-const APP_VERSION = "v38"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v39"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -159,6 +159,99 @@ const TEXT_LIMITS = {
       return date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
     }
     function escapeCsv(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
+    function thoughtScoreText(score) {
+      const value = clampNumber(score, 0, 10, 0);
+      return [
+        "0점: 전혀 떠오르지 않음",
+        "1점: 거의 떠오르지 않음",
+        "2점: 아주 살짝 스침",
+        "3점: 약하게 떠오름",
+        "4점: 떠오르지만 쉽게 흘려보냄",
+        "5점: 보통 정도로 떠오름",
+        "6점: 자주 떠오름",
+        "7점: 꽤 강하게 떠오름",
+        "8점: 강하게 사로잡힘",
+        "9점: 매우 강하게 사로잡힘",
+        "10점: 온통 그 생각뿐임"
+      ][value];
+    }
+    function emotionScoreText(score) {
+      const value = clampNumber(score, 0, 10, 0);
+      return [
+        "0점: 매우 안정됨",
+        "1점: 안정됨",
+        "2점: 약간의 동요",
+        "3점: 가벼운 불편함",
+        "4점: 불편함이 느껴짐",
+        "5점: 보통 수준의 불편함",
+        "6점: 꽤 불편함",
+        "7점: 상당히 불편함",
+        "8점: 매우 불편함",
+        "9점: 극심하게 불편함",
+        "10점: 감당하기 어려움"
+      ][value];
+    }
+    function urgeScoreText(score) {
+      const value = clampNumber(score, 0, 10, 0);
+      return [
+        "0점: 전혀 없음",
+        "1점: 거의 없음",
+        "2점: 아주 약간 있음",
+        "3점: 약하게 있음",
+        "4점: 있지만 참을 만함",
+        "5점: 보통 정도",
+        "6점: 꽤 하고 싶음",
+        "7점: 상당히 하고 싶음",
+        "8점: 매우 강함",
+        "9점: 억누르기 어려움",
+        "10점: 통제 불가능하다고 느껴짐"
+      ][value];
+    }
+    function actionLevelText(score) {
+      const value = clampNumber(score, 0, 5, 0);
+      return [
+        "0점: 전혀 하지 않음",
+        "1점: 아주 살짝 함",
+        "2점: 부분적으로 함",
+        "3점: 절반 정도 함",
+        "4점: 대부분 함 (즉시 점검이 필요한 수준)",
+        "5점: 완전히 함 (멈추기 매우 어려웠음)"
+      ][value];
+    }
+    function severityColor(percent) {
+      const p = Math.max(0, Math.min(100, percent));
+      const stops = p <= 50
+        ? [[61, 125, 77], [193, 132, 47], p / 50]
+        : [[193, 132, 47], [182, 74, 69], (p - 50) / 50];
+      const [from, to, t] = stops;
+      const mix = (a, b) => Math.round(a + (b - a) * t);
+      return `rgb(${mix(from[0], to[0])}, ${mix(from[1], to[1])}, ${mix(from[2], to[2])})`;
+    }
+    function paintIntensitySlider(id) {
+      const input = $("#" + id);
+      if (!input) return;
+      const min = Number(input.min) || 0;
+      const max = Number(input.max) || 10;
+      const value = Number(input.value) || 0;
+      const percent = ((value - min) / (max - min)) * 100;
+      const color = severityColor(percent);
+      input.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${percent}%, var(--surface-2) ${percent}%, var(--surface-2) 100%)`;
+      const help = $("#" + id + "Help");
+      if (!help) return;
+      const textMap = {
+        thoughtScore: thoughtScoreText,
+        emotionScore: emotionScoreText,
+        urgeScore: urgeScoreText,
+        urgeInitialScore: urgeScoreText,
+        urgeEndScore: urgeScoreText,
+        actionLevel: actionLevelText
+      };
+      const textFn = textMap[id];
+      if (textFn) help.textContent = textFn(value);
+    }
+    function paintAllIntensitySliders() {
+      ["thoughtScore", "emotionScore", "urgeScore", "urgeInitialScore", "urgeEndScore", "actionLevel"].forEach(paintIntensitySlider);
+    }
     function masteryScoreText(score) {
       const value = clampNumber(score, 0, 10, 0);
       return [
@@ -550,9 +643,14 @@ const TEXT_LIMITS = {
         : "설정된 별칭이 없습니다. 항목은 원래 이름 그대로 화면에 표시됩니다.";
     }
     function bindSliders() {
+      const intensityIds = new Set(["thoughtScore", "emotionScore", "urgeScore", "urgeInitialScore", "urgeEndScore", "actionLevel"]);
       [["thoughtScore", "thoughtScoreValue"], ["emotionScore", "emotionScoreValue"], ["urgeScore", "urgeScoreValue"], ["urgeInitialScore", "urgeInitialScoreValue"], ["urgeEndScore", "urgeEndScoreValue"], ["actionLevel", "actionLevelValue"], ["copingScore", "copingScoreValue"], ["predictedSeverity", "predictedSeverityValue"]].forEach(([input, label]) => {
-        $("#" + input).addEventListener("input", () => $("#" + label).textContent = $("#" + input).value);
+        $("#" + input).addEventListener("input", () => {
+          $("#" + label).textContent = $("#" + input).value;
+          if (intensityIds.has(input)) paintIntensitySlider(input);
+        });
       });
+      paintAllIntensitySliders();
     }
     function rangeRecords(items, field = "date") {
       if (state.shareRange === "all") return items.slice();
@@ -1260,6 +1358,7 @@ const TEXT_LIMITS = {
       ["thoughtScore","emotionScore","urgeScore","urgeInitialScore","urgeEndScore","actionLevel","copingScore"].forEach(field => {
         $("#" + field + "Value").textContent = $("#" + field).value;
       });
+      paintAllIntensitySliders();
       showRiskFollowup(clampNumber(record.urgeScore, 0, 10, 0) >= 8 || clampNumber(record.actionLevel, 0, 5, 0) >= 4);
       initPickers();
       setView("observe");
@@ -2526,6 +2625,7 @@ const TEXT_LIMITS = {
         $("#" + id).value = 0;
         $("#" + id + "Value").textContent = "0";
       });
+      paintAllIntensitySliders();
       initPickers();
     }
     function practiceSubmit(event) {

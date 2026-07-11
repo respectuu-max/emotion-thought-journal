@@ -242,33 +242,35 @@
                 <div class="slider-card">
                   <div class="slider-top"><span>문제 행동 관련 생각</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
                   <input id="thoughtScore" type="range" min="0" max="10" value="0">
-                  <div class="range-labels"><span>없음</span><span>매우 강함</span></div>
+                  <div class="small score-help" id="thoughtScoreHelp"></div>
                 </div>
                 <div class="slider-card">
                   <div class="slider-top"><span>불편한 감정</span><span class="slider-value" id="emotionScoreValue">0</span></div>
                   <input id="emotionScore" type="range" min="0" max="10" value="0">
-                  <div class="range-labels"><span>안정</span><span>매우 불편</span></div>
+                  <div class="small score-help" id="emotionScoreHelp"></div>
                 </div>
                 <div class="slider-card">
                   <div class="slider-top"><span>하고 싶은 마음/충동 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
                   <input id="urgeScore" type="range" min="0" max="10" value="0">
-                  <div class="range-labels"><span>없음</span><span>통제 어려움</span></div>
+                  <div class="small score-help" id="urgeScoreHelp"></div>
                 </div>
                 <div class="hidden" id="urgeCurveBox">
                   <p class="small">충동은 시간이 지나면 대개 저절로 가라앉습니다. 시작할 때, 가장 강했을 때, 지금(또는 끝났을 때)을 각각 남기면 그 흐름을 눈으로 확인할 수 있습니다.</p>
                   <div class="slider-card">
                     <div class="slider-top"><span>충동 · 처음 느꼈을 때</span><span class="slider-value" id="urgeInitialScoreValue">0</span></div>
                     <input id="urgeInitialScore" type="range" min="0" max="10" value="0">
+                    <div class="small score-help" id="urgeInitialScoreHelp"></div>
                   </div>
                   <div class="slider-card">
                     <div class="slider-top"><span>충동 · 지금(또는 끝났을 때)</span><span class="slider-value" id="urgeEndScoreValue">0</span></div>
                     <input id="urgeEndScore" type="range" min="0" max="10" value="0">
+                    <div class="small score-help" id="urgeEndScoreHelp"></div>
                   </div>
                 </div>
                 <div class="slider-card">
                   <div class="slider-top"><span>문제행동수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
                   <input id="actionLevel" type="range" min="0" max="5" value="0">
-                  <div class="range-labels"><span>멈춤</span><span>멈추기 어려움</span></div>
+                  <div class="small score-help" id="actionLevelHelp"></div>
                 </div>
               </div>
             </div>
@@ -335,64 +337,73 @@
             <input type="hidden" id="practiceId">
             <h2>작은 실천행동 설정</h2>
             <p class="small">가치 기반 작은 실천행동은 평소의 자동반응, 회피, 충동이 좁혀놓은 삶에서 벗어나 내가 중요하게 여기는 방향으로 경험을 조금 넓히는 행동입니다.</p>
-            <div class="form-row">
-              <label for="practiceValue">연결된 가치</label>
-              <input id="practiceValue" maxlength="40" placeholder="예: 건강, 관계, 자기존중">
+            <div class="section-block">
+              <div class="section-title">1 · 가치와 실천행동</div>
+              <div class="form-row">
+                <label for="practiceValue">연결된 가치</label>
+                <input id="practiceValue" maxlength="40" placeholder="예: 건강, 관계, 자기존중">
+              </div>
+              <div class="form-row">
+                <label for="practiceName">실천행동 이름</label>
+                <textarea id="practiceName" maxlength="160" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
+              </div>
+              <div class="form-row">
+                <label for="practiceReason">이 행동이 내 경험을 넓혀주는 이유</label>
+                <textarea id="practiceReason" maxlength="600" placeholder="문제 행동이 좁힌 삶에서 어느 방향으로 한 걸음 넓어지나요?"></textarea>
+              </div>
             </div>
-            <div class="form-row">
-              <label for="practiceName">실천행동 이름</label>
-              <textarea id="practiceName" maxlength="160" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
+            <div class="section-block">
+              <div class="section-title">2 · 빈도와 알림</div>
+              <div class="form-row">
+                <label>빈도</label>
+                <select id="frequency">
+                  <option value="daily">매일</option>
+                  <option value="3week">주 3일</option>
+                  <option value="1week">주 1일</option>
+                  <option value="custom">맞춤 요일</option>
+                </select>
+              </div>
+              <div class="form-row" id="customDaysRow" style="display:none">
+                <label>맞춤 요일</label>
+                <div class="chip-row" id="weekdayChips"></div>
+              </div>
+              <div class="form-row">
+                <label for="targetCount">실천 약속 횟수</label>
+                <input id="targetCount" type="number" min="1" max="12" value="1">
+                <div class="small">예: 운동을 하루 2번 하기로 약속했다면 2를 입력합니다. 통계는 하루 기록의 평균 수행도로 계산합니다.</div>
+              </div>
+              <div class="form-row">
+                <label for="reminderMode">알림 방식</label>
+                <select id="reminderMode">
+                  <option value="morning">매일 아침에 하루 일정 알림</option>
+                  <option value="times">정해진 시간마다 알림</option>
+                  <option value="none">알림 사용 안 함</option>
+                </select>
+              </div>
+              <div class="form-row" id="reminderTimesRow" style="display:none">
+                <label for="reminderTimes">알림 시간</label>
+                <input id="reminderTimes" maxlength="48" placeholder="예: 08:00, 20:00">
+                <div class="small">하루 여러 번 실천하기로 했다면 시간도 여러 개 입력할 수 있습니다.</div>
+              </div>
+              <div class="form-row">
+                <button class="ghost-btn full" id="requestNotification" type="button">알림 권한 요청</button>
+                <div class="small">알림은 스마트폰/브라우저 정책에 따라 앱이 열려 있거나 백그라운드에 남아 있을 때 가장 안정적으로 작동합니다.</div>
+              </div>
             </div>
-            <div class="form-row">
-              <label for="practiceReason">이 행동이 내 경험을 넓혀주는 이유</label>
-              <textarea id="practiceReason" maxlength="600" placeholder="문제 행동이 좁힌 삶에서 어느 방향으로 한 걸음 넓어지나요?"></textarea>
-            </div>
-            <div class="form-row">
-              <label>빈도</label>
-              <select id="frequency">
-                <option value="daily">매일</option>
-                <option value="3week">주 3일</option>
-                <option value="1week">주 1일</option>
-                <option value="custom">맞춤 요일</option>
-              </select>
-            </div>
-            <div class="form-row" id="customDaysRow" style="display:none">
-              <label>맞춤 요일</label>
-              <div class="chip-row" id="weekdayChips"></div>
-            </div>
-            <div class="form-row">
-              <label for="targetCount">실천 약속 횟수</label>
-              <input id="targetCount" type="number" min="1" max="12" value="1">
-              <div class="small">예: 운동을 하루 2번 하기로 약속했다면 2를 입력합니다. 통계는 하루 기록의 평균 수행도로 계산합니다.</div>
-            </div>
-            <div class="form-row">
-              <label for="reminderMode">알림 방식</label>
-              <select id="reminderMode">
-                <option value="morning">매일 아침에 하루 일정 알림</option>
-                <option value="times">정해진 시간마다 알림</option>
-                <option value="none">알림 사용 안 함</option>
-              </select>
-            </div>
-            <div class="form-row" id="reminderTimesRow" style="display:none">
-              <label for="reminderTimes">알림 시간</label>
-              <input id="reminderTimes" maxlength="48" placeholder="예: 08:00, 20:00">
-              <div class="small">하루 여러 번 실천하기로 했다면 시간도 여러 개 입력할 수 있습니다.</div>
-            </div>
-            <div class="form-row">
-              <button class="ghost-btn full" id="requestNotification" type="button">알림 권한 요청</button>
-              <div class="small">알림은 스마트폰/브라우저 정책에 따라 앱이 열려 있거나 백그라운드에 남아 있을 때 가장 안정적으로 작동합니다.</div>
-            </div>
-            <div class="form-row">
-              <label for="practiceStart">시작일</label>
-              <input id="practiceStart" type="date">
-            </div>
-            <div class="form-row">
-              <label for="barriers">예상 방해요인</label>
-              <textarea id="barriers" maxlength="600" placeholder="피곤함, 불안, 갈망, 혼자 있음, 스마트폰 등"></textarea>
-            </div>
-            <div class="form-row">
-              <label for="smallVersion">30% 버전의 최소 행동</label>
-              <textarea id="smallVersion" maxlength="160" placeholder="실천이 어려운 날에도 가능한 가장 작은 버전"></textarea>
+            <div class="section-block">
+              <div class="section-title">3 · 시작일과 대비책</div>
+              <div class="form-row">
+                <label for="practiceStart">시작일</label>
+                <input id="practiceStart" type="date">
+              </div>
+              <div class="form-row">
+                <label for="barriers">예상 방해요인</label>
+                <textarea id="barriers" maxlength="600" placeholder="피곤함, 불안, 갈망, 혼자 있음, 스마트폰 등"></textarea>
+              </div>
+              <div class="form-row">
+                <label for="smallVersion">30% 버전의 최소 행동</label>
+                <textarea id="smallVersion" maxlength="160" placeholder="실천이 어려운 날에도 가능한 가장 작은 버전"></textarea>
+              </div>
             </div>
             <div class="plain-card">
               <h3>좋은 실천행동 점검</h3>
