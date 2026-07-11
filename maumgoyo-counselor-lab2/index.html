@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>마음고요 상담분석실 20260710v20</title>
+  <link rel="stylesheet" href="styles-20260710-v11.css?v=20260710v20">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">상담자용 CSV 분석 도구</p>
+      <h1>마음고요 상담분석실 <span class="version-badge">20260710v20</span></h1>
+      <p class="version-note">단계별 시각적 피드백 그래프 · 측정기록 기반 질문 · STOP/TIPP 호흡훈련 · 가치기반 실천</p>
+    </div>
+    <div class="header-actions">
+      <button id="sampleBtn" class="secondary" type="button">예시</button>
+      <button id="refreshBtn" class="secondary" type="button">현재 파일 새로고침</button>
+      <button id="resetBtn" class="secondary" type="button">자료 제거</button>
+      <button id="printBtn" class="secondary" type="button">인쇄</button>
+      <button id="exportBtn" class="primary" type="button">요약 저장</button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar">
+      <section class="panel">
+        <label class="drop-zone" for="csvInput" id="dropZone">
+          <strong>CSV 파일 불러오기</strong>
+          <span>마음고요 관찰과 실천에서 내보낸 record_type 기반 CSV를 선택하거나 끌어오세요.</span>
+          <input id="csvInput" type="file" accept=".csv,text/csv">
+        </label>
+        <div id="fileMeta" class="file-meta">아직 불러온 파일이 없습니다.</div>
+        <div id="importStatus" class="import-status" role="status" aria-live="polite" hidden></div>
+        <div id="shareModeInfo" class="share-mode-card">
+          <span>공유 모드</span>
+          <strong>CSV를 불러오면 표시됩니다.</strong>
+          <p>상담자용 상세, 상담자용 요약, 가족회복용 여부와 민감정보 제외 가능성을 확인합니다.</p>
+        </div>
+        <p class="privacy-note">이 앱은 원본 CSV 파일 자체를 저장하지 않습니다. 새 CSV를 불러오거나 자료를 제거하면 현재 분석과 상담 메모가 초기화됩니다. 단, "요약 저장" 파일에는 내담자의 실제 기록 문장이 포함되므로 민감정보 문서로 안전하게 보관하세요.</p>
+      </section>
+
+      <section class="panel">
+        <h2>위험 기준</h2>
+        <label>정서적 재발 경고 기준 <input id="emotionThreshold" type="number" min="0" max="10" step="1" value="7"></label>
+        <label>인지적 재발 주의 기준 <input id="cognitiveUrgeThreshold" type="number" min="0" max="10" step="1" value="6"></label>
+        <label>충동 높음 기준 <input id="urgeThreshold" type="number" min="0" max="10" step="1" value="8"></label>
+        <label>문제행동 기준 <input id="actionThreshold" type="number" min="0" max="5" step="1" value="4"></label>
+        <label>실천 저수행 기준 <input id="practiceThreshold" type="number" min="0" max="10" step="1" value="0"></label>
+        <p class="privacy-note">정서·인지 신호는 순서대로만 나타나지 않으며 함께 경고될 수 있습니다. 기준을 조정하면 모든 작업판이 즉시 다시 계산됩니다.</p>
+      </section>
+
+      <section class="panel">
+        <h2>자료 범위</h2>
+        <dl id="schemaInfo" class="info-list"></dl>
+      </section>
+
+      <section class="panel">
+        <h2>상담 메모</h2>
+        <textarea id="notes" placeholder="회기 중 확인한 가설, 변화언어, 다음 실천과제를 적어두세요. 메모는 새 CSV를 불러오면 지워집니다."></textarea>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <section id="metrics" class="metric-grid"></section>
+
+      <section class="panel workflow-panel">
+        <div class="panel-heading">
+          <h2>치료작업 순서</h2>
+          <span id="activeStepLabel" class="muted">자료 확인</span>
+        </div>
+        <nav id="therapyMenu" class="therapy-menu" aria-label="치료작업 메뉴"></nav>
+      </section>
+
+      <section class="panel workbench-panel">
+        <div id="therapyView" class="therapy-view"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>연쇄 기록 전체 보기</h2>
+          <button id="copySummaryBtn" class="secondary small" type="button">요약 복사</button>
+        </div>
+        <div id="chainList" class="chain-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="app-20260710-v11.js?v=20260710v20"></script>
+</body>
+</html>
