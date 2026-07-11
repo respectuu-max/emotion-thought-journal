@@ -215,13 +215,13 @@
                 </div>
               </details>
               <div class="form-row">
-                <label>감정 종류</label>
+                <label>그때 느낀 감정 종류</label>
                 <div class="chip-row" id="emotionChips"></div>
                 <div style="height:8px"></div>
                 <input id="emotionCustom" maxlength="10" placeholder="기타 감정 10자 이내">
               </div>
               <div class="form-row">
-                <label>몸 반응</label>
+                <label>그때 느낀 몸 반응</label>
                 <div class="chip-row" id="bodyChips"></div>
                 <div style="height:8px"></div>
                 <input id="bodyCustom" maxlength="10" placeholder="기타 몸 반응 10자 이내">
@@ -240,7 +240,7 @@
               <div class="section-title">3 · 강도 기록</div>
               <div class="form-row">
                 <div class="slider-card">
-                  <div class="slider-top"><span>문제 행동 관련 생각</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
+                  <div class="slider-top"><span>문제행동 관련 생각</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
                   <input id="thoughtScore" type="range" min="0" max="10" value="0">
                   <div class="small score-help" id="thoughtScoreHelp"></div>
                 </div>
@@ -250,7 +250,7 @@
                   <div class="small score-help" id="emotionScoreHelp"></div>
                 </div>
                 <div class="slider-card">
-                  <div class="slider-top"><span>하고 싶은 마음/충동 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
+                  <div class="slider-top"><span>문제행동 충동/갈망 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
                   <input id="urgeScore" type="range" min="0" max="10" value="0">
                   <div class="small score-help" id="urgeScoreHelp"></div>
                 </div>
@@ -268,7 +268,7 @@
                   </div>
                 </div>
                 <div class="slider-card">
-                  <div class="slider-top"><span>문제행동수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
+                  <div class="slider-top"><span>문제행동 활성화 수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
                   <input id="actionLevel" type="range" min="0" max="5" value="0">
                   <div class="small score-help" id="actionLevelHelp"></div>
                 </div>
@@ -340,11 +340,11 @@
             <div class="section-block">
               <div class="section-title">1 · 가치와 실천행동</div>
               <div class="form-row">
-                <label for="practiceValue">연결된 가치</label>
+                <label for="practiceValue">추구하는 삶의 가치</label>
                 <input id="practiceValue" maxlength="40" placeholder="예: 건강, 관계, 자기존중">
               </div>
               <div class="form-row">
-                <label for="practiceName">실천행동 이름</label>
+                <label for="practiceName">가치와 연결된 작은 실천행동</label>
                 <textarea id="practiceName" maxlength="160" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
               </div>
               <div class="form-row">
@@ -355,7 +355,7 @@
             <div class="section-block">
               <div class="section-title">2 · 빈도와 알림</div>
               <div class="form-row">
-                <label>빈도</label>
+                <label>실천행동의 매주 빈도</label>
                 <select id="frequency">
                   <option value="daily">매일</option>
                   <option value="3week">주 3일</option>
@@ -368,7 +368,7 @@
                 <div class="chip-row" id="weekdayChips"></div>
               </div>
               <div class="form-row">
-                <label for="targetCount">실천 약속 횟수</label>
+                <label for="targetCount">하루 횟수</label>
                 <input id="targetCount" type="number" min="1" max="12" value="1">
                 <div class="small">예: 운동을 하루 2번 하기로 약속했다면 2를 입력합니다. 통계는 하루 기록의 평균 수행도로 계산합니다.</div>
               </div>
@@ -393,7 +393,7 @@
             <div class="section-block">
               <div class="section-title">3 · 시작일과 대비책</div>
               <div class="form-row">
-                <label for="practiceStart">시작일</label>
+                <label for="practiceStart">실천행동 시작일</label>
                 <input id="practiceStart" type="date">
               </div>
               <div class="form-row">

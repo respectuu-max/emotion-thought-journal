@@ -1,4 +1,4 @@
-const APP_VERSION = "v40"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v41"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -25,7 +25,7 @@ const TEXT_LIMITS = {
     const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
     // ===== 재발 신호 분석 (정서적 · 인지적 · 행동적 재발) =====
-    // 상담이 없는 6일 동안의 관찰 기록(불편한 감정/문제 행동 관련 생각/충동/문제행동수준/대처)을 근거로
+    // 상담이 없는 6일 동안의 관찰 기록(불편한 감정/문제 행동 관련 생각/충동/문제행동 활성화 수준/대처)을 근거로
     // 세 단계의 재발 신호를 참고용으로 안내합니다. 진단이나 예측이 아니라, 스스로 조치할 기회를 알리는 장치입니다.
     const RELAPSE_WINDOW_DAYS = 3;          // "최근 상태"를 볼 때 쓰는 기본 관찰 창
     const RELAPSE_COMPARE_DAYS = 3;         // 추세 비교에 쓰는 그 이전 구간 길이
@@ -35,7 +35,7 @@ const TEXT_LIMITS = {
     const RELAPSE_COPING_TREND_DROP = 2;    // 이전 구간 대비 이만큼 떨어지면 하락 추세로 봄
     const RELAPSE_THOUGHT_HIGH = 6;         // 문제 행동 관련 생각 0~10점 중 이 이상이면 높음
     const RELAPSE_URGE_HIGH = 7;            // 충동 0~10점 중 이 이상이면 높음
-    const RELAPSE_ACTION_ANY = 1;           // 문제행동수준 0~5점 중 1점 이상이면 행동적 재발로 봄
+    const RELAPSE_ACTION_ANY = 1;           // 문제행동 활성화 수준 0~5점 중 1점 이상이면 행동적 재발로 봄
     const RELAPSE_ACTION_SEVERE = 4;        // 기존 고위험 기준과 동일(멈추기 어려운 수준)
     const RELAPSE_EMOTION_VARIABILITY_HIGH = 2.5; // 감정 점수 표준편차가 이 이상이면 "기복이 크다"로 봄 (0~10점 척도 기준)
 
@@ -813,7 +813,7 @@ const TEXT_LIMITS = {
       result.behavioralDays = behavioralEvents.map(o => recordDate(o));
       result.stage3 = behavioralEvents.length > 0;
       result.stage3Severe = recent.some(o => Number(o.actionLevel) >= RELAPSE_ACTION_SEVERE);
-      if (result.stage3) result.reasons.stage3.push(`최근 ${recent.length}일 중 문제행동수준 ${RELAPSE_ACTION_ANY}점 이상 기록 ${behavioralEvents.length}회`);
+      if (result.stage3) result.reasons.stage3.push(`최근 ${recent.length}일 중 문제행동 활성화 수준 ${RELAPSE_ACTION_ANY}점 이상 기록 ${behavioralEvents.length}회`);
       return result;
     }
     // 하루 단위 판정. 추세보기와 상담자 요약처럼 기간 전체를 되짚어 볼 때 사용합니다.
@@ -1017,7 +1017,7 @@ const TEXT_LIMITS = {
       return streak;
     }
     // 문제행동 없이 보낸 연속일수 (양성 강화 지표). 기록이 없는 날은 끊긴 것으로 보지 않고,
-    // 문제행동수준이 1점 이상 기록된 날만 연속기록을 끊는 날로 봅니다.
+    // 문제행동 활성화 수준이 1점 이상 기록된 날만 연속기록을 끊는 날로 봅니다.
     function cleanStreakDays() {
       const observations = activeObservations();
       if (!observations.length) return null;
@@ -1159,7 +1159,7 @@ const TEXT_LIMITS = {
       return `<div class="record-item">
         <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
         <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
-        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제행동수준 ${o.actionLevel}/5</div>
+        <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제행동 활성화 수준 ${o.actionLevel}/5</div>
         ${hasCurve ? `<div class="small">충동 흐름: 처음 ${o.urgeInitialScore} → 정점 ${o.urgeScore} → 끝 ${o.urgeEndScore}</div>` : ""}
         ${triggers ? `<div class="small">촉발 단서: ${escapeHtml(triggers)}</div>` : ""}
         ${avoidance ? `<div class="small">회피 신호: ${escapeHtml(avoidance)}</div>` : ""}
@@ -1845,7 +1845,7 @@ const TEXT_LIMITS = {
         <div class="trend-legend">
           <span><i class="legend-dot obs"></i>관찰강도</span>
           <span><i class="legend-dot practice"></i>실천수행도</span>
-          <span><i class="legend-dot action"></i>문제행동수준</span>
+          <span><i class="legend-dot action"></i>문제행동 활성화 수준</span>
         </div>
         <div class="trend-status">${windowSize}일 이동평균 (하루하루의 기복 대신 흐름을 봅니다)</div>
         <div class="trend-bar-list">
@@ -1877,7 +1877,7 @@ const TEXT_LIMITS = {
         <div class="trend-legend">
           <span><i class="legend-dot obs"></i>관찰강도</span>
           <span><i class="legend-dot practice"></i>실천수행도</span>
-          <span><i class="legend-dot action"></i>문제행동수준</span>
+          <span><i class="legend-dot action"></i>문제행동 활성화 수준</span>
         </div>
         <div class="trend-status">${escapeHtml(trendRangeLabel())}${capped ? ` 중 최근 ${TREND_DISPLAY_CAP}일` : ""}: 관찰 ${data.reduce((sum, day) => sum + day.observationCount, 0)}건, 실천 ${data.reduce((sum, day) => sum + day.logCount, 0)}건</div>
         <div class="trend-bar-list">
@@ -1930,7 +1930,7 @@ const TEXT_LIMITS = {
       ctx.fillStyle = "#1d2924"; ctx.font = "12px sans-serif";
       ctx.fillText("관찰강도", pad, 16);
       ctx.fillStyle = "#c1842f"; ctx.fillText("실천수행도", pad + 72, 16);
-      ctx.fillStyle = "#b64a45"; ctx.fillText("문제행동수준", pad + 158, 16);
+      ctx.fillStyle = "#b64a45"; ctx.fillText("문제행동 활성화 수준", pad + 158, 16);
       ctx.fillStyle = "#64736d";
       ctx.fillText(`최근 14일 관찰 ${totalObservations}건 · 실천 ${totalLogs}건`, pad, displayHeight - 10);
     }
@@ -2012,7 +2012,7 @@ const TEXT_LIMITS = {
         `주요 가치: ${topValues}`,
         `사고·감정·충동 평균: ${avg(observations, observationIntensity).toFixed(1)}점`,
         `감정 기복(표준편차): ${emotionVariability.toFixed(1)} · 충동 기복(표준편차): ${urgeVariability.toFixed(1)}`,
-        `문제행동수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
+        `문제행동 활성화 수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
         `고위험 신호: ${highRisk.length}건`,
         `충동이 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
         `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
@@ -2030,7 +2030,7 @@ const TEXT_LIMITS = {
         `- 정서적 재발 신호가 있었던 날: ${relapse.stage1Days}일 / ${relapse.totalDays}일 중`,
         `- 인지적 재발 신호가 있었던 날: ${relapse.stage2Days}일 / ${relapse.totalDays}일 중`,
         `- 문제 행동이 기록된 날: ${relapse.stage3Days}일${relapse.stage3Dates.length ? ` (${relapse.stage3Dates.join(", ")})` : ""}`,
-        `- 그중 즉시 개입이 필요한 수준(문제행동수준 ${RELAPSE_ACTION_SEVERE}점 이상): ${relapse.stage3SevereDays}일`,
+        `- 그중 즉시 개입이 필요한 수준(문제행동 활성화 수준 ${RELAPSE_ACTION_SEVERE}점 이상): ${relapse.stage3SevereDays}일`,
         "",
         "다음 상담 질문:",
         "1. 실천행동의 30% 버전이 충분히 작았는지 점검하기",
