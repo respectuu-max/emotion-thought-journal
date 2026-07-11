@@ -1,4 +1,4 @@
-const APP_VERSION = "v39"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v40"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -529,6 +529,7 @@ const TEXT_LIMITS = {
         setObserveMode("충동 발생");
         $("#urgeScore").value = 8;
         $("#urgeScoreValue").textContent = "8";
+        paintIntensitySlider("urgeScore");
         showRiskFollowup(true);
         $("#situation").focus();
         showToast("고위험 신호를 짧게 남기고, 먼저 안전한 곳으로 이동하세요.");
