@@ -1,4 +1,4 @@
-const APP_VERSION = "v41"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v43"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -1658,9 +1658,11 @@ const TEXT_LIMITS = {
     }
     function renderTrend() {
       renderWeeklyHighlights();
+      renderProblemBehaviorCalendar();
       try { drawTrend(); } catch (error) { console.warn("Trend canvas draw failed", error); }
       renderTrendMovingAverage();
       renderTrendBars();
+      renderEmotionUrgeScatter();
       renderTriggerCorrelation();
       renderWorrySection();
       $("#patternSummary").textContent = buildReflectionSummary();
@@ -1700,6 +1702,116 @@ const TEXT_LIMITS = {
           withoutCount: withoutTag.length
         };
       });
+    }
+    function calendarHeatmapCells(weeks = 10) {
+      const todayDow = dateObj(todayISO()).getDay();
+      const cells = [];
+      for (let col = 0; col < weeks; col++) {
+        const weekIndexFromRight = weeks - 1 - col;
+        for (let row = 0; row < 7; row++) {
+          const daysAgoCount = weekIndexFromRight * 7 + (todayDow - row);
+          cells.push({ col, row, iso: daysAgoCount < 0 ? null : dateToISO(daysAgo(daysAgoCount)) });
+        }
+      }
+      return cells;
+    }
+    function dayProblemStatus(iso) {
+      if (!iso) return null;
+      const dayObs = activeObservations().filter(o => sameRecordDate(o, iso));
+      if (!dayObs.length) return { hasData: false, maxAction: 0 };
+      return { hasData: true, maxAction: Math.max(...dayObs.map(o => Number(o.actionLevel))) };
+    }
+    function heatmapCellColor(status) {
+      if (!status) return "none";
+      if (!status.hasData) return "var(--surface-2)";
+      return severityColor((status.maxAction / 5) * 100);
+    }
+    function calendarHeatmapSvg(weeks = 10) {
+      const cellSize = 14;
+      const gap = 3;
+      const offsetX = 20;
+      const width = offsetX + weeks * (cellSize + gap);
+      const height = 7 * (cellSize + gap);
+      const dayLabels = ["일", "월", "화", "수", "목", "금", "토"];
+      const labels = dayLabels.map((label, row) => row % 2 === 1
+        ? `<text x="0" y="${row * (cellSize + gap) + cellSize - 3}" font-size="9" fill="#64736d">${label}</text>`
+        : "").join("");
+      const cells = calendarHeatmapCells(weeks).map(c => {
+        const x = offsetX + c.col * (cellSize + gap);
+        const y = c.row * (cellSize + gap);
+        if (!c.iso) return `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" fill="none"/>`;
+        const status = dayProblemStatus(c.iso);
+        const color = heatmapCellColor(status);
+        const strokeColor = status.hasData ? "none" : "var(--line)";
+        return `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="3" fill="${color}" stroke="${strokeColor}" stroke-width="1"><title>${escapeHtml(c.iso)}</title></rect>`;
+      }).join("");
+      return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="auto" style="max-width:${width}px; display:block; margin:0 auto;" role="img" aria-label="최근 ${weeks}주 문제행동 캘린더">${labels}${cells}</svg>`;
+    }
+    function renderProblemBehaviorCalendar() {
+      const box = $("#problemBehaviorCalendar");
+      if (!box) return;
+      box.innerHTML = `
+        <div class="trend-legend">
+          <span><i class="legend-dot" style="background:var(--surface-2); border:1px solid var(--line);"></i>기록 없음</span>
+          <span><i class="legend-dot" style="background:var(--good)"></i>문제행동 없음</span>
+          <span><i class="legend-dot" style="background:var(--accent)"></i>일부 함</span>
+          <span><i class="legend-dot" style="background:var(--danger)"></i>많이 함</span>
+        </div>
+        ${calendarHeatmapSvg(10)}
+        <p class="small" style="text-align:center;">사각형에 마우스를 올리면 날짜가 보입니다</p>
+      `;
+    }
+    function severityColorForActionLevel(actionLevel) {
+      return severityColor((clampNumber(actionLevel, 0, 5, 0) / 5) * 100);
+    }
+    function emotionUrgeScatterSvg(observations) {
+      const size = 300;
+      const pad = 34;
+      const bottom = size - 20;
+      const plotSize = bottom - pad;
+      const scaleX = v => pad + (clampNumber(v, 0, 10, 0) / 10) * plotSize;
+      const scaleY = v => bottom - (clampNumber(v, 0, 10, 0) / 10) * plotSize;
+      const ticks = [0, 2, 4, 6, 8, 10];
+      const gridLines = ticks.map(t => `
+        <line x1="${scaleX(t).toFixed(1)}" y1="${pad}" x2="${scaleX(t).toFixed(1)}" y2="${bottom}" stroke="var(--line)" stroke-width="1"/>
+        <line x1="${pad}" y1="${scaleY(t).toFixed(1)}" x2="${bottom}" y2="${scaleY(t).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
+        <text x="${scaleX(t).toFixed(1)}" y="${bottom + 12}" font-size="9" text-anchor="middle" fill="#64736d">${t}</text>
+        <text x="${pad - 6}" y="${(scaleY(t) + 3).toFixed(1)}" font-size="9" text-anchor="end" fill="#64736d">${t}</text>
+      `).join("");
+      const points = observations.map(o => {
+        const cx = scaleX(Number(o.emotionScore)).toFixed(1);
+        const cy = scaleY(Number(o.urgeScore)).toFixed(1);
+        const color = severityColorForActionLevel(o.actionLevel);
+        return `<circle cx="${cx}" cy="${cy}" r="6" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="1.2"/>`;
+      }).join("");
+      return `
+        <svg viewBox="0 0 ${size} ${size}" width="100%" height="auto" style="max-width:320px; display:block; margin:0 auto;" role="img" aria-label="감정과 충동의 산점도">
+          ${gridLines}
+          <line x1="${pad}" y1="${bottom}" x2="${bottom}" y2="${bottom}" stroke="#1d2924" stroke-width="1.5"/>
+          <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${bottom}" stroke="#1d2924" stroke-width="1.5"/>
+          ${points}
+          <text x="${(pad + bottom) / 2}" y="${size - 2}" font-size="10" text-anchor="middle" fill="#1d2924" font-weight="700">불편한 감정 (0~10)</text>
+          <text x="12" y="${(pad + bottom) / 2}" font-size="10" text-anchor="middle" fill="#1d2924" font-weight="700" transform="rotate(-90 12 ${(pad + bottom) / 2})">충동 (0~10)</text>
+        </svg>
+      `;
+    }
+    function renderEmotionUrgeScatter() {
+      const box = $("#emotionUrgeScatter");
+      if (!box) return;
+      const observations = recentObservations(trendRangeDays());
+      if (!observations.length) {
+        box.innerHTML = `<div class="empty">아직 산점도로 볼 관찰 기록이 없습니다.</div>`;
+        return;
+      }
+      box.innerHTML = `
+        <div class="trend-legend">
+          <span><i class="legend-dot" style="background:var(--good)"></i>문제행동 없음</span>
+          <span><i class="legend-dot" style="background:var(--accent)"></i>일부 함</span>
+          <span><i class="legend-dot" style="background:var(--danger)"></i>많이 함</span>
+        </div>
+        ${emotionUrgeScatterSvg(observations)}
+        <p class="small" style="text-align:center;">점 하나 = 관찰 기록 하나 · 오른쪽 위로 갈수록 감정과 충동이 함께 높았던 순간입니다 · 점 색이 진할수록 그 순간 문제행동이 있었습니다</p>
+      `;
     }
     function renderTriggerCorrelation() {
       const box = $("#triggerCorrelation");
