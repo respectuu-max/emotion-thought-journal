@@ -377,7 +377,18 @@
             <input type="hidden" id="practiceId">
             <h2>작은 실천행동 설정</h2>
             <p class="small">가치 기반 작은 실천행동은 평소의 자동반응, 회피, 충동이 좁혀놓은 삶에서 벗어나 내가 중요하게 여기는 방향으로 경험을 조금 넓히는 행동입니다.</p>
-            <div class="section-block">
+            <div class="wizard-nav">
+              <div class="wizard-nav-top">
+                <div class="wizard-step-title" id="practiceStepTitle">1 · 가치와 실천행동</div>
+              </div>
+              <div class="wizard-dots" id="practiceStepDots">
+                <div class="wizard-dot" data-dot="0"></div>
+                <div class="wizard-dot" data-dot="1"></div>
+                <div class="wizard-dot" data-dot="2"></div>
+              </div>
+              <div class="wizard-step-label" id="practiceStepLabel">1단계 / 3단계 · 무엇을, 어떤 가치로</div>
+            </div>
+            <div class="section-block wizard-step" data-step="0">
               <div class="section-title">1 · 가치와 실천행동</div>
               <div class="form-row">
                 <label for="practiceValue">추구하는 삶의 가치</label>
@@ -392,7 +403,7 @@
                 <textarea id="practiceReason" maxlength="600" placeholder="문제 행동이 좁힌 삶에서 어느 방향으로 한 걸음 넓어지나요?"></textarea>
               </div>
             </div>
-            <div class="section-block">
+            <div class="section-block wizard-step" data-step="1">
               <div class="section-title">2 · 빈도와 알림</div>
               <div class="form-row">
                 <label>실천행동의 매주 빈도</label>
@@ -430,7 +441,7 @@
                 <div class="small">알림은 스마트폰/브라우저 정책에 따라 앱이 열려 있거나 백그라운드에 남아 있을 때 가장 안정적으로 작동합니다.</div>
               </div>
             </div>
-            <div class="section-block">
+            <div class="section-block wizard-step" data-step="2">
               <div class="section-title">3 · 시작일과 대비책</div>
               <div class="form-row">
                 <label for="practiceStart">실천행동 시작일</label>
@@ -445,7 +456,7 @@
                 <textarea id="smallVersion" maxlength="160" placeholder="실천이 어려운 날에도 가능한 가장 작은 버전"></textarea>
               </div>
             </div>
-            <div class="plain-card">
+            <div class="plain-card wizard-step" data-step="2">
               <h3>좋은 실천행동 점검</h3>
               <p class="small">너무 큰 실천은 오래가기 어렵습니다. 기분이 좋지 않은 날에도 가능한 크기로 줄여보세요.</p>
               <p class="small">5분 안에 시작할 수 있나요?</p>
@@ -453,7 +464,11 @@
               <p class="small">문제 행동이 끌고 가는 방향과 조금 다른 방향인가요?</p>
             </div>
             <div style="height:12px"></div>
-            <button class="solid-btn full" type="submit">실천행동 저장</button>
+            <div class="wizard-bottom-nav">
+              <button class="ghost-btn" type="button" id="practiceStepBack">이전</button>
+              <button class="solid-btn full" type="button" id="practiceStepNext">다음</button>
+              <button class="solid-btn full hidden" type="submit" id="practiceStepSave">실천행동 저장</button>
+            </div>
           </form>
 
           <div class="card">

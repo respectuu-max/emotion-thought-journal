@@ -1,4 +1,4 @@
-const APP_VERSION = "v65"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v66"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -112,6 +112,7 @@ const TEXT_LIMITS = {
       view: "today",
       observeMode: "저녁",
       observeStep: 0,
+      practiceStep: 0,
       behavior: "",
       behaviorAreas: [],
       emotion: "",
@@ -609,8 +610,8 @@ const TEXT_LIMITS = {
     ];
     function renderObserveStep() {
       const step = state.observeStep;
-      $$(".wizard-step").forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
-      $$(".wizard-dot").forEach((dot, i) => {
+      $$("#observeForm .wizard-step").forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
+      $$("#observeStepDots .wizard-dot").forEach((dot, i) => {
         dot.classList.toggle("done", i < step);
         dot.classList.toggle("current", i === step);
       });
@@ -636,6 +637,39 @@ const TEXT_LIMITS = {
       state.observeStep = next;
       renderObserveStep();
       const form = $("#observeForm");
+      if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const PRACTICE_STEP_TITLES = ["1 · 가치와 실천행동", "2 · 빈도와 알림", "3 · 시작일과 대비책"];
+    const PRACTICE_STEP_LABELS = [
+      "1단계 / 3단계 · 무엇을, 어떤 가치로",
+      "2단계 / 3단계 · 얼마나 자주 할지 정해요",
+      "3단계 / 3단계 · 시작일과 최소 버전"
+    ];
+    function renderPracticeStep() {
+      const step = state.practiceStep;
+      $$("#practiceForm .wizard-step").forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
+      $$("#practiceStepDots .wizard-dot").forEach((dot, i) => {
+        dot.classList.toggle("done", i < step);
+        dot.classList.toggle("current", i === step);
+      });
+      const titleBox = $("#practiceStepTitle");
+      const labelBox = $("#practiceStepLabel");
+      if (titleBox) titleBox.textContent = PRACTICE_STEP_TITLES[step];
+      if (labelBox) labelBox.textContent = PRACTICE_STEP_LABELS[step];
+      const backBtn = $("#practiceStepBack");
+      const nextBtn = $("#practiceStepNext");
+      const saveBtn = $("#practiceStepSave");
+      if (backBtn) backBtn.classList.toggle("hidden", step === 0);
+      const isLastStep = step === PRACTICE_STEP_TITLES.length - 1;
+      if (nextBtn) nextBtn.classList.toggle("hidden", isLastStep);
+      if (saveBtn) saveBtn.classList.toggle("hidden", !isLastStep);
+    }
+    function goPracticeStep(delta) {
+      const next = state.practiceStep + delta;
+      if (next < 0 || next > PRACTICE_STEP_TITLES.length - 1) return;
+      state.practiceStep = next;
+      renderPracticeStep();
+      const form = $("#practiceForm");
       if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     function startQuickObservation(kind = "observe") {
@@ -3151,6 +3185,8 @@ const TEXT_LIMITS = {
       $$("#weekdayChips button").forEach(b => b.classList.toggle("active", state.customDays.includes(Number(b.dataset.day))));
       $("#customDaysRow").style.display = $("#frequency").value === "custom" ? "block" : "none";
       $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none";
+      state.practiceStep = 0;
+      renderPracticeStep();
       setView("practice");
     }
     function clearPracticeForm() {
@@ -3166,6 +3202,8 @@ const TEXT_LIMITS = {
       $$("#weekdayChips button").forEach(b => b.classList.remove("active"));
       $("#customDaysRow").style.display = "none";
       $("#reminderTimesRow").style.display = "none";
+      state.practiceStep = 0;
+      renderPracticeStep();
     }
     function startFreshPracticeFromTopFields() {
       const form = $("#practiceForm");
@@ -3286,6 +3324,8 @@ const TEXT_LIMITS = {
       $("#observeForm").addEventListener("submit", observeSubmit);
       $("#observeStepBack").addEventListener("click", () => goObserveStep(-1));
       $("#observeStepNext").addEventListener("click", () => goObserveStep(1));
+      $("#practiceStepBack").addEventListener("click", () => goPracticeStep(-1));
+      $("#practiceStepNext").addEventListener("click", () => goPracticeStep(1));
       $("#observeQuickSave").addEventListener("click", () => {
         const form = $("#observeForm");
         if (form.requestSubmit) form.requestSubmit();
