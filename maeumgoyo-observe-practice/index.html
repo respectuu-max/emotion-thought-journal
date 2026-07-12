@@ -39,7 +39,7 @@
         <div class="contact">메일 respectuu@naver.com</div>
       </div>
       <nav class="tabs" aria-label="앱 메뉴">
-        <button class="tab active" data-view="today">오늘할일</button>
+        <button class="tab active" data-view="today">오늘 할 일</button>
         <button class="tab" data-view="observe">관찰하기</button>
         <button class="tab" data-view="practice">실천하기</button>
         <button class="tab" data-view="trend">추세보기</button>
@@ -67,9 +67,30 @@
             <button class="ghost-btn" type="button" id="quickBackup">CSV 백업하기</button>
           </div>
         </div>
-        <div class="plain-card" id="todayTaskSummary" style="margin-top:10px;"></div>
-        <div id="cleanStreakCard" style="margin-top:10px;"></div>
-        <div id="relapseStatusCard" style="margin-top:10px;"></div>
+        <div class="plain-card" style="margin-top:10px;">
+          <div id="todayTaskSummary"></div>
+          <div class="card-divider"></div>
+          <div id="cleanStreakCard"></div>
+          <div class="card-divider"></div>
+          <div id="relapseStatusCard"></div>
+        </div>
+        <div class="plain-card" style="margin-top:10px;">
+          <h3>오늘 하루 마무리</h3>
+          <p class="small">문제행동이 아닌 다른 방향으로 오늘 하루가 조금이라도 넓어지고, 그것이 만족스러웠나요?</p>
+          <div class="slider-card">
+            <div class="slider-top"><span>삶의 확장감과 만족도</span><span class="slider-value" id="expansionScoreValue">5</span></div>
+            <input id="expansionScore" type="range" min="0" max="10" value="5" aria-label="삶의 확장감과 만족도">
+            <div class="small score-help" id="expansionScoreHelp"></div>
+          </div>
+          <details class="form-row" id="expansionNoteDetails">
+            <summary>오늘 그렇게 느끼게 한 순간 (선택)</summary>
+            <div style="height:8px"></div>
+            <textarea id="expansionNote" maxlength="160" placeholder="예: 저녁에 오랜만에 친구와 산책"></textarea>
+          </details>
+          <div style="height:8px"></div>
+          <button class="solid-btn full" id="saveDailyCheckin" type="button">오늘 마무리 저장</button>
+          <div class="small" id="dailyCheckinStatus" style="margin-top:8px;"></div>
+        </div>
         <div class="section-head">
           <h2>오늘의 관찰과 작은 실천</h2>
           <span class="small" id="todayLabel"></span>
@@ -143,13 +164,15 @@
               <h3>고위험일 때 먼저 할 일</h3>
               <p class="small">1. 지금 있는 장소를 조금 더 안전한 곳으로 옮깁니다.</p>
               <p class="small">2. 10분만 행동을 늦추고, 물 한 컵이나 천천히 호흡을 먼저 합니다.</p>
-              <p class="small">3. 혼자 버티기 어렵다면 가까운 사람, 상담자, 지역 응급 도움에 연락합니다.</p>
+              <p class="small">3. 혼자 버티기 어렵다면 아래 연락처로 바로 연락합니다.</p>
+              <div id="safetyContactsInline" style="margin-top:8px;"></div>
             </div>
             <div class="safety-card hidden" id="riskFollowup">
               <h3>지금 확인할 안전 행동</h3>
               <label class="checkline"><input type="checkbox"> 조금 더 안전한 장소로 이동했습니다.</label>
               <label class="checkline"><input type="checkbox"> 10분만 늦추고 물 또는 호흡을 먼저 했습니다.</label>
-              <label class="checkline"><input type="checkbox"> 혼자 버티기 어렵다면 연락할 사람을 떠올렸습니다.</label>
+              <label class="checkline"><input type="checkbox"> 아래 연락처 중 한 곳에 연락했거나, 연락할 곳을 확인했습니다.</label>
+              <div id="safetyContactsInlineRisk" style="margin-top:8px;"></div>
             </div>
             <div class="hidden" id="relapseFollowup" style="margin-top:12px;"></div>
             <div style="height:12px"></div>
@@ -177,7 +200,7 @@
               </div>
               <div class="form-row">
                 <label for="situation">문제 촉발 상황</label>
-                <textarea id="situation" maxlength="600" placeholder="어떤 상황이 문제 행동에 대한 생각이나 충동을 촉발했나요? (언제, 어디서, 무슨 일이 있었는지)"></textarea>
+                <textarea id="situation" maxlength="600" placeholder="어떤 상황에서, 문제되는 생각이나 감정/충동을 느끼고 문제 행동이 자극되었나요? (언제, 어디서, 무슨 일이 있었는지)"></textarea>
               </div>
               <details class="form-row" id="triggerDetails">
                 <summary>촉발 단서 추가하기 (선택)</summary>
@@ -211,7 +234,7 @@
                 <div style="height:8px"></div>
                 <div class="slider-card">
                   <div class="slider-top"><span>그 일이 일어날 것 같은 정도</span><span class="slider-value" id="predictedSeverityValue">5</span></div>
-                  <input id="predictedSeverity" type="range" min="0" max="10" value="5">
+                  <input id="predictedSeverity" type="range" min="0" max="10" value="5" aria-label="그 일이 일어날 것 같은 정도">
                 </div>
               </details>
               <div class="form-row">
@@ -241,35 +264,35 @@
               <div class="form-row">
                 <div class="slider-card">
                   <div class="slider-top"><span>문제행동 관련 생각</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
-                  <input id="thoughtScore" type="range" min="0" max="10" value="0">
+                  <input id="thoughtScore" type="range" min="0" max="10" value="0" aria-label="문제행동 관련 생각">
                   <div class="small score-help" id="thoughtScoreHelp"></div>
                 </div>
                 <div class="slider-card">
                   <div class="slider-top"><span>불편한 감정</span><span class="slider-value" id="emotionScoreValue">0</span></div>
-                  <input id="emotionScore" type="range" min="0" max="10" value="0">
+                  <input id="emotionScore" type="range" min="0" max="10" value="0" aria-label="불편한 감정">
                   <div class="small score-help" id="emotionScoreHelp"></div>
                 </div>
                 <div class="slider-card">
                   <div class="slider-top"><span>문제행동 충동/갈망 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
-                  <input id="urgeScore" type="range" min="0" max="10" value="0">
+                  <input id="urgeScore" type="range" min="0" max="10" value="0" aria-label="문제행동 충동/갈망 정점">
                   <div class="small score-help" id="urgeScoreHelp"></div>
                 </div>
                 <div class="hidden" id="urgeCurveBox">
                   <p class="small">충동은 시간이 지나면 대개 저절로 가라앉습니다. 시작할 때, 가장 강했을 때, 지금(또는 끝났을 때)을 각각 남기면 그 흐름을 눈으로 확인할 수 있습니다.</p>
                   <div class="slider-card">
                     <div class="slider-top"><span>충동 · 처음 느꼈을 때</span><span class="slider-value" id="urgeInitialScoreValue">0</span></div>
-                    <input id="urgeInitialScore" type="range" min="0" max="10" value="0">
+                    <input id="urgeInitialScore" type="range" min="0" max="10" value="0" aria-label="충동 처음 느꼈을 때">
                     <div class="small score-help" id="urgeInitialScoreHelp"></div>
                   </div>
                   <div class="slider-card">
                     <div class="slider-top"><span>충동 · 지금(또는 끝났을 때)</span><span class="slider-value" id="urgeEndScoreValue">0</span></div>
-                    <input id="urgeEndScore" type="range" min="0" max="10" value="0">
+                    <input id="urgeEndScore" type="range" min="0" max="10" value="0" aria-label="충동 지금 또는 끝났을 때">
                     <div class="small score-help" id="urgeEndScoreHelp"></div>
                   </div>
                 </div>
                 <div class="slider-card">
                   <div class="slider-top"><span>문제행동 활성화 수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
-                  <input id="actionLevel" type="range" min="0" max="5" value="0">
+                  <input id="actionLevel" type="range" min="0" max="5" value="0" aria-label="문제행동 활성화 수준">
                   <div class="small score-help" id="actionLevelHelp"></div>
                 </div>
               </div>
@@ -284,7 +307,7 @@
                 <label>대처 후 도움 정도</label>
                 <div class="slider-card">
                   <div class="slider-top"><span>도움 정도</span><span class="slider-value" id="copingScoreValue">0</span></div>
-                  <input id="copingScore" type="range" min="0" max="10" value="0">
+                  <input id="copingScore" type="range" min="0" max="10" value="0" aria-label="대처 후 도움 정도">
                 </div>
               </div>
               <div class="form-row">
@@ -296,20 +319,22 @@
                 <textarea id="insight" maxlength="800" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
               </div>
               <div class="form-row">
-                <label>오늘 지키고 싶은 가치</label>
+                <label>오늘 지키고 싶은 내 삶의 가치</label>
                 <div class="chip-row" id="valueChips"></div>
                 <div style="height:8px"></div>
                 <input id="valueCustom" maxlength="40" placeholder="직접 입력">
               </div>
               <div class="form-row">
-                <label for="valueActionDraft">그 가치를 위한 아주 작은 행동</label>
+                <label for="valueActionDraft">그 가치를 위한 아주 작은 실천행동</label>
                 <textarea id="valueActionDraft" maxlength="160" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
+                <div class="small">이 칸은 오늘의 기록으로만 저장됩니다. 반복 추적하고 싶다면 아래 "이 가치로 실천행동 만들기"를 눌러 실천하기에서 등록하세요.</div>
               </div>
             </div>
             <div class="button-row">
               <button class="solid-btn" type="submit">관찰 저장</button>
               <button class="ghost-btn" type="button" id="sendToPractice">이 가치로 실천행동 만들기</button>
             </div>
+            <p class="small" style="margin-top:6px;">위 버튼을 누르면 실천하기 화면으로 이동해 가치와 행동이 미리 채워집니다. 빈도·하루 횟수를 정하고 "실천행동 저장"까지 눌러야 반복 추적됩니다.</p>
           </form>
 
           <div class="card">
@@ -452,39 +477,47 @@
           <h3>문제행동 캘린더</h3>
           <p class="small">최근 10주를 한눈에 봅니다. 기록이 없는 날은 실패로 세지 않습니다.</p>
           <div id="problemBehaviorCalendar" style="margin-top:8px;"></div>
+          <div class="card-divider"></div>
+          <h3>삶의 확장감과 만족도 추이</h3>
+          <p class="small">문제행동이 줄어드는 것과 삶이 넓어지는 것은 다른 질문입니다. 두 그래프를 나란히 비교해보세요.</p>
+          <div id="expansionTrend" style="margin-top:8px;"></div>
         </div>
-        <div class="grid">
-          <div class="card">
-            <h2>관찰과 실천 함께 보기</h2>
-            <p class="small">완벽한 성공보다 변화의 방향을 봅니다.</p>
-            <div class="chart-wrap"><canvas id="trendCanvas"></canvas></div>
-            <div id="trendMovingAverage" class="trend-bars" style="margin-top:12px;"></div>
-            <details class="form-row" style="margin-top:10px;">
-              <summary>일별 상세 보기</summary>
-              <div style="height:8px"></div>
-              <div id="trendBars" class="trend-bars"></div>
-            </details>
-          </div>
-          <div class="card">
-            <h2>패턴 요약</h2>
-            <div id="patternSummary" class="summary-box"></div>
-          </div>
-        </div>
-        <div class="plain-card" style="margin-top:14px;">
-          <h3>감정·충동 산점도</h3>
-          <p class="small">감정과 충동이 함께 얼마나 높았는지, 그리고 그 순간 문제행동이 있었는지를 한 화면에서 봅니다.</p>
-          <div id="emotionUrgeScatter" style="margin-top:8px;"></div>
-        </div>
-        <div class="plain-card" style="margin-top:14px;">
-          <h3>촉발 단서와 충동의 관계</h3>
-          <div id="triggerCorrelation"></div>
-        </div>
-        <div class="plain-card" style="margin-top:14px;">
+        <div class="plain-card" style="margin-bottom:12px;">
           <h3>걱정 확인</h3>
           <p class="small">기록해둔 걱정이 실제로 어떻게 됐는지 돌아봅니다. 생각이 맞았는지 틀렸는지를 따지려는 것이 아니라, 예상과 실제 사이의 차이를 있는 그대로 보기 위한 것입니다.</p>
           <div id="worrySummary" style="margin-top:8px;"></div>
           <div id="worryPendingList" class="list" style="margin-top:10px;"></div>
         </div>
+        <details class="plain-card">
+          <summary style="cursor:pointer; font-weight:800;">더 자세히 살펴보기 (그래프 · 패턴 요약)</summary>
+          <div style="height:10px"></div>
+          <div class="grid">
+            <div class="card">
+              <h2>관찰과 실천 함께 보기</h2>
+              <p class="small">완벽한 성공보다 변화의 방향을 봅니다.</p>
+              <div id="trendLineChart"></div>
+              <div id="trendMovingAverage" class="trend-bars" style="margin-top:12px;"></div>
+              <details class="form-row" style="margin-top:10px;">
+                <summary>일별 상세 보기</summary>
+                <div style="height:8px"></div>
+                <div id="trendBars" class="trend-bars"></div>
+              </details>
+            </div>
+            <div class="card">
+              <h2>패턴 요약</h2>
+              <div id="patternSummary" class="summary-box"></div>
+            </div>
+          </div>
+          <div class="plain-card" style="margin-top:14px;">
+            <h3>감정·충동 산점도</h3>
+            <p class="small">감정과 충동이 함께 얼마나 높았는지, 그리고 그 순간 문제행동이 있었는지를 한 화면에서 봅니다.</p>
+            <div id="emotionUrgeScatter" style="margin-top:8px;"></div>
+          </div>
+          <div class="plain-card" style="margin-top:14px;">
+            <h3>촉발 단서와 충동의 관계</h3>
+            <div id="triggerCorrelation"></div>
+          </div>
+        </details>
       </section>
 
       <section class="view" id="relapseView">
@@ -524,6 +557,10 @@
         </div>
         <p class="small">한두 번의 문제 행동은 회복 여정의 실패가 아니라, 다시 조정할 수 있는 신호입니다. 중요한 것은 숨기지 않고 빨리 도움을 구하는 것입니다.</p>
         <div id="stage3TechniqueList"></div>
+        <div class="safety-card" style="margin-top:10px;">
+          <h3>지금 연락하기</h3>
+          <div id="safetyContactsInlineRelapse"></div>
+        </div>
 
         <details class="plain-card" style="margin-top:14px;">
           <summary style="cursor:pointer; font-weight:800;">이 신호는 어떻게 계산되나요?</summary>
@@ -572,7 +609,22 @@
               <button class="solid-btn" id="buildPreview" type="button">공유 미리보기</button>
               <button class="ghost-btn" id="downloadCsv" type="button">CSV 저장</button>
               <button class="ghost-btn" id="verifyCsv" type="button">CSV 복원 점검</button>
-              <button class="ghost-btn" id="shareFile" type="button">CSV 공유/메일</button>
+            </div>
+            <div style="height:12px"></div>
+            <div class="form-row">
+              <label>메일로 보내기</label>
+              <div class="small">파일이 자동으로 첨부된 채로 공유 메뉴가 열립니다. 원하는 메일 앱(네이버 메일, Gmail, Outlook 등)을 골라 보내세요. 받는 사람 주소는 메시지 맨 앞에 적혀 있으니 복사해서 "받는사람" 칸에 붙여넣어 주세요.</div>
+              <button class="solid-btn full" id="shareFile" type="button" style="margin-top:8px;">메일/공유 앱으로 보내기 (파일 자동 첨부)</button>
+              <details class="form-row" style="margin-top:10px;">
+                <summary>파일이 자동 첨부되지 않을 때 (직접 첨부 필요)</summary>
+                <div style="height:8px"></div>
+                <div class="small">아래 버튼들은 받는사람·제목·본문은 자동으로 채워지지만, 파일은 자동 첨부되지 않아 CSV를 직접 첨부해야 합니다. 위 버튼이 기기에서 지원되지 않을 때만 사용하세요.</div>
+                <div class="button-row" style="margin-top:8px;">
+                  <button class="ghost-btn" id="shareNaver" type="button">네이버 메일로 보내기</button>
+                  <button class="ghost-btn" id="shareGmail" type="button">Gmail로 보내기</button>
+                  <button class="ghost-btn" id="shareOutlook" type="button">Outlook으로 보내기</button>
+                </div>
+              </details>
             </div>
             <p class="small" id="shareInfo"></p>
           </div>
@@ -593,6 +645,35 @@
 
       <section class="view" id="protectView">
         <div class="grid">
+          <div class="card">
+            <h2>나의 안전계획</h2>
+            <p class="small">위기 상황에서 바로 연락할 수 있도록 미리 준비해두는 곳입니다. 여기 저장한 연락처는 고위험 신호가 감지될 때 관찰 화면에도 함께 표시됩니다.</p>
+            <div class="plain-card">
+              <h3>즉시 연락 가능한 위기 상담 (전국, 24시간)</h3>
+              <p class="small">자살예방상담전화 <a href="tel:1393">1393</a></p>
+              <p class="small">정신건강 위기상담전화 <a href="tel:15770199">1577-0199</a></p>
+              <p class="small">생명이 위급한 응급 상황이면 <a href="tel:119">119</a></p>
+            </div>
+            <div style="height:12px"></div>
+            <h3>나의 비상 연락처 (선택)</h3>
+            <div class="form-row">
+              <label for="safetyContact1Name">연락처 1 이름</label>
+              <input id="safetyContact1Name" maxlength="20" placeholder="예: 언니, 담당 상담사">
+            </div>
+            <div class="form-row">
+              <label for="safetyContact1Phone">연락처 1 전화번호</label>
+              <input id="safetyContact1Phone" type="tel" maxlength="20" placeholder="010-0000-0000">
+            </div>
+            <div class="form-row">
+              <label for="safetyContact2Name">연락처 2 이름 (선택)</label>
+              <input id="safetyContact2Name" maxlength="20" placeholder="선택 입력">
+            </div>
+            <div class="form-row">
+              <label for="safetyContact2Phone">연락처 2 전화번호 (선택)</label>
+              <input id="safetyContact2Phone" type="tel" maxlength="20" placeholder="선택 입력">
+            </div>
+            <button class="solid-btn full" id="saveSafetyContacts" type="button">비상 연락처 저장</button>
+          </div>
           <div class="card">
             <h2>보호설정</h2>
             <p class="small">정직한 기록이 가능하려면 기록이 안전하다고 느껴져야 합니다. 이 기능은 강한 보안 시스템은 아니지만, 일상적인 노출을 줄이는 데 도움을 줍니다.</p>

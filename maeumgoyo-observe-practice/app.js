@@ -1,4 +1,4 @@
-const APP_VERSION = "v43"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v58"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -126,7 +126,7 @@ const TEXT_LIMITS = {
       shareRange: 7,
       trendRange: 14,
       shareMode: "counselorDetail",
-      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00" } },
+      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [] } },
       lastActive: Date.now()
     };
 
@@ -251,6 +251,40 @@ const TEXT_LIMITS = {
     }
     function paintAllIntensitySliders() {
       ["thoughtScore", "emotionScore", "urgeScore", "urgeInitialScore", "urgeEndScore", "actionLevel"].forEach(paintIntensitySlider);
+    }
+    function expansionColor(percent) {
+      const p = Math.max(0, Math.min(100, percent));
+      const from = [176, 190, 214];
+      const to = [108, 74, 168];
+      const t = p / 100;
+      const mix = (a, b) => Math.round(a + (b - a) * t);
+      return `rgb(${mix(from[0], to[0])}, ${mix(from[1], to[1])}, ${mix(from[2], to[2])})`;
+    }
+    function expansionScoreText(score) {
+      const value = clampNumber(score, 0, 10, 0);
+      return [
+        "0점: 오늘은 완전히 좁아진 하루였음",
+        "1점: 많이 좁아진 느낌",
+        "2점: 다소 많이 좁아진 느낌",
+        "3점: 조금 좁았던 느낌",
+        "4점: 좁음과 넓음이 비슷했음",
+        "5점: 보통",
+        "6점: 조금씩 넓어지는 느낌이 들었음",
+        "7점: 꽤 넓어지는 느낌이 들었음",
+        "8점: 넓어지고 만족스러웠음",
+        "9점: 많이 넓어지고 매우 만족스러웠음",
+        "10점: 오늘 하루 삶이 크게 넓어지고 매우 만족스러웠음"
+      ][value];
+    }
+    function paintExpansionSlider() {
+      const input = $("#expansionScore");
+      if (!input) return;
+      const value = Number(input.value) || 0;
+      const percent = (value / 10) * 100;
+      const color = expansionColor(percent);
+      input.style.background = `linear-gradient(to right, ${color} 0%, ${color} ${percent}%, var(--surface-2) ${percent}%, var(--surface-2) 100%)`;
+      const help = $("#expansionScoreHelp");
+      if (help) help.textContent = expansionScoreText(value);
     }
     function masteryScoreText(score) {
       const value = clampNumber(score, 0, 10, 0);
@@ -445,6 +479,16 @@ const TEXT_LIMITS = {
         updatedAt: record.updatedAt || new Date().toISOString()
       };
     }
+    function normalizeDailyCheckin(record) {
+      return {
+        id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
+        date: cleanDate(record.date),
+        expansionScore: clampNumber(record.expansionScore, 0, 10, 5),
+        note: cleanMultiline(record.note, TEXT_LIMITS.medium),
+        archived: boolFlag(record.archived),
+        updatedAt: record.updatedAt || new Date().toISOString()
+      };
+    }
     function normalizeBehaviorAliases(value) {
       const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
       const result = {};
@@ -455,6 +499,17 @@ const TEXT_LIMITS = {
       });
       return result;
     }
+    function cleanPhone(value) {
+      return String(value ?? "").replace(/[^0-9+\-() ]/g, "").trim().slice(0, 20);
+    }
+    function normalizeSafetyContacts(value) {
+      const source = Array.isArray(value) ? value : [];
+      const result = source.slice(0, 2).map(entry => ({
+        name: cleanText(entry && entry.name, 20),
+        phone: cleanPhone(entry && entry.phone)
+      })).filter(entry => entry.name || entry.phone);
+      return result;
+    }
     function normalizeData(data) {
       const settings = data.settings || {};
       return {
@@ -463,11 +518,13 @@ const TEXT_LIMITS = {
         practices: Array.isArray(data.practices) ? data.practices.map(normalizePractice) : [],
         logs: Array.isArray(data.logs) ? data.logs.map(normalizeLog) : [],
         predictions: Array.isArray(data.predictions) ? data.predictions.map(normalizePrediction) : [],
+        dailyCheckins: Array.isArray(data.dailyCheckins) ? data.dailyCheckins.map(normalizeDailyCheckin) : [],
         settings: {
           alias: cleanText(settings.alias, TEXT_LIMITS.short),
           behaviorAliases: normalizeBehaviorAliases(settings.behaviorAliases),
           noRecordReminderTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(settings.noRecordReminderTime || "") ? settings.noRecordReminderTime : "20:00",
-          lastBackupAt: settings.lastBackupAt || ""
+          lastBackupAt: settings.lastBackupAt || "",
+          safetyContacts: normalizeSafetyContacts(settings.safetyContacts)
         }
       };
     }
@@ -490,7 +547,7 @@ const TEXT_LIMITS = {
         state.data = normalizeData(parsed);
         if (!current && legacy) saveData();
       } catch {
-        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], settings: { alias: "", noRecordReminderTime: "20:00" } };
+        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [] } };
         showToast("저장된 기록을 읽지 못해 새 기록 공간으로 시작합니다.");
       }
     }
@@ -506,7 +563,6 @@ const TEXT_LIMITS = {
       $$(".view").forEach(v => v.classList.toggle("active", v.id === `${view}View`));
       $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === view));
       renderAll();
-      if (view === "trend") requestAnimationFrame(drawTrend);
     }
     function setObserveMode(mode) {
       state.observeMode = mode;
@@ -515,6 +571,27 @@ const TEXT_LIMITS = {
       });
       const curveBox = $("#urgeCurveBox");
       if (curveBox) curveBox.classList.toggle("hidden", mode !== "충동 발생");
+    }
+    function safetyContactsHtml() {
+      const personal = state.data.settings.safetyContacts || [];
+      const personalHtml = personal.length
+        ? personal.map(c => `<p class="small">${escapeHtml(c.name || "비상 연락처")}: <a href="tel:${escapeHtml(c.phone.replace(/[^0-9+]/g, ""))}">${escapeHtml(c.phone)}</a></p>`).join("")
+        : `<p class="small">보호하기 화면에서 나의 비상 연락처를 미리 등록해두면 여기에 표시됩니다.</p>`;
+      return `
+        <div class="small" style="font-weight:800;">위기 상담 (전국, 24시간)</div>
+        <p class="small">자살예방상담전화 <a href="tel:1393">1393</a> · 정신건강 위기상담전화 <a href="tel:15770199">1577-0199</a> · 응급 <a href="tel:119">119</a></p>
+        ${personal.length ? `<div class="small" style="font-weight:800; margin-top:6px;">나의 비상 연락처</div>` : ""}
+        ${personalHtml}
+      `;
+    }
+    function renderSafetyContactsInline() {
+      const box1 = $("#safetyContactsInline");
+      const box2 = $("#safetyContactsInlineRisk");
+      const box3 = $("#safetyContactsInlineRelapse");
+      const html = safetyContactsHtml();
+      if (box1) box1.innerHTML = html;
+      if (box2) box2.innerHTML = html;
+      if (box3) box3.innerHTML = html;
     }
     function showRiskFollowup(show = true) {
       const box = $("#riskFollowup");
@@ -531,7 +608,8 @@ const TEXT_LIMITS = {
         $("#urgeScoreValue").textContent = "8";
         paintIntensitySlider("urgeScore");
         showRiskFollowup(true);
-        $("#situation").focus();
+        const riskBox = $("#riskFollowup");
+        if (riskBox && riskBox.scrollIntoView) riskBox.scrollIntoView({ behavior: "smooth", block: "center" });
         showToast("고위험 신호를 짧게 남기고, 먼저 안전한 곳으로 이동하세요.");
         return;
       }
@@ -670,6 +748,7 @@ const TEXT_LIMITS = {
     function activeObservations() { return state.data.observations.filter(record => !record.archived); }
     function activeLogs() { return state.data.logs.filter(record => !record.archived); }
     function activePredictions() { return (state.data.predictions || []).filter(record => !record.archived); }
+    function activeDailyCheckins() { return (state.data.dailyCheckins || []).filter(record => !record.archived); }
     function hiddenRecordCount() {
       return state.data.observations.filter(record => record.archived).length + state.data.logs.filter(record => record.archived).length;
     }
@@ -1117,7 +1196,12 @@ const TEXT_LIMITS = {
       if (!box) return;
       const streak = cleanStreakDays();
       if (streak === null) {
-        box.innerHTML = "";
+        box.innerHTML = `
+          <div class="relapse-status level-ok">
+            <h3>연속 기록</h3>
+            <p class="small">첫 관찰 기록을 남기면 여기서 연속일수를 확인할 수 있습니다.</p>
+          </div>
+        `;
         return;
       }
       const text = streak === 0
@@ -1130,11 +1214,33 @@ const TEXT_LIMITS = {
         </div>
       `;
     }
+    function todayDailyCheckin() {
+      return activeDailyCheckins().find(c => c.date === todayISO());
+    }
+    function renderDailyCheckinCard() {
+      const scoreInput = $("#expansionScore");
+      if (!scoreInput) return;
+      const existing = todayDailyCheckin();
+      scoreInput.value = existing ? existing.expansionScore : 5;
+      $("#expansionScoreValue").textContent = scoreInput.value;
+      $("#expansionNote").value = existing ? existing.note : "";
+      paintExpansionSlider();
+      const statusBox = $("#dailyCheckinStatus");
+      const saveBtn = $("#saveDailyCheckin");
+      if (existing) {
+        statusBox.textContent = `오늘 기록됨 (${formatSavedTime(existing.updatedAt)}) · 다시 저장하면 갱신됩니다.`;
+        saveBtn.textContent = "오늘 마무리 수정";
+      } else {
+        statusBox.textContent = "";
+        saveBtn.textContent = "오늘 마무리 저장";
+      }
+    }
     function renderToday() {
       updateMetrics();
       renderTodayTaskSummary();
       renderCleanStreak();
       renderRelapseToday();
+      renderDailyCheckinCard();
       const today = todayISO();
       const obs = activeObservations().filter(o => sameRecordDate(o, today)).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
       $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
@@ -1200,22 +1306,22 @@ const TEXT_LIMITS = {
           <div class="small">막상 해보면 예상과 다를 때가 많습니다. 그 차이 자체가 유용한 정보입니다.</div>
           <div class="slider-card">
             <div class="slider-top"><span>예상 즐거움</span><span class="slider-value" data-practice-expected-pleasure-value="${escapeHtml(p.id)}">5</span></div>
-            <input data-practice-expected-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5">
+            <input data-practice-expected-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 즐거움">
           </div>
           <div class="slider-card">
             <div class="slider-top"><span>예상 숙달감</span><span class="slider-value" data-practice-expected-mastery-value="${escapeHtml(p.id)}">5</span></div>
-            <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5">
+            <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 숙달감">
           </div>
         </div>
         <div style="height:4px"></div>
         <div class="slider-card">
           <div class="slider-top"><span>실제 즐거움</span><span class="slider-value" data-practice-pleasure-value="${escapeHtml(p.id)}">0</span></div>
-          <input data-practice-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0">
+          <input data-practice-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 즐거움">
           <div class="small score-help" data-practice-pleasure-help="${escapeHtml(p.id)}">${escapeHtml(pleasureScoreText(0))}</div>
         </div>
         <div class="slider-card">
           <div class="slider-top"><span>실제 숙달감</span><span class="slider-value" data-practice-mastery-value="${escapeHtml(p.id)}">0</span></div>
-          <input data-practice-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0">
+          <input data-practice-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 숙달감">
           <div class="small score-help" data-practice-mastery-help="${escapeHtml(p.id)}">${escapeHtml(masteryScoreText(0))}</div>
         </div>
         <textarea data-practice-note="${escapeHtml(p.id)}" maxlength="600" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
@@ -1536,6 +1642,13 @@ const TEXT_LIMITS = {
       });
       return due ? achieved / due : null;
     }
+    function weeklyExpansionAvg(startDaysAgo, windowDays = 7) {
+      const checkins = activeDailyCheckins().filter(c => {
+        const d = dateObj(c.date);
+        return d >= daysAgo(startDaysAgo + windowDays - 1) && d <= daysAgo(startDaysAgo);
+      });
+      return checkins.length ? avg(checkins, c => Number(c.expansionScore)) : null;
+    }
     function buildWeeklyHighlights() {
       const thisWeek = activeObservations().filter(o => dateObj(recordDate(o)) >= daysAgo(6));
       const prevWeek = activeObservations().filter(o => {
@@ -1576,6 +1689,14 @@ const TEXT_LIMITS = {
       const engagementStreak = engagementStreakDays();
       if (engagementStreak && engagementStreak >= 5) candidates.push({ priority: engagementStreak / 20, text: `${engagementStreak}일 연속으로 기록을 이어가고 있습니다.` });
 
+      const expansionNow = weeklyExpansionAvg(0);
+      const expansionPrev = weeklyExpansionAvg(7);
+      if (expansionNow !== null && expansionPrev !== null && expansionNow - expansionPrev >= 1) {
+        candidates.push({ priority: expansionNow - expansionPrev, text: `지난주보다 삶의 확장감과 만족도가 ${(expansionNow - expansionPrev).toFixed(1)}점 올라갔습니다.` });
+      } else if (expansionNow !== null && expansionNow >= 7) {
+        candidates.push({ priority: 1, text: `이번 주 삶의 확장감과 만족도가 평균 ${expansionNow.toFixed(1)}점으로 높게 유지되고 있습니다.` });
+      }
+
       if (!candidates.length) {
         candidates.push({ priority: 0, text: thisWeek.length ? `이번 주도 관찰 기록 ${thisWeek.length}건을 남겼습니다. 기록을 이어가는 것 자체가 중요한 진전입니다.` : "이번 주 기록을 시작하면 여기에 변화가 표시됩니다." });
       }
@@ -1610,7 +1731,7 @@ const TEXT_LIMITS = {
         <div class="small">${escapeHtml(p.worryText)}</div>
         <div class="slider-card">
           <div class="slider-top"><span>실제로 그랬다면 심각도는?</span><span class="slider-value" data-actual-severity-value="${escapeHtml(p.id)}">${p.predictedSeverity}</span></div>
-          <input type="range" min="0" max="10" value="${p.predictedSeverity}" data-actual-severity="${escapeHtml(p.id)}">
+          <input type="range" min="0" max="10" value="${p.predictedSeverity}" data-actual-severity="${escapeHtml(p.id)}" aria-label="실제로 그랬다면 심각도는">
         </div>
         <div class="button-row record-actions">
           <button class="ghost-btn" type="button" data-resolve="${escapeHtml(p.id)}" data-status="did_not_occur">일어나지 않음</button>
@@ -1656,10 +1777,45 @@ const TEXT_LIMITS = {
       listBox.innerHTML = pending.length ? pending.map(renderWorryPendingItem).join("") : `<div class="empty">확인할 걱정이 없습니다.</div>`;
       bindWorryActions();
     }
+    function expansionSeriesData(totalDisplayDays = 14) {
+      const displayDays = Math.max(1, Math.min(totalDisplayDays, TREND_DISPLAY_CAP));
+      const checkins = activeDailyCheckins();
+      return Array.from({ length: displayDays }, (_, i) => {
+        const day = dateToISO(daysAgo(displayDays - 1 - i));
+        const checkin = checkins.find(c => c.date === day);
+        return { day, label: day.slice(5).replace("-", "/"), score: checkin ? checkin.expansionScore : null };
+      });
+    }
+    function renderExpansionTrend() {
+      const box = $("#expansionTrend");
+      if (!box) return;
+      const data = expansionSeriesData(trendRangeDays());
+      const hasData = data.some(d => d.score !== null);
+      if (!hasData) {
+        box.innerHTML = `<div class="empty">아직 하루 마무리 기록이 없습니다. 오늘 할 일 화면에서 남겨보세요.</div>`;
+        return;
+      }
+      box.innerHTML = `
+        <div class="small" style="margin-bottom:8px;">막대 색이 옅은 파랑일수록 낮은 점수, 진한 보라일수록 높은 점수입니다. (문제행동 그래프의 초록·주황·빨강과는 다른 색 체계입니다 — "위험도"가 아니라 "확장감"을 나타냅니다.)</div>
+        <div class="trend-bar-list">
+          ${data.map(d => `
+            <div class="trend-day">
+              <div class="trend-date">${escapeHtml(d.label)}</div>
+              <div class="trend-bar-stack" aria-label="${escapeHtml(d.day)} 삶의 확장감과 만족도">
+                ${d.score !== null
+                  ? `<div class="trend-line" style="width:${Math.max(6, (d.score / 10) * 100)}%; background:${expansionColor((d.score / 10) * 100)};"><span>${d.score}</span></div>`
+                  : `<span class="small" style="color:var(--muted);">기록 없음</span>`}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
     function renderTrend() {
       renderWeeklyHighlights();
       renderProblemBehaviorCalendar();
-      try { drawTrend(); } catch (error) { console.warn("Trend canvas draw failed", error); }
+      renderExpansionTrend();
+      renderTrendLineChart();
       renderTrendMovingAverage();
       renderTrendBars();
       renderEmotionUrgeScatter();
@@ -1854,6 +2010,8 @@ const TEXT_LIMITS = {
       const relapse = relapseSummaryForRange(observations);
       const emotionVariability = stdDev(observations.map(o => Number(o.emotionScore)));
       const urgeVariability = stdDev(observations.map(o => Number(o.urgeScore)));
+      const rangeCheckins = activeDailyCheckins().filter(c => dateObj(c.date) >= daysAgo(rangeDays - 1));
+      const expansionAvgText = rangeCheckins.length ? avg(rangeCheckins, c => Number(c.expansionScore)).toFixed(1) : "기록 없음";
       return [
         `${trendRangeLabel()} 자기성찰 요약`,
         "",
@@ -1868,6 +2026,7 @@ const TEXT_LIMITS = {
         `충동은 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
         `도움이 컸던 대처: ${helpfulCoping}`,
         `감정 기복(표준편차): ${emotionVariability.toFixed(1)} · 충동 기복(표준편차): ${urgeVariability.toFixed(1)} (숫자가 클수록 널뛰는 정도가 큼)`,
+        `삶의 확장감과 만족도 평균: ${expansionAvgText} (하루 마무리 기록 ${rangeCheckins.length}건)`,
         "",
         `재발 신호 (${trendRangeLabel()}, 기록된 날 기준)`,
         `정서적 재발 신호 있었던 날: ${relapse.stage1Days}일`,
@@ -2006,69 +2165,68 @@ const TEXT_LIMITS = {
         </div>
       `;
     }
-    function drawTrend() {
-      const canvas = $("#trendCanvas");
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const displayWidth = rect.width || canvas.parentElement?.clientWidth || 320;
-      const displayHeight = rect.height || canvas.parentElement?.clientHeight || 280;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.floor(displayWidth * dpr));
-      canvas.height = Math.max(1, Math.floor(displayHeight * dpr));
-      const ctx = canvas.getContext("2d");
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, displayWidth, displayHeight);
-      const pad = 38;
-      const width = Math.max(1, displayWidth - pad * 2);
-      const height = Math.max(1, displayHeight - pad * 2);
-      ctx.strokeStyle = "#d9e2dd";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 5; i++) {
-        const y = pad + height - (i / 5) * height;
-        ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + width, y); ctx.stroke();
-        ctx.fillStyle = "#64736d"; ctx.font = "12px sans-serif"; ctx.fillText(String(i * 2), 8, y + 4);
-      }
-      const trendData = trendSeriesData(trendRangeDays());
-      const obsSeries = trendData.map(day => day.observation);
-      const logSeries = trendData.map(day => day.practice);
-      const actionSeries = trendData.map(day => day.action);
-      const obsCounts = trendData.map(day => day.observationCount);
-      const logCounts = trendData.map(day => day.logCount);
+    function trendLineChartSvg(trendData) {
+      const width = 600;
+      const height = 260;
+      const padLeft = 34;
+      const padRight = 12;
+      const padTop = 16;
+      const padBottom = 24;
+      const plotWidth = width - padLeft - padRight;
+      const plotHeight = height - padTop - padBottom;
+      const n = trendData.length;
+      const scaleX = i => padLeft + (n <= 1 ? 0 : (i / (n - 1)) * plotWidth);
+      const scaleY = v => padTop + plotHeight - (clampNumber(v, 0, 10, 0) / 10) * plotHeight;
+      const gridLines = [0, 2, 4, 6, 8, 10].map(t => {
+        const y = scaleY(t).toFixed(1);
+        return `<line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="4" y="${Number(y) + 4}" font-size="10" fill="#64736d">${t}</text>`;
+      }).join("");
+      const seriesMarkup = (values, color, counts) => {
+        const points = values.map((v, i) => `${scaleX(i).toFixed(1)},${scaleY(v).toFixed(1)}`).join(" ");
+        const circles = values.map((v, i) => {
+          const hasRecord = Number(counts[i] || 0) > 0;
+          const r = hasRecord ? 4 : 2;
+          const stroke = hasRecord ? `stroke="#ffffff" stroke-width="1.5"` : "";
+          return `<circle cx="${scaleX(i).toFixed(1)}" cy="${scaleY(v).toFixed(1)}" r="${r}" fill="${color}" ${stroke}/>`;
+        }).join("");
+        return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2"/>${circles}`;
+      };
+      const obsSeries = trendData.map(d => d.observation);
+      const logSeries = trendData.map(d => d.practice);
+      const actionSeries = trendData.map(d => d.action);
+      const obsCounts = trendData.map(d => d.observationCount);
+      const logCounts = trendData.map(d => d.logCount);
       const totalObservations = obsCounts.reduce((sum, count) => sum + count, 0);
       const totalLogs = logCounts.reduce((sum, count) => sum + count, 0);
-      drawLine(ctx, obsSeries, "#2f7567", pad, width, height, obsCounts);
-      drawLine(ctx, logSeries, "#c1842f", pad, width, height, logCounts);
-      drawLine(ctx, actionSeries, "#b64a45", pad, width, height, obsCounts);
-      ctx.fillStyle = "#1d2924"; ctx.font = "12px sans-serif";
-      ctx.fillText("관찰강도", pad, 16);
-      ctx.fillStyle = "#c1842f"; ctx.fillText("실천수행도", pad + 72, 16);
-      ctx.fillStyle = "#b64a45"; ctx.fillText("문제행동 활성화 수준", pad + 158, 16);
-      ctx.fillStyle = "#64736d";
-      ctx.fillText(`최근 14일 관찰 ${totalObservations}건 · 실천 ${totalLogs}건`, pad, displayHeight - 10);
+      const svg = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;" role="img" aria-label="관찰·실천·문제행동 활성화 수준 추세 그래프">
+          ${gridLines}
+          ${seriesMarkup(obsSeries, "#2f7567", obsCounts)}
+          ${seriesMarkup(logSeries, "#c1842f", logCounts)}
+          ${seriesMarkup(actionSeries, "#b64a45", obsCounts)}
+        </svg>
+      `;
+      return { svg, totalObservations, totalLogs };
     }
-    function drawLine(ctx, values, color, pad, width, height, counts = []) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      values.forEach((v, i) => {
-        const x = pad + (values.length === 1 ? 0 : i / (values.length - 1) * width);
-        const y = pad + height - (Math.max(0, Math.min(10, v)) / 10) * height;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.fillStyle = color;
-      values.forEach((v, i) => {
-        const x = pad + (values.length === 1 ? 0 : i / (values.length - 1) * width);
-        const y = pad + height - (Math.max(0, Math.min(10, v)) / 10) * height;
-        const hasRecord = Number(counts[i] || 0) > 0;
-        ctx.beginPath(); ctx.arc(x, y, hasRecord ? 5 : 2.5, 0, Math.PI * 2); ctx.fill();
-        if (hasRecord) {
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = "#ffffff";
-          ctx.stroke();
-          ctx.strokeStyle = color;
-        }
-      });
+    function renderTrendLineChart() {
+      const box = $("#trendLineChart");
+      if (!box) return;
+      const trendData = trendSeriesData(trendRangeDays());
+      const hasData = trendData.some(day => day.observationCount || day.logCount);
+      if (!hasData) {
+        box.innerHTML = `<div class="empty">아직 그래프로 볼 관찰 또는 실천 기록이 없습니다.</div>`;
+        return;
+      }
+      const { svg, totalObservations, totalLogs } = trendLineChartSvg(trendData);
+      box.innerHTML = `
+        <div class="trend-legend">
+          <span><i class="legend-dot obs"></i>관찰강도</span>
+          <span><i class="legend-dot practice"></i>실천수행도</span>
+          <span><i class="legend-dot action"></i>문제행동 활성화 수준</span>
+        </div>
+        <div class="chart-wrap">${svg}</div>
+        <div class="trend-status">${escapeHtml(trendRangeLabel())} 관찰 ${totalObservations}건 · 실천 ${totalLogs}건</div>
+      `;
     }
     function buildSummary(mode = state.shareMode) {
       const observations = rangeRecords(activeObservations());
@@ -2091,11 +2249,14 @@ const TEXT_LIMITS = {
       const recordedObsDays = new Set(observations.map(o => o.date)).size;
       const recordedLogDays = new Set(logs.map(l => l.date)).size;
       const engagementStreak = engagementStreakDays();
+      const rangeCheckins = rangeRecords(activeDailyCheckins());
+      const expansionAvg = rangeCheckins.length ? avg(rangeCheckins, c => Number(c.expansionScore)) : null;
       const keySummary = [
         "핵심 요약:",
         `- 이번 기간 가장 높았던 위험 신호: ${highRisk.length}건`,
         `- 가장 많이 선택한 가치: ${topValues}`,
         `- 실천행동 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
+        `- 삶의 확장감과 만족도 평균: ${expansionAvg !== null ? expansionAvg.toFixed(1) + "점" : "기록 없음"}`,
         `- 다음 상담에서 조정할 점: 30% 버전, 고위험 시간대, 반복 방해요인`
       ];
       if (mode === "family") {
@@ -2108,6 +2269,7 @@ const TEXT_LIMITS = {
           `충동이 있었지만 문제 행동으로 이어지지 않은 기록: ${resisted.length}건`,
           `가치 기반 실천 기록: ${logs.length}건`,
           `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
+          `삶의 확장감과 만족도 평균: ${expansionAvg !== null ? expansionAvg.toFixed(1) + "점" : "기록 없음"}`,
           `주요 가치: ${topValues}`,
           "",
           "가족이 도울 수 있는 방식: 비난보다 실천을 이어갈 환경을 함께 만들고, 구체적 원자료 공개보다 회복 노력과 다음 행동을 확인합니다."
@@ -2125,6 +2287,7 @@ const TEXT_LIMITS = {
         `사고·감정·충동 평균: ${avg(observations, observationIntensity).toFixed(1)}점`,
         `감정 기복(표준편차): ${emotionVariability.toFixed(1)} · 충동 기복(표준편차): ${urgeVariability.toFixed(1)}`,
         `문제행동 활성화 수준 평균: ${avg(observations, o => Number(o.actionLevel)).toFixed(1)}점 / 5점`,
+        `삶의 확장감과 만족도 평균: ${expansionAvg !== null ? expansionAvg.toFixed(1) + "점" : "기록 없음"} (하루 마무리 기록 ${rangeCheckins.length}건)`,
         `고위험 신호: ${highRisk.length}건`,
         `충동이 높았지만 행동화하지 않은 기록: ${resisted.length}건`,
         `실천 평균 수행도: ${averageDailyLogScore(logs).toFixed(1)}점`,
@@ -2261,6 +2424,14 @@ const TEXT_LIMITS = {
         });
       });
 
+      const dailyCheckins = rangeRecords(activeDailyCheckins());
+      dailyCheckins.forEach(c => {
+        addRow("daily_checkin", c.id, c.date, c.updatedAt, {
+          expansion_score: c.expansionScore ?? 5,
+          note: c.note || ""
+        });
+      });
+
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
       const nameMode = "상담자치료자료";
       return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
@@ -2272,7 +2443,7 @@ const TEXT_LIMITS = {
       const report = {
         ok: true,
         messages: [],
-        counts: { observation: 0, practice_definition: 0, practice_log: 0, prediction: 0 }
+        counts: { observation: 0, practice_definition: 0, practice_log: 0, prediction: 0, daily_checkin: 0 }
       };
       if (header[0] !== "schema_version" || header[1] !== "record_type") {
         report.ok = false;
@@ -2320,7 +2491,8 @@ const TEXT_LIMITS = {
         observation: rangeRecords(activeObservations()).length,
         practice_definition: state.data.practices.length,
         practice_log: rangeRecords(activeLogs()).length,
-        prediction: rangeRecords(activePredictions()).length
+        prediction: rangeRecords(activePredictions()).length,
+        daily_checkin: rangeRecords(activeDailyCheckins()).length
       };
       Object.entries(expected).forEach(([key, count]) => {
         if (report.counts[key] !== count) {
@@ -2380,7 +2552,7 @@ const TEXT_LIMITS = {
     }
     function renderCsvVerification() {
       const report = verifyCurrentCsv();
-      const countText = `관찰 ${report.counts.observation}개, 실천행동 ${report.counts.practice_definition}개, 수행도 ${report.counts.practice_log}개, 걱정기록 ${report.counts.prediction}개`;
+      const countText = `관찰 ${report.counts.observation}개, 실천행동 ${report.counts.practice_definition}개, 수행도 ${report.counts.practice_log}개, 걱정기록 ${report.counts.prediction}개, 하루마무리 ${report.counts.daily_checkin}개`;
       $("#shareInfo").textContent = report.ok
         ? `CSV 복원 점검 통과: ${countText}. 현재 범위의 백업 파일을 다시 읽을 수 있는 구조입니다.`
         : `CSV 복원 점검 필요: ${report.messages.slice(0, 3).join(" / ")}`;
@@ -2473,7 +2645,8 @@ const TEXT_LIMITS = {
           observation: { added: 0, updated: 0 },
           practice_definition: { added: 0, updated: 0 },
           practice_log: { added: 0, updated: 0 },
-          prediction: { added: 0, updated: 0 }
+          prediction: { added: 0, updated: 0 },
+          daily_checkin: { added: 0, updated: 0 }
         };
         rows.forEach(row => {
           if (cell(row, "schema_version") !== CSV_SCHEMA_VERSION) return;
@@ -2622,10 +2795,27 @@ const TEXT_LIMITS = {
             if (existingIndex >= 0) { state.data.predictions[existingIndex] = record; stats.prediction.updated++; }
             else { state.data.predictions.push(record); stats.prediction.added++; }
           }
+          if (type === "daily_checkin") {
+            const id = cell(row, "id") || uid();
+            const updatedAt = cell(row, "updated_at") || new Date().toISOString();
+            const existingIndex = state.data.dailyCheckins.findIndex(c => c.id === id);
+            const existing = existingIndex >= 0 ? state.data.dailyCheckins[existingIndex] : null;
+            if (!shouldUpsert(existing, updatedAt)) return;
+            const record = {
+              id,
+              date: cleanDate(cell(row, "date") || todayISO()),
+              expansionScore: clampNumber(payload.expansion_score, 0, 10, 5),
+              note: cleanMultiline(payload.note, TEXT_LIMITS.medium),
+              archived: existing ? existing.archived : false,
+              updatedAt
+            };
+            if (existingIndex >= 0) { state.data.dailyCheckins[existingIndex] = record; stats.daily_checkin.updated++; }
+            else { state.data.dailyCheckins.push(record); stats.daily_checkin.added++; }
+          }
         });
         if (!saveData()) return;
         renderAll();
-        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 신규 ${stats.observation.added}개/갱신 ${stats.observation.updated}개, 실천행동 신규 ${stats.practice_definition.added}개/갱신 ${stats.practice_definition.updated}개, 수행도 신규 ${stats.practice_log.added}개/갱신 ${stats.practice_log.updated}개, 걱정기록 신규 ${stats.prediction.added}개/갱신 ${stats.prediction.updated}개`;
+        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 신규 ${stats.observation.added}개/갱신 ${stats.observation.updated}개, 실천행동 신규 ${stats.practice_definition.added}개/갱신 ${stats.practice_definition.updated}개, 수행도 신규 ${stats.practice_log.added}개/갱신 ${stats.practice_log.updated}개, 걱정기록 신규 ${stats.prediction.added}개/갱신 ${stats.prediction.updated}개, 하루마무리 신규 ${stats.daily_checkin.added}개/갱신 ${stats.daily_checkin.updated}개`;
         showToast("CSV를 가져왔습니다.");
       };
       reader.readAsText(file, "utf-8");
@@ -2841,7 +3031,7 @@ const TEXT_LIMITS = {
       const value = cleanText($("#valueCustom").value || state.value, TEXT_LIMITS.short);
       const action = cleanMultiline($("#valueActionDraft").value, TEXT_LIMITS.medium);
       if (!value && !action) {
-        showToast("먼저 가치와 작은 행동 초안을 입력해주세요.");
+        showToast("먼저 가치와 작은 실천행동 초안을 입력해주세요.");
         return;
       }
       clearPracticeForm();
@@ -2849,7 +3039,7 @@ const TEXT_LIMITS = {
       $("#practiceName").value = action;
       $("#practiceStart").value = todayISO();
       setView("practice");
-      showToast("가치와 행동 초안을 실천 설정으로 옮겼습니다.");
+      showToast("가치와 실천행동 초안을 옮겼습니다. 나머지 항목을 채우고 저장까지 눌러야 반복 추적됩니다.");
     }
     function renderSharePreview() {
       $("#sharePreview").textContent = buildSummary(state.shareMode);
@@ -2955,6 +3145,32 @@ const TEXT_LIMITS = {
         setView("share");
         showToast("CSV 저장으로 상담자에게 보낼 전체 치료자료를 만들 수 있습니다.");
       });
+      $("#expansionScore").addEventListener("input", () => {
+        $("#expansionScoreValue").textContent = $("#expansionScore").value;
+        paintExpansionSlider();
+      });
+      $("#saveDailyCheckin").addEventListener("click", () => {
+        const existing = todayDailyCheckin();
+        const expansionScore = clampNumber($("#expansionScore").value, 0, 10, 5);
+        const note = cleanMultiline($("#expansionNote").value, TEXT_LIMITS.medium);
+        if (existing) {
+          existing.expansionScore = expansionScore;
+          existing.note = note;
+          existing.updatedAt = new Date().toISOString();
+        } else {
+          state.data.dailyCheckins.push({
+            id: uid(),
+            date: todayISO(),
+            expansionScore,
+            note,
+            archived: false,
+            updatedAt: new Date().toISOString()
+          });
+        }
+        if (!saveData()) return;
+        renderAll();
+        showToast("오늘 하루 마무리를 저장했습니다.");
+      });
       $("#rangeButtons").addEventListener("click", e => {
         const b = e.target.closest("button");
         if (!b) return;
@@ -2991,13 +3207,50 @@ const TEXT_LIMITS = {
         $("#shareInfo").textContent = `상담자 치료자료 전체본을 저장했습니다: ${data.fileName}`;
       });
       $("#verifyCsv").addEventListener("click", renderCsvVerification);
+      function prepareCsvForEmail() {
+        const data = buildCsv();
+        downloadBlob(data.blob, data.fileName);
+        state.data.settings.lastBackupAt = new Date().toISOString();
+        saveData();
+        const subjectText = `마음고요 관찰과 실천 상담자 치료자료 ${todayISO()}`;
+        const bodyText = `안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`;
+        return { fileName: data.fileName, subjectText, bodyText };
+      }
+      $("#shareNaver").addEventListener("click", () => {
+        const { fileName, subjectText, bodyText } = prepareCsvForEmail();
+        window.open("https://mail.naver.com/write/popup/?to=respectuu@naver.com", "_blank");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(`제목: ${subjectText}\n\n${bodyText}`).catch(() => {});
+          $("#shareInfo").textContent = `CSV를 저장했습니다: ${fileName}. 네이버 메일 작성 화면이 열리면, 제목/본문을 클립보드에서 붙여넣고 파일을 첨부해 주세요(네이버 메일은 URL로 내용을 자동 채우는 것을 지원하지 않아 클립보드로 복사했습니다).`;
+        } else {
+          $("#shareInfo").textContent = `CSV를 저장했습니다: ${fileName}. 네이버 메일 작성 화면에서 파일을 첨부하고 아래 내용을 직접 입력해 주세요.\n제목: ${subjectText}\n${bodyText}`;
+        }
+      });
+      $("#shareGmail").addEventListener("click", () => {
+        const { fileName, subjectText, bodyText } = prepareCsvForEmail();
+        const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent("respectuu@naver.com")}&su=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyText)}`;
+        window.open(url, "_blank");
+        $("#shareInfo").textContent = `CSV를 저장했습니다: ${fileName}. Gmail 작성 화면에서 방금 저장된 파일을 첨부해 주세요.`;
+      });
+      $("#shareOutlook").addEventListener("click", () => {
+        const { fileName, subjectText, bodyText } = prepareCsvForEmail();
+        const url = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent("respectuu@naver.com")}&subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyText)}`;
+        window.open(url, "_blank");
+        $("#shareInfo").textContent = `CSV를 저장했습니다: ${fileName}. Outlook 작성 화면에서 방금 저장된 파일을 첨부해 주세요.`;
+      });
       $("#shareFile").addEventListener("click", async () => {
         const data = buildCsv();
         const file = new File([data.blob], data.fileName, { type: "text/csv" });
         if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
           try {
-            await navigator.share({ title: "마음고요 관찰과 실천", text: `${rangeLabel()} 상담자 치료자료 전체본입니다. 받는 사람: respectuu@naver.com`, files: [file] });
-            $("#shareInfo").textContent = `상담자 치료자료 전체본을 공유했습니다: ${data.fileName}`;
+            await navigator.share({
+              title: "마음고요 관찰과 실천",
+              text: `받는사람: respectuu@naver.com\n\n${rangeLabel()} 상담자 치료자료 전체본입니다. 이 주소를 복사해서 받는사람 칸에 붙여넣어 주세요.`,
+              files: [file]
+            });
+            state.data.settings.lastBackupAt = new Date().toISOString();
+            saveData();
+            $("#shareInfo").textContent = `상담자 치료자료 전체본을 공유했습니다: ${data.fileName} (받는사람 주소는 공유된 메시지 맨 앞에 있습니다)`;
             return;
           } catch (error) {
             if (error.name === "AbortError") return;
@@ -3040,6 +3293,16 @@ const TEXT_LIMITS = {
         if (!saveData()) return;
         showToast(alias ? "내담자 별칭을 저장했습니다." : "내담자 별칭을 비웠습니다. CSV의 client_alias가 빈 값으로 저장됩니다.");
       });
+      $("#saveSafetyContacts").addEventListener("click", () => {
+        const contacts = [
+          { name: $("#safetyContact1Name").value, phone: $("#safetyContact1Phone").value },
+          { name: $("#safetyContact2Name").value, phone: $("#safetyContact2Phone").value }
+        ];
+        state.data.settings.safetyContacts = normalizeSafetyContacts(contacts);
+        if (!saveData()) return;
+        renderSafetyContactsInline();
+        showToast("비상 연락처를 저장했습니다.");
+      });
       $("#aliasTarget").addEventListener("change", () => {
         const map = behaviorAliasMap();
         $("#aliasInput").value = map[$("#aliasTarget").value] || "";
@@ -3078,7 +3341,6 @@ const TEXT_LIMITS = {
         checkPracticeReminders();
         checkNoRecordReminder();
       }, 60000);
-      window.addEventListener("resize", () => { if (state.view === "trend") drawTrend(); });
     }
     function init() {
       loadData();
@@ -3086,6 +3348,12 @@ const TEXT_LIMITS = {
       if (versionTag) versionTag.textContent = APP_VERSION;
       $("#noRecordReminderTime").value = noRecordReminderTime();
       $("#clientAliasInput").value = state.data.settings.alias || "";
+      const savedContacts = state.data.settings.safetyContacts || [];
+      $("#safetyContact1Name").value = savedContacts[0]?.name || "";
+      $("#safetyContact1Phone").value = savedContacts[0]?.phone || "";
+      $("#safetyContact2Name").value = savedContacts[1]?.name || "";
+      $("#safetyContact2Phone").value = savedContacts[1]?.phone || "";
+      renderSafetyContactsInline();
       initPickers();
       bindSliders();
       setupEvents();

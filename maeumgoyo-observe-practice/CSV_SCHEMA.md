@@ -30,7 +30,7 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 | 열 | 설명 |
 | --- | --- |
 | `schema_version` | CSV 규격 버전. 현재 `maeumgoyo_csv_v1` |
-| `record_type` | `observation`, `practice_definition`, `practice_log`, `prediction` 중 하나 |
+| `record_type` | `observation`, `practice_definition`, `practice_log`, `prediction`, `daily_checkin` 중 하나 |
 | `id` | 기록 고유 ID |
 | `date` | 기록 날짜. `YYYY-MM-DD` |
 | `updated_at` | 해당 기록의 마지막 수정 시각 (ISO 8601) |
@@ -164,6 +164,22 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 - `resolved_at`: 확인(상태 결정)한 시각. `status`가 `pending`이면 비어 있습니다.
 - 상담자 분석 앱에서는 `status`가 `pending`이 아닌 기록들을 모아 "실제로 일어난 비율"을 계산할 수 있습니다. 예: `occurred` 건수 / (`occurred`+`partial`+`did_not_occur` 건수).
 
+## daily_checkin payload
+
+```json
+{
+  "expansion_score": 7,
+  "note": "저녁에 오랜만에 친구와 산책"
+}
+```
+
+문제행동이 줄어드는 것과 삶이 넓어지는 것은 서로 다른 차원이라는 문제의식(듀얼 연속체 모델)을 반영한 회고적 하루 마무리 체크인입니다. 관찰 기록과 달리 촉발 상황과 무관하게, 하루에 한 번만 기록합니다.
+
+- `expansion_score`: "문제행동이 아닌 다른 방향으로 오늘 하루가 조금이라도 넓어지고, 그것이 만족스러웠는가"에 대한 0~10 점수. 앱 화면에서는 "삶의 확장감과 만족도"로 표시됩니다.
+- `note`: 그렇게 느끼게 한 순간에 대한 자유서술 (선택 입력)
+- **하루 1건 원칙**: 같은 날짜에 대해 여러 건이 존재하지 않습니다. 내담자가 같은 날 다시 저장하면 기존 레코드의 `id`가 유지된 채 `expansion_score`/`note`/`updated_at`만 갱신됩니다. 따라서 상담자 분석 앱은 `date`별로 정확히 0건 또는 1건만 있다고 가정해도 됩니다.
+- `action_level`(문제행동 활성화 수준)과 `expansion_score`는 서로 반비례하지 않을 수 있습니다. "문제행동은 줄었는데 삶의 확장감은 늘지 않은" 조합 자체가 상담에서 다뤄야 할 유의미한 신호입니다.
+
 ## 화면 표시 별칭과 CSV의 관계
 
 - 앱 화면(문제 행동 영역 칩, 기록 카드 등)에는 사용자가 보호하기 화면에서 설정한 별칭이 대신 표시될 수 있습니다.
@@ -172,7 +188,7 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 
 ## 재발 신호 로직 (앱 화면에 표시되는 참고 지표)
 
-앱 화면(오늘할일, 재발예방 탭)에는 CSV와 별도로 클라이언트 측에서만 계산되는 "재발 신호" 참고 지표가 표시됩니다. CSV 자체에는 이 값이 별도 열로 저장되지 않으며, 아래 로직은 상담자 분석 앱에서 동일한 원자료(`observation` 레코드의 `emotion_score`, `thought_score`, `urge_score`, `coping_score`, `action_level`)로부터 동일하게 재현할 수 있도록 공유하는 참고 기준입니다. 임상적 판단을 대체하지 않으며, 상담에서 조정 가능한 참고값입니다.
+앱 화면(오늘 할 일, 재발예방 탭)에는 CSV와 별도로 클라이언트 측에서만 계산되는 "재발 신호" 참고 지표가 표시됩니다. CSV 자체에는 이 값이 별도 열로 저장되지 않으며, 아래 로직은 상담자 분석 앱에서 동일한 원자료(`observation` 레코드의 `emotion_score`, `thought_score`, `urge_score`, `coping_score`, `action_level`)로부터 동일하게 재현할 수 있도록 공유하는 참고 기준입니다. 임상적 판단을 대체하지 않으며, 상담에서 조정 가능한 참고값입니다.
 
 - 관찰 창: 최근 3일 / 비교 창: 그 이전 3일
 - 정서적 재발 신호: 최근 3일 평균 `emotion_score` ≥ 6, 또는 6점 이상 기록이 2회 이상, 또는 평균이 이전 3일보다 2점 이상 상승, 또는 `coping_score` ≤ 3이 2회 이상 유지, 또는 이전 대비 2점 이상 하락, 또는 최근 3일 `emotion_score`의 표준편차 ≥ 2.5(기록이 3건 이상일 때만 적용, 감정 기복 자체를 신호로 봄)
@@ -197,6 +213,7 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 - `observation` 행을 중심으로 상황-생각-감정-몸반응-충동-문제행동 활성화 수준-대처를 재구성합니다.
 - `practice_log.practice_id`를 `practice_definition.id`와 연결합니다.
 - `prediction.related_observation_id`를 `observation.id`와 연결합니다.
+- `daily_checkin`은 `date`별로 최대 1건만 존재합니다.
 - 범주형 필드(`behavior_areas`, `trigger_places` 등)를 분석할 때는 위 "고정 어휘 목록"에 정의된 값만 나온다고 가정해도 됩니다(단, `_custom` 계열 필드는 자유 입력이라 예외).
 - CSV는 상담자 치료자료 전체본이므로 가족 공유 자료로 사용하지 않습니다.
 
@@ -210,5 +227,6 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 | 이전 이력 3 | `observation`에 `urge_initial_score`, `urge_end_score` 추가 |
 | 이전 이력 4 | `observation`에 `trigger_places`, `trigger_people`, `trigger_times`, `trigger_custom`, `avoidance_tags`, `avoidance_custom` 추가 |
 | 이전 이력 5 | `prediction` record_type 신규 추가 |
+| 이전 이력 6 | `daily_checkin` record_type 신규 추가 (증상/문제행동 감소와 별개로 삶의 확장감·만족도를 추적하기 위한 회고적 하루 체크인) |
 
 앞으로 필드를 추가할 때마다 이 표에 새 행을 추가해주세요. 필드 이름 변경이나 삭제처럼 하위 호환이 깨지는 변경은 이 표가 아니라 "버저닝 정책"에 따라 `schema_version`을 올리고 새 섹션으로 문서화합니다.
