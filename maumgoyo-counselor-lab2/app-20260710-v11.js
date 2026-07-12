@@ -1,10 +1,10 @@
-const APP_VERSION = "20260710v21";
+const APP_VERSION = "20260710v27";
 
 // 이 앱은 마음고요 관찰과 실천의 현재 CSV 규격(maeumgoyo_csv_v1)만 읽습니다.
 // 구버전 CSV 하위 호환은 지원하지 않습니다 — 다른 규격의 CSV는 명확한 오류로 안내하고 중단합니다.
 const CSV_SCHEMA = "maeumgoyo_csv_v1";
 const REQUIRED_COLUMNS = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"];
-const RECORD_TYPES = ["observation", "practice_definition", "practice_log", "prediction"];
+const RECORD_TYPES = ["observation", "practice_definition", "practice_log", "prediction", "daily_checkin"];
 
 const state = {
   rows: [],
@@ -12,6 +12,7 @@ const state = {
   chains: [],
   predictions: [],
   observationDays: [],
+  dailyCheckins: [],
   relapseWindow: null,
   activeView: "data",
   fileName: "",
@@ -21,6 +22,7 @@ const state = {
   rangeDays: null,
   importMessages: [],
   practicePlans: [],
+  patientMode: false,
   thresholds: {
     emotion: 7,
     cognitiveUrge: 6,
@@ -55,6 +57,7 @@ const els = {
   printBtn: document.getElementById("printBtn"),
   exportBtn: document.getElementById("exportBtn"),
   copySummaryBtn: document.getElementById("copySummaryBtn"),
+  patientModeBtn: document.getElementById("patientModeBtn"),
 };
 
 const VIEWS = [
@@ -95,6 +98,7 @@ function init() {
   document.title = `마음고요 상담분석실 ${APP_VERSION}`;
   renderMenu();
   bindEvents();
+  applyPatientMode();
   render();
 }
 
@@ -135,6 +139,19 @@ function bindEvents() {
   els.exportBtn.addEventListener("click", exportSummary);
   els.copySummaryBtn.addEventListener("click", copySessionSummary);
   els.refreshBtn.addEventListener("click", refreshApp);
+  els.patientModeBtn.addEventListener("click", togglePatientMode);
+}
+
+// 환자용 보기 전환. 데이터를 다시 계산하지 않고 순수 CSS 클래스만 바꿉니다 —
+// counselor-only 요소는 body.patient-mode 상태에 따라 CSS로만 숨겨지므로 재렌더링이 필요 없습니다.
+function togglePatientMode() {
+  state.patientMode = !state.patientMode;
+  applyPatientMode();
+}
+
+function applyPatientMode() {
+  document.body.classList.toggle("patient-mode", state.patientMode);
+  els.patientModeBtn.textContent = state.patientMode ? "상담자용 보기로 전환" : "환자용 보기";
 }
 
 function renderMenu() {
@@ -204,6 +221,7 @@ function ingestCsv(text, fileName) {
   state.records = normalizeRows(usableRows);
   state.predictions = extractPredictions(usableRows);
   state.observationDays = extractObservationDays(usableRows);
+  state.dailyCheckins = extractDailyCheckins(usableRows);
   state.relapseWindow = computeRelapseWindowSignal(state.observationDays, rangeWindow.endTs);
   state.importMessages = validation.warnings;
   detectMeta(rangeWindow);
@@ -334,6 +352,24 @@ function extractPredictions(rows) {
     });
 }
 
+// daily_checkin(v1.1 신규): 하루 1건, 문제행동과는 별개 축인 "삶의 확장감과 만족도" 회고 점수.
+// observation처럼 하루 여러 건이 아니라 date당 0~1건이라고 가정할 수 있습니다(명세서 §4-5).
+function extractDailyCheckins(rows) {
+  return rows
+    .filter((row) => row.record_type === "daily_checkin")
+    .map((row) => {
+      const payload = parsePayload(row.payload_json) || {};
+      return {
+        id: row.id || "",
+        dateTs: dateOnly(row.date),
+        date: row.date || "",
+        expansionScore: score10(payload.expansion_score),
+        note: payload.note || "",
+      };
+    })
+    .filter((entry) => entry.dateTs !== null);
+}
+
 // --- 재발신호 (연동명세서 §5-2) ---
 // "마음고요 관찰과 실천" 앱 화면(오늘할일, 재발예방 탭)이 실제로 계산하는 것과 동일한 신호를
 // 상담분석실에서도 동일한 원자료로 재현합니다. observation record_type에서만 값을 가져오며,
@@ -420,6 +456,137 @@ function triggerHeatmapCard() {
     "focus",
     ["가장 자주 등장하는 촉발단서는 무엇인가요?", "평균 충동이 가장 높은 항목은 등장 빈도와 일치하나요, 다른가요?", "이 패턴을 회피계획이나 환경조정에 어떻게 반영할까요?"],
   );
+}
+
+// --- 감정·충동 산점도 / 문제행동 캘린더 히트맵 (시각화 구현 명세서 기반) ---
+// 두 시각화가 공유하는 색상 함수. 0~50%는 초록→주황, 50~100%는 주황→빨강으로 2단 선형보간합니다.
+function severityColor(percent) {
+  const p = clamp(Number(percent) || 0, 0, 100);
+  let from;
+  let to;
+  let t;
+  if (p <= 50) {
+    from = [61, 125, 77];
+    to = [193, 132, 47];
+    t = p / 50;
+  } else {
+    from = [193, 132, 47];
+    to = [182, 74, 69];
+    t = (p - 50) / 50;
+  }
+  const r = Math.round(from[0] + (to[0] - from[0]) * t);
+  const g = Math.round(from[1] + (to[1] - from[1]) * t);
+  const b = Math.round(from[2] + (to[2] - from[2]) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+function severityColorForActionLevel(actionLevel) {
+  const level = clamp(Number(actionLevel) || 0, 0, 5);
+  return severityColor((level / 5) * 100);
+}
+
+// 상담분석실은 CSV를 상담 시점에 열어보는 구조라, "오늘"을 실제 시스템 날짜가 아니라
+// CSV에 담긴 observation 중 가장 최근 날짜로 잡습니다(명세서 §0-3).
+function getAnchorDate(observationDays) {
+  const dates = observationDays.map((day) => day.dateTs).filter((ts) => ts !== null);
+  return dates.length ? Math.max(...dates) : dateOnly(new Date().toISOString());
+}
+
+// 집계하지 않습니다 — 관찰 기록 1건 = 점 1개. rangeDays가 없으면 전체 기간을 사용합니다.
+function getScatterPoints(observationDays, anchorTs, rangeDays = null) {
+  return observationDays
+    .filter((day) => day.emotionScore !== null && day.urgeScore !== null)
+    .filter((day) => {
+      if (!rangeDays) return true;
+      const daysBetween = Math.round((anchorTs - day.dateTs) / DAY_MS);
+      return daysBetween < rangeDays;
+    })
+    .map((day) => ({
+      x: clamp(day.emotionScore, 0, 10),
+      y: clamp(day.urgeScore, 0, 10),
+      color: severityColorForActionLevel(day.actionLevel ?? 0),
+      dateTs: day.dateTs,
+    }));
+}
+
+// 하루에 관찰이 여러 건이면 그날 중 가장 심각했던 action_level을 대표값으로 씁니다(평균이 아님).
+function dayProblemStatus(observationDays, targetTs) {
+  const dayEntries = observationDays.filter((day) => day.dateTs === targetTs);
+  if (!dayEntries.length) return { hasData: false, maxAction: 0 };
+  const maxAction = Math.max(...dayEntries.map((day) => day.actionLevel ?? 0));
+  return { hasData: true, maxAction };
+}
+
+// weeks(기본 10) × 7행(일~토) 격자를 기준일 요일에 맞춰 배치합니다. 요일이 무엇이든 동일하게 작동합니다.
+function calendarHeatmapCells(observationDays, anchorTs, weeks = 10) {
+  const todayDow = new Date(anchorTs).getUTCDay(); // 0=일 ... 6=토
+  const cells = [];
+  for (let col = 0; col < weeks; col += 1) {
+    const weekIndexFromRight = weeks - 1 - col;
+    for (let row = 0; row < 7; row += 1) {
+      const daysAgoCount = weekIndexFromRight * 7 + (todayDow - row);
+      if (daysAgoCount < 0) {
+        cells.push({ col, row, dateTs: null });
+      } else {
+        const dateTs = anchorTs - daysAgoCount * DAY_MS;
+        cells.push({ col, row, dateTs, status: dayProblemStatus(observationDays, dateTs) });
+      }
+    }
+  }
+  return cells;
+}
+
+function heatmapCellColor(cell) {
+  if (!cell || cell.dateTs === null) return "transparent";
+  if (!cell.status.hasData) return "#eef4ef";
+  return severityColorForActionLevel(cell.status.maxAction);
+}
+
+// --- 문제행동 활성화 수준 × 삶의 확장감·만족도 (듀얼 연속체) ---
+// expansion_score는 "위험도"가 아니라 별개 축이므로, 문제행동 계열(초록→주황→빨강)과는
+// 눈에 띄게 다른 색 계열(파랑→보라)을 씁니다. 원본 관찰과실천 앱과 동일한 그라데이션입니다.
+function expansionColor(score) {
+  const s = clamp(Number(score) || 0, 0, 10);
+  const from = [176, 190, 214];
+  const to = [108, 74, 168];
+  const t = s / 10;
+  const r = Math.round(from[0] + (to[0] - from[0]) * t);
+  const g = Math.round(from[1] + (to[1] - from[1]) * t);
+  const b = Math.round(from[2] + (to[2] - from[2]) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+// 날짜별로 "그날의 문제행동 최댓값", "그날의 확장감 점수", "그날 실천 기록 여부"를 한 줄에 모읍니다.
+// daily_checkin은 하루 최대 1건이라 가정하되(명세서 §4-5), 방어적으로 여러 건이면 마지막 값을 씁니다.
+function buildDualAxisDays(observationDays, dailyCheckins, practiceRecords, days = 14) {
+  const checkinByDate = new Map();
+  dailyCheckins.forEach((entry) => { if (entry.dateTs !== null) checkinByDate.set(entry.dateTs, entry); });
+
+  const practiceDateSet = new Set(
+    practiceRecords
+      .filter((record) => record.recordType === "practice_log")
+      .map((record) => dateOnly(record.date))
+      .filter((ts) => ts !== null),
+  );
+
+  const allDateTs = unique([
+    ...observationDays.map((day) => day.dateTs),
+    ...dailyCheckins.map((day) => day.dateTs),
+    ...practiceDateSet,
+  ]).filter((ts) => ts !== null).sort((a, b) => a - b);
+  const recentDateTs = days ? allDateTs.slice(-days) : allDateTs;
+
+  return recentDateTs.map((dateTs) => {
+    const status = dayProblemStatus(observationDays, dateTs);
+    const checkin = checkinByDate.get(dateTs);
+    return {
+      dateTs,
+      hasAction: status.hasData,
+      actionLevel: status.hasData ? status.maxAction : null,
+      expansionScore: checkin ? checkin.expansionScore : null,
+      hasPractice: practiceDateSet.has(dateTs),
+    };
+  });
 }
 
 const RELAPSE_WINDOW_DAYS = 3;
@@ -705,8 +872,8 @@ function normalizeRows(rows) {
       );
     }
 
-    // record_type === "prediction"은 연쇄(chain) 레코드가 아니라 별도의 관찰-예측 비교 자료이므로
-    // 여기서는 만들지 않고 extractPredictions()에서 state.predictions로 따로 관리합니다.
+    // record_type === "prediction"/"daily_checkin"은 연쇄(chain) 레코드가 아니라 별도 자료이므로
+    // 여기서는 만들지 않고 extractPredictions()/extractDailyCheckins()에서 각각 따로 관리합니다.
   });
 
   return records;
@@ -933,13 +1100,13 @@ function renderDataView() {
       "오늘은 어느 기간의 변화를 중심으로 볼까요?",
     ],
   );
-  return visual + workbench([
+  return `<div class="counselor-only">${visual + workbench([
     ["자료 상태", structural],
     ["레코드 구성", composition],
     ["상담 전 확인", [
       card("확인 질문", "", "focus", ["이 파일의 자료 범위가 오늘 회기에서 다루려는 기간과 맞는가?", "practice_definition이 있는데 practice_log가 없는 항목은 없는가?", "새 CSV를 불러오기 전 이전 자료가 제거되는가?"]),
     ]],
-  ]);
+  ])}</div><div class="patient-mode-only"><div class="empty">이 화면은 상담자 전용입니다. 다른 메뉴를 이용해주세요.</div></div>`;
 }
 
 function renderMeasurementFeedbackView() {
@@ -964,7 +1131,55 @@ function renderMeasurementFeedbackView() {
     ]),
     ["urge", "action", "practice"],
   );
-  return visual + workbench([
+
+  // 감정×충동 산점도 / 문제행동 캘린더 히트맵.
+  // "오늘"을 시스템 날짜가 아니라 CSV 안의 가장 최근 observation 날짜로 고정합니다(상담 시점과 CSV 시점이 다를 수 있으므로).
+  const anchorTs = getAnchorDate(state.observationDays);
+  const scatterVisual = visualFeedback(
+    "감정×충동 산점도",
+    "감정이 강해질수록 충동도 함께 커지는지, 그 조합이 실제 문제행동으로 이어지는지 한눈에 확인합니다. 점 색은 그 기록의 문제행동 수준입니다.",
+    emotionUrgeScatterSvg(getScatterPoints(state.observationDays, anchorTs)),
+    [
+      "오른쪽 위(감정↑충동↑)에 점이 몰려 있나요, 흩어져 있나요?",
+      "빨간 점(문제행동 많음)은 주로 어느 위치에 있나요?",
+      "감정은 높았는데 충동은 낮았던 기록이 있다면, 그때 무엇이 달랐나요?",
+    ],
+  );
+  const calendarVisual = visualFeedback(
+    "문제행동 캘린더",
+    "최근 10주를 요일별 격자로 배치했습니다. 회색은 '기록 없음'이지 실패가 아닙니다. 색이 진할수록 그날 중 가장 심각했던 문제행동 수준입니다.",
+    calendarHeatmapSvg(state.observationDays, anchorTs, 10),
+    [
+      "최근 몇 주와 그 이전을 비교하면 색이 옅어지고 있나요, 짙어지고 있나요?",
+      "색이 특정 요일에 몰려 있나요?",
+      "회색(기록 없음)이 유독 많은 구간이 있다면, 그 시기에 무슨 일이 있었나요?",
+    ],
+  );
+
+  // 문제행동 활성화 수준 vs 삶의 확장감·만족도 (듀얼 연속체) — daily_checkin(v1.1 신규) 반영.
+  const dualAxisDays = buildDualAxisDays(state.observationDays, state.dailyCheckins, state.records, 14);
+  const dualAxisVisual = visualFeedback(
+    "문제행동과 삶의 확장감, 나란히 보기",
+    "증상이 줄었다고 삶이 저절로 만족스러워지는 것은 아닙니다. 두 지표를 같은 시간축에 나란히 놓아 함께 움직이는지, 따로 움직이는지 확인합니다. 초록 점은 그날 작은 실천 기록이 있었다는 뜻입니다.",
+    dualAxisTimelineSvg(dualAxisDays),
+    [
+      "문제행동이 줄어든 주에 확장감도 함께 올라갔나요, 그대로였나요?",
+      "문제행동은 그대로인데 확장감이 올라간 날이 있다면, 그날 무엇이 달랐나요?",
+      "실천 기록(초록 점)이 있는 날은 확장감이 대체로 더 높은 편인가요?",
+    ],
+  );
+  const expansionScatterVisual = visualFeedback(
+    "문제행동×확장감 산점도",
+    "두 축이 반비례하는지(왼쪽 위로 몰림) 서로 독립적인지(흩어짐) 직접 확인합니다. 테두리가 있는 점은 그날 실천 기록이 있었던 날입니다.",
+    expansionActionScatterSvg(dualAxisDays),
+    [
+      "문제행동이 낮은데 확장감도 낮은 날이 있다면, 그날은 어떤 하루였나요?",
+      "테두리 있는 점(실천 기록 있음)이 위쪽(확장감 높음)에 몰려 있나요?",
+      "이 두 지표를 따로 다뤄야 할 이유가 이 그래프에서 보이나요?",
+    ],
+  );
+
+  return visual + scatterVisual + calendarVisual + dualAxisVisual + expansionScatterVisual + workbench([
     ["개인 내 변화", success.concat(partial)],
     ["주의할 점", highRisk.concat(maintenance)],
     ["상담자 질문", [
@@ -1059,7 +1274,7 @@ function renderRelapseEarlyWarningView() {
     ],
   );
   return visual + workbench([
-    ["공식 재발신호", [relapseWindowSummaryCard()]],
+    ["공식 재발신호", [`<div class="counselor-only">${relapseWindowSummaryCard()}</div>`]],
     ["1. 정서적 재발 주의", emotional.map(({ chain, signals }) => relapseCard(chain, "emotional", signals.emotional))],
     ["2. 인지적 재발 경고", cognitive.map(({ chain, signals }) => relapseCard(chain, "cognitive", signals.cognitive))],
     ["정서·인지 신호 겹침", overlap.map(({ chain, signals }) => relapseCard(chain, "overlap", signals.emotional.concat(signals.cognitive)))],
@@ -1517,6 +1732,206 @@ function renderBarSummary(items) {
   }).join("")}</div>`;
 }
 
+// 감정×충동 산점도. viewBox 300x300, 좌/하단 여백 34px, 상/우 여백 20px, 점 반지름 6px, 불투명도 0.55(명세서 §1-3).
+function emotionUrgeScatterSvg(points) {
+  if (!points.length) return `<div class="empty">아직 산점도로 볼 관찰 기록이 없습니다.</div>`;
+  const left = 34;
+  const right = 20;
+  const top = 20;
+  const bottom = 34;
+  const size = 300;
+  const plotW = size - left - right;
+  const plotH = size - top - bottom;
+  const xFor = (v) => left + (v / 10) * plotW;
+  const yFor = (v) => (size - bottom) - (v / 10) * plotH;
+  const ticks = [0, 2, 4, 6, 8, 10];
+
+  const gridLines = ticks.map((t) => `
+    <line class="chart-grid" x1="${xFor(t)}" y1="${top}" x2="${xFor(t)}" y2="${size - bottom}"></line>
+    <line class="chart-grid" x1="${left}" y1="${yFor(t)}" x2="${size - right}" y2="${yFor(t)}"></line>
+  `).join("");
+  const xTicks = ticks.map((t) => `<text class="chart-tick" x="${xFor(t)}" y="${size - bottom + 14}" text-anchor="middle">${t}</text>`).join("");
+  const yTicks = ticks.map((t) => `<text class="chart-tick" x="${left - 8}" y="${yFor(t) + 3}" text-anchor="end">${t}</text>`).join("");
+  const circles = points.map((point) => `<circle cx="${xFor(point.x)}" cy="${yFor(point.y)}" r="6" fill="${point.color}" fill-opacity="0.55"><title>${escapeHtml(formatDate(new Date(point.dateTs)))} · 감정 ${point.x}/10 · 충동 ${point.y}/10</title></circle>`).join("");
+
+  return `
+    <svg viewBox="0 0 ${size} ${size + 34}" role="img" aria-label="감정과 충동의 산점도">
+      <line class="chart-axis" x1="${left}" y1="${top}" x2="${left}" y2="${size - bottom}"></line>
+      <line class="chart-axis" x1="${left}" y1="${size - bottom}" x2="${size - right}" y2="${size - bottom}"></line>
+      ${gridLines}
+      ${xTicks}
+      ${yTicks}
+      <text class="chart-label" x="${left + plotW / 2}" y="${size + 14}" text-anchor="middle">불편한 감정 (0~10)</text>
+      <text class="chart-label" x="${-(top + plotH / 2)}" y="12" text-anchor="middle" transform="rotate(-90)">충동 (0~10)</text>
+      ${circles}
+    </svg>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background:${severityColor(0)}"></span>문제행동 없음</span>
+      <span><span class="legend-dot" style="background:${severityColor(50)}"></span>일부 함</span>
+      <span><span class="legend-dot" style="background:${severityColor(100)}"></span>많이 함</span>
+    </div>
+  `;
+}
+
+// 문제행동 캘린더 히트맵. weeks(기본 10) × 7행(일~토), GitHub 기여그래프 형식(명세서 §2).
+function calendarHeatmapSvg(observationDays, anchorTs, weeks = 10) {
+  if (!observationDays.length) {
+    // 관찰 기록이 전혀 없어도 오류가 아니라 "기록 없음" 색으로 채운 빈 캘린더를 보여줍니다(명세서 §2-6).
+  }
+  const cells = calendarHeatmapCells(observationDays, anchorTs, weeks);
+  const cellSize = 13;
+  const gap = 3;
+  const step = cellSize + gap;
+  const leftLabelWidth = 24;
+  const width = leftLabelWidth + weeks * step;
+  const height = 7 * step + 6;
+  const dowLabels = ["일", "월", "화", "수", "목", "금", "토"];
+
+  const dowText = dowLabels.map((label, row) => `<text class="chart-tick" x="0" y="${row * step + cellSize - 2}" font-size="9">${row % 2 === 1 ? label : ""}</text>`).join("");
+  const rects = cells.map((cell) => {
+    const x = leftLabelWidth + cell.col * step;
+    const y = cell.row * step;
+    const fill = heatmapCellColor(cell);
+    if (cell.dateTs === null) return `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="3" fill="transparent"></rect>`;
+    const title = `${escapeHtml(formatDate(new Date(cell.dateTs)))} · ${cell.status.hasData ? `문제행동 수준 ${cell.status.maxAction}/5` : "기록 없음"}`;
+    return `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="3" fill="${fill}"><title>${title}</title></rect>`;
+  }).join("");
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="문제행동 캘린더 히트맵">
+      ${dowText}
+      ${rects}
+    </svg>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background:#eef4ef"></span>기록 없음</span>
+      <span><span class="legend-dot" style="background:${severityColor(0)}"></span>문제행동 없음</span>
+      <span><span class="legend-dot" style="background:${severityColor(50)}"></span>일부 함</span>
+      <span><span class="legend-dot" style="background:${severityColor(100)}"></span>많이 함</span>
+    </div>
+  `;
+}
+
+// 문제행동(빨강 계열)과 확장감(파랑-보라 계열)을 같은 날짜축 위에 두 줄로 나란히 배치합니다.
+// 절대 하나의 그래프로 합치지 않습니다 — 두 축이 독립적이라는 것(듀얼 연속체)을 색만 봐도 알 수 있게 하기 위함입니다.
+function dualAxisTimelineSvg(days) {
+  if (!days.length) return `<div class="empty">아직 문제행동·확장감을 나란히 비교할 자료가 없습니다.</div>`;
+  const cellW = 28;
+  const cellGap = 2;
+  const cellH = 22;
+  const rowGap = 4;
+  const leftLabelWidth = 66;
+  const width = leftLabelWidth + days.length * cellW;
+  const rowActionY = 4;
+  const rowExpansionY = rowActionY + cellH + rowGap;
+  const rowPracticeY = rowExpansionY + cellH + rowGap;
+  const rowPracticeHeight = 14;
+  const axisLineY = rowPracticeY + rowPracticeHeight + 10;
+  const axisTextY = axisLineY + 13;
+  const height = axisTextY + 6;
+
+  const actionCells = days.map((day, i) => {
+    const x = leftLabelWidth + i * cellW;
+    const fill = day.hasAction ? severityColorForActionLevel(day.actionLevel) : "#eef4ef";
+    const title = `${escapeHtml(formatDate(new Date(day.dateTs)))} · 문제행동 ${day.hasAction ? `${day.actionLevel}/5` : "기록 없음"}`;
+    return `<rect x="${x}" y="${rowActionY}" width="${cellW - cellGap}" height="${cellH}" rx="4" fill="${fill}"><title>${title}</title></rect>`;
+  }).join("");
+
+  const expansionCells = days.map((day, i) => {
+    const x = leftLabelWidth + i * cellW;
+    const fill = day.expansionScore !== null ? expansionColor(day.expansionScore) : "#eef4ef";
+    const title = `${escapeHtml(formatDate(new Date(day.dateTs)))} · 확장감 ${day.expansionScore !== null ? `${day.expansionScore}/10` : "기록 없음"}`;
+    return `<rect x="${x}" y="${rowExpansionY}" width="${cellW - cellGap}" height="${cellH}" rx="4" fill="${fill}"><title>${title}</title></rect>`;
+  }).join("");
+
+  const practiceMarks = days.map((day, i) => {
+    if (!day.hasPractice) return "";
+    const x = leftLabelWidth + i * cellW + (cellW - cellGap) / 2;
+    return `<circle cx="${x}" cy="${rowPracticeY + rowPracticeHeight / 2}" r="3" fill="#2f7b4f"><title>이날 실천 기록 있음</title></circle>`;
+  }).join("");
+
+  // 날짜 라벨은 문제행동·확장감·실천 세 줄 모두에 공통으로 적용되는 축이므로,
+  // "실천" 줄과 헷갈리지 않도록 구분선(axisLineY)을 넣고 충분히 아래로 띄웠습니다.
+  // 칸 너비(28px)에 "07-05" 같은 라벨이 거의 꽉 차므로, 최소 2칸 간격을 두어 옆 라벨과 겹치지 않게 합니다.
+  const showEvery = Math.max(2, Math.ceil(days.length / 6));
+  const dateLabels = days.map((day, i) => {
+    if (i % showEvery !== 0 && i !== days.length - 1) return "";
+    const x = leftLabelWidth + i * cellW + (cellW - cellGap) / 2;
+    return `<text class="chart-tick" x="${x}" y="${axisTextY}" text-anchor="middle" font-size="9">${formatDate(new Date(day.dateTs)).slice(5)}</text>`;
+  }).join("");
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="문제행동과 삶의 확장감 나란히 보기">
+      <text class="chart-label" x="0" y="${rowActionY + cellH / 2 + 4}" font-size="11">문제행동</text>
+      <text class="chart-label" x="0" y="${rowExpansionY + cellH / 2 + 4}" font-size="11">확장감</text>
+      <text class="chart-label" x="0" y="${rowPracticeY + rowPracticeHeight / 2 + 3}" font-size="9">실천</text>
+      ${actionCells}
+      ${expansionCells}
+      ${practiceMarks}
+      <line class="chart-axis" x1="${leftLabelWidth}" y1="${axisLineY}" x2="${width}" y2="${axisLineY}"></line>
+      <text class="chart-tick" x="0" y="${axisTextY}" font-size="9">날짜</text>
+      ${dateLabels}
+    </svg>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background:${severityColor(0)}"></span>문제행동 낮음</span>
+      <span><span class="legend-dot" style="background:${severityColor(100)}"></span>문제행동 높음</span>
+      <span><span class="legend-dot" style="background:${expansionColor(0)}"></span>확장감 낮음</span>
+      <span><span class="legend-dot" style="background:${expansionColor(10)}"></span>확장감 높음</span>
+      <span><span class="legend-dot" style="background:#2f7b4f"></span>그날 실천 기록 있음</span>
+    </div>
+  `;
+}
+
+// 문제행동 수준(X)과 확장감(Y)의 관계를 직접 산점도로 보여줍니다.
+// 반비례한다면 좌상단(문제행동 낮음·확장감 높음)에 점이 몰릴 것이고, 독립적이라면 흩어져 나타납니다.
+// 테두리가 있는 점은 그날 실천 기록이 있었던 날입니다(작은 실천행동과의 관계도 함께 확인).
+function expansionActionScatterSvg(days) {
+  const points = days.filter((day) => day.hasAction && day.expansionScore !== null);
+  if (!points.length) return `<div class="empty">문제행동 수준과 확장감 점수가 같은 날 함께 기록된 자료가 아직 없습니다.</div>`;
+  const left = 40;
+  const right = 20;
+  const top = 20;
+  const bottom = 34;
+  const width = 300;
+  const heightPlot = 260;
+  const plotW = width - left - right;
+  const plotH = heightPlot - top - bottom;
+  const xFor = (v) => left + (v / 5) * plotW;
+  const yFor = (v) => (heightPlot - bottom) - (v / 10) * plotH;
+  const xTicks = [0, 1, 2, 3, 4, 5];
+  const yTicks = [0, 2, 4, 6, 8, 10];
+
+  const gridLines = [
+    ...xTicks.map((t) => `<line class="chart-grid" x1="${xFor(t)}" y1="${top}" x2="${xFor(t)}" y2="${heightPlot - bottom}"></line>`),
+    ...yTicks.map((t) => `<line class="chart-grid" x1="${left}" y1="${yFor(t)}" x2="${width - right}" y2="${yFor(t)}"></line>`),
+  ].join("");
+  const xTickText = xTicks.map((t) => `<text class="chart-tick" x="${xFor(t)}" y="${heightPlot - bottom + 14}" text-anchor="middle">${t}</text>`).join("");
+  const yTickText = yTicks.map((t) => `<text class="chart-tick" x="${left - 8}" y="${yFor(t) + 3}" text-anchor="end">${t}</text>`).join("");
+  const circles = points.map((day) => {
+    const r = day.hasPractice ? 7 : 4;
+    const color = severityColorForActionLevel(day.actionLevel);
+    const title = `${formatDate(new Date(day.dateTs))} · 문제행동 ${day.actionLevel}/5 · 확장감 ${day.expansionScore}/10${day.hasPractice ? " · 실천 기록 있음" : ""}`;
+    return `<circle cx="${xFor(day.actionLevel)}" cy="${yFor(day.expansionScore)}" r="${r}" fill="${color}" fill-opacity="0.6" stroke="${day.hasPractice ? "#176b5b" : "none"}" stroke-width="${day.hasPractice ? 2 : 0}"><title>${escapeHtml(title)}</title></circle>`;
+  }).join("");
+
+  return `
+    <svg viewBox="0 0 ${width} ${heightPlot + 34}" role="img" aria-label="문제행동과 확장감의 관계 산점도">
+      <line class="chart-axis" x1="${left}" y1="${top}" x2="${left}" y2="${heightPlot - bottom}"></line>
+      <line class="chart-axis" x1="${left}" y1="${heightPlot - bottom}" x2="${width - right}" y2="${heightPlot - bottom}"></line>
+      ${gridLines}
+      ${xTickText}
+      ${yTickText}
+      <text class="chart-label" x="${left + plotW / 2}" y="${heightPlot + 14}" text-anchor="middle">문제행동 수준 (0~5)</text>
+      <text class="chart-label" x="${-(top + plotH / 2)}" y="12" text-anchor="middle" transform="rotate(-90)">확장감·만족도 (0~10)</text>
+      ${circles}
+    </svg>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background:${severityColor(0)}"></span>문제행동 낮음</span>
+      <span><span class="legend-dot" style="background:${severityColor(100)}"></span>문제행동 높음</span>
+      <span>◎ 테두리 있는 점 = 그날 실천 기록 있음</span>
+    </div>
+  `;
+}
+
 function card(title, body, kind = "", questions = []) {
   return `<article class="card ${kind}">
     <h3>${escapeHtml(title)}</h3>
@@ -1694,6 +2109,7 @@ function resetDataOnly() {
   state.chains = [];
   state.predictions = [];
   state.observationDays = [];
+  state.dailyCheckins = [];
   state.relapseWindow = null;
   state.fileName = "";
   state.shareMode = "";

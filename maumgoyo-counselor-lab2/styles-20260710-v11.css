@@ -745,3 +745,27 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- 환자용 보기 모드 --- */
+.mode-toggle {
+  font-weight: 800;
+}
+
+/* 기본값은 "보임" — 새 카드를 추가해도 명시적으로 counselor-only를 붙이지 않는 한 환자용 보기에도 그대로 나타남 */
+body.patient-mode .counselor-only {
+  display: none !important;
+}
+
+.patient-mode-only {
+  display: none;
+}
+
+body.patient-mode .patient-mode-only {
+  display: block;
+}
+
+@media print {
+  .mode-toggle {
+    display: none;
+  }
+}

@@ -3,27 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>마음고요 상담분석실 20260710v21</title>
-  <link rel="stylesheet" href="styles-20260710-v11.css?v=20260710v21">
+  <title>마음고요 상담분석실 20260710v27</title>
+  <link rel="stylesheet" href="styles-20260710-v11.css?v=20260710v27">
 </head>
 <body>
   <header class="app-header">
     <div>
       <p class="eyebrow">상담자용 CSV 분석 도구</p>
-      <h1>마음고요 상담분석실 <span class="version-badge">20260710v21</span></h1>
+      <h1>마음고요 상담분석실 <span class="version-badge">20260710v27</span></h1>
       <p class="version-note">단계별 시각적 피드백 그래프 · 측정기록 기반 질문 · STOP/TIPP 호흡훈련 · 가치기반 실천</p>
     </div>
     <div class="header-actions">
-      <button id="sampleBtn" class="secondary" type="button">예시</button>
-      <button id="refreshBtn" class="secondary" type="button">현재 파일 새로고침</button>
-      <button id="resetBtn" class="secondary" type="button">자료 제거</button>
-      <button id="printBtn" class="secondary" type="button">인쇄</button>
-      <button id="exportBtn" class="primary" type="button">요약 저장</button>
+      <button id="patientModeBtn" class="primary mode-toggle" type="button">환자용 보기</button>
+      <button id="sampleBtn" class="secondary counselor-only" type="button">예시</button>
+      <button id="refreshBtn" class="secondary counselor-only" type="button">현재 파일 새로고침</button>
+      <button id="resetBtn" class="secondary counselor-only" type="button">자료 제거</button>
+      <button id="printBtn" class="secondary counselor-only" type="button">인쇄</button>
+      <button id="exportBtn" class="primary counselor-only" type="button">요약 저장</button>
     </div>
   </header>
 
   <main class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar counselor-only">
       <section class="panel">
         <label class="drop-zone" for="csvInput" id="dropZone">
           <strong>CSV 파일 불러오기</strong>
@@ -76,7 +77,7 @@
         <div id="therapyView" class="therapy-view"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel counselor-only">
         <div class="panel-heading">
           <h2>연쇄 기록 전체 보기</h2>
           <button id="copySummaryBtn" class="secondary small" type="button">요약 복사</button>
@@ -86,6 +87,6 @@
     </section>
   </main>
 
-  <script src="app-20260710-v11.js?v=20260710v21"></script>
+  <script src="app-20260710-v11.js?v=20260710v27"></script>
 </body>
 </html>
