@@ -1,4 +1,4 @@
-const APP_VERSION = "v67"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v70"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -704,6 +704,8 @@ const TEXT_LIMITS = {
       moreBtn.type = "button";
       moreBtn.className = "chip-more";
       moreBtn.textContent = `+ 더보기 (${toCollapse.length})`;
+      moreBtn.setAttribute("aria-expanded", "false");
+      moreBtn.setAttribute("aria-label", `숨겨진 항목 ${toCollapse.length}개 더보기`);
       moreBtn.addEventListener("click", () => {
         toCollapse.forEach(chip => chip.classList.remove("chip-collapsed"));
         moreBtn.remove();
@@ -751,6 +753,20 @@ const TEXT_LIMITS = {
         state[stateKey] = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
       });
     }
+    function learnedCustomBehaviorAreas() {
+      const seen = new Set();
+      const ordered = [];
+      const sorted = activeObservations().slice().sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+      sorted.forEach(o => {
+        (Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : []).forEach(value => {
+          if (value && !defaultBehaviors.includes(value) && !seen.has(value)) {
+            seen.add(value);
+            ordered.push(value);
+          }
+        });
+      });
+      return ordered;
+    }
     function setBehaviorGroup(items, maxVisible = 0) {
       const oldBox = $("#behaviorChips");
       const freshBox = oldBox.cloneNode(false);
@@ -773,7 +789,8 @@ const TEXT_LIMITS = {
       applyChipVisibility(box, maxVisible);
     }
     function initPickers() {
-      setBehaviorGroup(defaultBehaviors, 6);
+      const learnedBehaviors = learnedCustomBehaviorAreas();
+      setBehaviorGroup([...learnedBehaviors, ...defaultBehaviors], learnedBehaviors.length + 6);
       renderAliasTargetOptions();
       renderAliasList();
       setChipGroup("#emotionChips", emotions, "emotion", state.emotion, 6);
@@ -3032,7 +3049,10 @@ const TEXT_LIMITS = {
       event.preventDefault();
       const value = cleanText($("#valueCustom").value || state.value || "", TEXT_LIMITS.short);
       const behaviorAreas = selectedBehaviorAreas();
-      const behaviorCustomAreas = splitBehaviorCustom($("#behaviorCustom").value);
+      const behaviorCustomAreas = Array.from(new Set([
+        ...behaviorAreas.filter(area => !defaultBehaviors.includes(area)),
+        ...splitBehaviorCustom($("#behaviorCustom").value)
+      ]));
       const behavior = behaviorAreas.join(", ");
       const id = $("#observeId").value || uid();
       const entry = {
@@ -3326,6 +3346,18 @@ const TEXT_LIMITS = {
       $("#observeStepNext").addEventListener("click", () => goObserveStep(1));
       $("#practiceStepBack").addEventListener("click", () => goPracticeStep(-1));
       $("#practiceStepNext").addEventListener("click", () => goPracticeStep(1));
+      $("#observeForm").addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || event.target.tagName !== "INPUT") return;
+        if (state.observeStep === OBSERVE_STEP_TITLES.length - 1) return;
+        event.preventDefault();
+        goObserveStep(1);
+      });
+      $("#practiceForm").addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || event.target.tagName !== "INPUT") return;
+        if (state.practiceStep === PRACTICE_STEP_TITLES.length - 1) return;
+        event.preventDefault();
+        goPracticeStep(1);
+      });
       $("#observeQuickSave").addEventListener("click", () => {
         const form = $("#observeForm");
         if (form.requestSubmit) form.requestSubmit();

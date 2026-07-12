@@ -78,7 +78,17 @@
     .wizard-step { display: none; }
     .wizard-step.active { display: block; animation: wizard-fade-in .2s ease; }
     @keyframes wizard-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    .wizard-bottom-nav { display: flex; gap: 8px; margin-top: 4px; }
+    .wizard-bottom-nav {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+      position: sticky;
+      bottom: 0;
+      background: var(--surface);
+      padding: 10px 0 4px;
+      border-top: 1px solid var(--line);
+      z-index: 5;
+    }
     .wizard-bottom-nav .ghost-btn { flex: 0 0 auto; min-width: 84px; }
     .chip-more { border: 1px dashed var(--muted); background: none; border-radius: 999px; min-height: 38px; padding: 0 14px; color: var(--muted); font-weight: 750; }
     .chip-collapsed { display: none !important; }
