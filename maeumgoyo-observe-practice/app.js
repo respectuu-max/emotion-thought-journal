@@ -1,4 +1,4 @@
-const APP_VERSION = "v64"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v65"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -111,6 +111,7 @@ const TEXT_LIMITS = {
     const state = {
       view: "today",
       observeMode: "저녁",
+      observeStep: 0,
       behavior: "",
       behaviorAreas: [],
       emotion: "",
@@ -599,9 +600,49 @@ const TEXT_LIMITS = {
       box.classList.toggle("hidden", !show);
       if (show) box.querySelectorAll("input[type='checkbox']").forEach(input => input.checked = false);
     }
+    const OBSERVE_STEP_TITLES = ["1 · 상황과 촉발 단서", "2 · 마음 관찰", "3 · 강도 기록", "4 · 대처와 성찰"];
+    const OBSERVE_STEP_LABELS = [
+      "1단계 / 4단계 · 30초면 충분합니다",
+      "2단계 / 4단계 · 해당하는 것만 눌러주세요",
+      "3단계 / 4단계 · 강도만 옮기면 됩니다",
+      "4단계 / 4단계 · 여기부터는 전부 선택입니다"
+    ];
+    function renderObserveStep() {
+      const step = state.observeStep;
+      $$(".wizard-step").forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
+      $$(".wizard-dot").forEach((dot, i) => {
+        dot.classList.toggle("done", i < step);
+        dot.classList.toggle("current", i === step);
+      });
+      const titleBox = $("#observeStepTitle");
+      const labelBox = $("#observeStepLabel");
+      if (titleBox) titleBox.textContent = OBSERVE_STEP_TITLES[step];
+      if (labelBox) labelBox.textContent = OBSERVE_STEP_LABELS[step];
+      const backBtn = $("#observeStepBack");
+      const nextBtn = $("#observeStepNext");
+      const saveBtn = $("#observeStepSave");
+      const sendBtn = $("#sendToPractice");
+      const sendHint = $("#sendToPracticeHint");
+      if (backBtn) backBtn.classList.toggle("hidden", step === 0);
+      const isLastStep = step === OBSERVE_STEP_TITLES.length - 1;
+      if (nextBtn) nextBtn.classList.toggle("hidden", isLastStep);
+      if (saveBtn) saveBtn.classList.toggle("hidden", !isLastStep);
+      if (sendBtn) sendBtn.classList.toggle("hidden", !isLastStep);
+      if (sendHint) sendHint.classList.toggle("hidden", !isLastStep);
+    }
+    function goObserveStep(delta) {
+      const next = state.observeStep + delta;
+      if (next < 0 || next > OBSERVE_STEP_TITLES.length - 1) return;
+      state.observeStep = next;
+      renderObserveStep();
+      const form = $("#observeForm");
+      if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     function startQuickObservation(kind = "observe") {
       setView("observe");
       $("#observeDate").value = todayISO();
+      state.observeStep = 0;
+      renderObserveStep();
       if (kind === "risk") {
         setObserveMode("충동 발생");
         $("#urgeScore").value = 8;
@@ -618,7 +659,24 @@ const TEXT_LIMITS = {
       $("#situation").focus();
       showToast("지금의 상황, 감정, 몸 반응만 짧게 적어도 충분합니다.");
     }
-    function setChipGroup(containerId, items, key, activeValue = "") {
+    function applyChipVisibility(box, maxVisible) {
+      if (!box || !maxVisible) return;
+      const chips = Array.from(box.querySelectorAll(".chip"));
+      const isSelected = chip => chip.classList.contains("active") || Boolean(chip.querySelector("input:checked"));
+      const toCollapse = chips.filter((chip, i) => i >= maxVisible && !isSelected(chip));
+      if (!toCollapse.length) return;
+      toCollapse.forEach(chip => chip.classList.add("chip-collapsed"));
+      const moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "chip-more";
+      moreBtn.textContent = `+ 더보기 (${toCollapse.length})`;
+      moreBtn.addEventListener("click", () => {
+        toCollapse.forEach(chip => chip.classList.remove("chip-collapsed"));
+        moreBtn.remove();
+      });
+      box.appendChild(moreBtn);
+    }
+    function setChipGroup(containerId, items, key, activeValue = "", maxVisible = 0) {
       const oldBox = $(containerId);
       const freshBox = oldBox.cloneNode(false);
       oldBox.replaceWith(freshBox);
@@ -629,7 +687,7 @@ const TEXT_LIMITS = {
       }).join("");
       box.addEventListener("click", (event) => {
         const button = event.target.closest("button");
-        if (!button) return;
+        if (!button || !button.classList.contains("chip")) return;
         if (key === "body") {
           button.classList.toggle("active");
           const value = button.dataset.value;
@@ -641,6 +699,7 @@ const TEXT_LIMITS = {
         button.classList.add("active");
         state[key] = button.dataset.value;
       });
+      applyChipVisibility(box, maxVisible);
     }
     function setMultiChipGroup(containerId, items, stateKey) {
       const oldBox = $(containerId);
@@ -651,14 +710,14 @@ const TEXT_LIMITS = {
       box.innerHTML = items.map(item => `<button type="button" class="chip ${selected.has(item) ? "active" : ""}" data-value="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("");
       box.addEventListener("click", (event) => {
         const button = event.target.closest("button");
-        if (!button) return;
+        if (!button || !button.classList.contains("chip")) return;
         button.classList.toggle("active");
         const value = button.dataset.value;
         const list = state[stateKey] || [];
         state[stateKey] = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
       });
     }
-    function setBehaviorGroup(items) {
+    function setBehaviorGroup(items, maxVisible = 0) {
       const oldBox = $("#behaviorChips");
       const freshBox = oldBox.cloneNode(false);
       oldBox.replaceWith(freshBox);
@@ -677,14 +736,15 @@ const TEXT_LIMITS = {
           label.classList.toggle("active", Boolean(input && input.checked));
         });
       });
+      applyChipVisibility(box, maxVisible);
     }
     function initPickers() {
-      setBehaviorGroup(defaultBehaviors);
+      setBehaviorGroup(defaultBehaviors, 6);
       renderAliasTargetOptions();
       renderAliasList();
-      setChipGroup("#emotionChips", emotions, "emotion", state.emotion);
-      setChipGroup("#bodyChips", bodies, "body");
-      setChipGroup("#valueChips", values, "value", state.value);
+      setChipGroup("#emotionChips", emotions, "emotion", state.emotion, 6);
+      setChipGroup("#bodyChips", bodies, "body", "", 6);
+      setChipGroup("#valueChips", values, "value", state.value, 6);
       setMultiChipGroup("#triggerPlaceChips", triggerPlaces, "triggerPlaces");
       setMultiChipGroup("#triggerPeopleChips", triggerPeople, "triggerPeople");
       setMultiChipGroup("#triggerTimeChips", triggerTimes, "triggerTimes");
@@ -1468,6 +1528,8 @@ const TEXT_LIMITS = {
       paintAllIntensitySliders();
       showRiskFollowup(clampNumber(record.urgeScore, 0, 10, 0) >= 8 || clampNumber(record.actionLevel, 0, 5, 0) >= 4);
       initPickers();
+      state.observeStep = 0;
+      renderObserveStep();
       setView("observe");
       $("#situation").focus();
       showToast("관찰 기록을 불러왔습니다. 수정 후 다시 저장하세요.");
@@ -3032,6 +3094,8 @@ const TEXT_LIMITS = {
       });
       paintAllIntensitySliders();
       initPickers();
+      state.observeStep = 0;
+      renderObserveStep();
     }
     function practiceSubmit(event) {
       event.preventDefault();
@@ -3220,6 +3284,13 @@ const TEXT_LIMITS = {
       $$(".tab").forEach(tab => tab.addEventListener("click", () => setView(tab.dataset.view)));
       $$("[data-jump]").forEach(b => b.addEventListener("click", () => setView(b.dataset.jump)));
       $("#observeForm").addEventListener("submit", observeSubmit);
+      $("#observeStepBack").addEventListener("click", () => goObserveStep(-1));
+      $("#observeStepNext").addEventListener("click", () => goObserveStep(1));
+      $("#observeQuickSave").addEventListener("click", () => {
+        const form = $("#observeForm");
+        if (form.requestSubmit) form.requestSubmit();
+        else observeSubmit({ preventDefault: () => {}, target: form });
+      });
       $("#practiceForm").addEventListener("submit", practiceSubmit);
       $("#practiceValue").addEventListener("input", startFreshPracticeFromTopFields);
       $("#practiceName").addEventListener("input", startFreshPracticeFromTopFields);
