@@ -1,6 +1,31 @@
-# 마음고요 상담분석실 v11 (20260710v27 — 환자용 보기 안내 배너 제거)
+# 마음고요 상담분석실 v11 (20260713v31 — CSV 연동 명세서 2.0 반영)
 
 ## 이 버전에서 바뀐 것
+
+### CSV 연동 명세서 2.0 반영 (v31)
+`마음고요 관찰과 실천`의 CSV 구조가 정리되면서(문서 버전 2.0, schema_version은 `maeumgoyo_csv_v1` 유지) 여러 필드의 **타입**이 바뀌었습니다. 이전 버전과의 호환을 고려하지 않고 새 구조 기준으로 다시 맞췄습니다.
+
+- **`archived`가 모든 record_type에서 문자열 `"0"/"1"`이 아니라 진짜 JSON 불리언(`true`/`false`)으로 통일**됨에 따라, 판정 로직을 `payload.archived === true`로 단순화
+- **`practice_definition`은 `archived: true`여도 `counselor_full`에 "참조용으로 항상 포함"됨을 반영**: 보관(중단)된 실천 정의는 목표치·완료율 계산(`practicePlans`)에서는 제외하되, 그 실천에 달린 `practice_log`는 원본 행에서 이름을 직접 찾아오므로 계속 정상적으로 그룹 표시됩니다. `observation`/`practice_log`/`prediction`/`daily_checkin`은 `archived: true`면 record_type과 share_mode에 관계없이 분석에서 제외합니다.
+- `emotion_custom`/`body_custom`이 문자열에서 배열로 바뀌었지만, 기존 `textList()`/`joinText()` 헬퍼가 배열을 이미 처리하고 있어 별도 수정 없이 정상 작동함을 확인
+- `practice_log`의 파생 필드 `practice_score`가 규격에서 제거됨에 따라, 관련 하위호환 fallback 코드를 삭제(`pleasure_score`/`mastery_score`만 사용)
+- `daily_checkin`이 같은 날짜에 2건 이상 있으면("하루 1건 원칙" 위반) 경고를 표시하도록 검증 추가
+- 내장 예시 CSV("예시" 버튼)를 2.0 규격 그대로 다시 만들어, 보관된 실천행동과 `daily_checkin` 2건을 포함하도록 갱신
+
+### 🐛 버그 수정: 빈 문자열 선택 필드가 0으로 잘못 읽히던 문제 (v31)
+실제 샘플 CSV로 테스트하던 중 발견했습니다. `urge_initial_score`/`urge_end_score`/`actual_severity`/`expected_pleasure_score` 같은 **선택 입력** 숫자 필드가 CSV에서 빈 문자열(`""`)로 오면, JavaScript의 `Number("") === 0`라는 특성 때문에 "기록 없음"이 아니라 **"0점"으로 잘못 해석**되고 있었습니다. `score10()`/`score5()`/`wholeNumber()`가 빈 문자열·공백·`null`·`undefined`를 먼저 걸러내고 나서 숫자로 변환하도록 고쳤습니다. 실제 샘플 CSV(`obs-0002`의 빈 충동곡선 값, `pred-0002`의 미확인 `actual_severity`)로 이 버그가 재현되고 수정되는 것을 확인했습니다.
+
+### 전체 백업(backup_full)/range_days 관련 (v29~v30)
+`backup_full`이 실제로 어떤 `range_days` 값을 담는지 확인되지 않아, **어떤 값이 와도 신뢰하지 않도록** 만들었습니다. "선택한 공유 기간과 무관하게 저장된다"는 설명 자체가 range_days는 backup_full의 실제 내용을 설명할 수 없다는 뜻이기 때문입니다(값이 잘못돼서가 아니라 개념적으로 적용 불가). `resolveRangeWindow()`가 `share_mode=backup_full` 행이 하나라도 있으면 range_days 값과 무관하게 항상 실제 관측된 관찰 날짜의 최소~최대 범위를 사용하도록 고쳤습니다. 이 값을 기준으로 계산되는 재발신호·실천계획 완료율도 함께 안전해집니다. `counselor_full`은 기존처럼 range_days를 그대로 신뢰합니다.
+
+### 전체 백업(backup_full) CSV 읽기 지원 (v29)
+`마음고요 관찰과 실천`의 "공유하기 → 숨긴 기록 포함 전체 CSV 백업" 버튼으로 만들어지는 파일을 읽을 수 있습니다. 이 파일은 "선택한 공유 기간과 무관하게 모든 기록과 보관 상태를 저장"하는, 기존 `counselor_full`(기간 한정 공유본)과는 성격이 다른 파일입니다.
+
+- `share_mode`가 `counselor_full` 또는 `backup_full`인 행을 분석 대상으로 인식
+- `backup_full`에서 `payload_json.archived`가 `"1"` 또는 `true`인 기록(보관 처리된 기록)은 record_type과 무관하게 분석에서 제외
+- 공유 모드 표시가 "전체 백업본(backup_full, 보관 기록 제외 분석)"과 "상담자용 상세(counselor_full)"를 구분해서 보여줌
+- **전체 백업은 기간 제한이 없어 파일이 클 수 있다는 점을 반영**: 파일 크기 상한을 5MB→20MB로 올리고, "필요한 기간으로 좁히세요" 같은 부정확한 안내 문구를 제거. 5,000행 초과 시에도 backup_full이면 "정상적으로 클 수 있음"으로, 그 외에는 기존처럼 "이어붙임 의심" 경고로 구분
+- `counselor_full`과 `backup_full`이 한 파일에 섞여 있으면 경고(실제 내보내기에서는 두 값이 각각 다른 버튼으로 별도 파일을 만들므로, 섞여 있으면 파일이 잘못 합쳐졌을 가능성이 있음)
 
 ### 환자용 보기 상태 표시 방식 변경 (v27)
 환자용 보기로 전환하면 화면 상단에 "환자용 보기 중 · 상담 메모·CSV 관리·분석 도구는 숨겨져 있습니다"라는 배너가 떴는데, 이 문구를 제거했습니다. "무언가를 숨기고 있다"는 문구를 환자가 직접 보게 하는 것은 불필요할뿐더러, 오히려 불신을 키울 위험이 있다고 판단했습니다. 지금은 헤더의 토글 버튼 라벨("환자용 보기" ↔ "상담자용 보기로 전환")만으로 상담자가 현재 상태를 확인합니다.
