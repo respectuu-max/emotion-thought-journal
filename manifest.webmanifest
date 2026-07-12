@@ -1,7 +1,7 @@
 {
-  "name": "감정사고 관찰일지",
-  "short_name": "감정사고 일지",
-  "description": "사고, 감정, 충동, 행동 여부와 대처행동을 간단히 기록하는 관찰일지입니다.",
+  "name": "마음고요 관찰과 실천",
+  "short_name": "관찰과 실천",
+  "description": "상담실 밖 6일 동안 관찰하고 가치 기반 작은 실천행동을 기록하는 변화 기록 앱입니다.",
   "lang": "ko",
   "dir": "ltr",
   "start_url": "./index.html",
