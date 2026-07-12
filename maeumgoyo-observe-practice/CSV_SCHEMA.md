@@ -32,11 +32,11 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 | `schema_version` | CSV 규격 버전. 현재 `maeumgoyo_csv_v1` |
 | `record_type` | `observation`, `practice_definition`, `practice_log`, `prediction`, `daily_checkin` 중 하나 |
 | `id` | 기록 고유 ID |
-| `date` | 기록 날짜. `YYYY-MM-DD` |
+| `date` | 기록 날짜. `YYYY-MM-DD`. 날짜 개념이 없는 `practice_definition`은 빈 문자열 |
 | `updated_at` | 해당 기록의 마지막 수정 시각 (ISO 8601) |
 | `exported_at` | CSV 파일 생성 시각 |
 | `client_alias` | 보호설정에서 지정한 내담자 별칭 |
-| `share_mode` | CSV는 항상 `counselor_full` |
+| `share_mode` | 상담자 기간 공유는 `counselor_full`, 모든 기록과 보관 상태를 담는 전체 백업은 `backup_full` |
 | `range_days` | 내보낼 때 선택한 기간을 나타내는 기계 판독용 값. `7` / `14` / `28` 처럼 숫자이거나, 전체 기간이면 문자열 `"all"`. 사람이 읽는 기간 표현("최근 1주" 등)은 CSV에는 넣지 않고, 상담자 요약 텍스트에만 사용합니다. |
 | `payload_json` | record_type별 세부 자료 JSON |
 
@@ -48,9 +48,9 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
   "behavior_areas": ["도박", "성행동"],
   "behavior_custom_areas": ["나만의 별칭"],
   "emotion": "불안",
-  "emotion_custom": "",
+  "emotion_custom": [],
   "body_reactions": ["가슴 답답함", "두근거림"],
-  "body_custom": "",
+  "body_custom": [],
   "situation": "혼자 집에 있었음",
   "trigger_places": ["집"],
   "trigger_people": ["혼자 있을 때"],
@@ -70,7 +70,8 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
   "gratitude": "",
   "insight": "",
   "value": "정직",
-  "value_action_draft": "상담에서 이 상황을 말하기"
+  "value_action_draft": "상담에서 이 상황을 말하기",
+  "archived": false
 }
 ```
 
@@ -79,6 +80,8 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 - `urge_initial_score`, `urge_end_score`: "충동 발생" 모드에서만 선택적으로 기록되는 충동 곡선 값입니다. `urge_score`는 그대로 정점(peak) 충동을 의미하며, 위험 신호·재발 신호 판정 로직은 모두 `urge_score` 기준을 그대로 사용합니다. 두 필드가 비어 있으면 그 기록에는 곡선 정보가 없다는 뜻입니다.
 - `trigger_places`, `trigger_people`, `trigger_times`, `trigger_custom`: 반복되는 촉발 단서(장소/사람·상황/시간대)를 구조화해 기록한 값입니다. 모두 선택 입력이며, 비어 있는 배열이면 기록하지 않은 것입니다.
 - `avoidance_tags`, `avoidance_custom`: 우울·무기력과 관련된 활동 회피 신호(약속 회피, 연락 두절, 위생/식사 소홀 등)를 별도로 기록한 값입니다. `behavior_areas`의 "회피/미루기"·"무기력"과는 별개로, 문제행동과 무관하게 일반적인 활동 축소를 추적하기 위한 필드입니다.
+- `emotion_custom`, `body_custom`: 고정 어휘에 없는 감정·몸 반응을 자유 입력한 값입니다. 화면에서는 한 번에 하나만 입력하지만, 다른 자유 입력 필드(`behavior_custom_areas`, `trigger_custom`, `avoidance_custom`)와 형식을 통일하기 위해 항상 **배열**로 저장합니다(값이 있으면 원소 1개, 없으면 빈 배열).
+- `archived`: 이 기록을 화면에서 숨겼는지 여부. 상담자 공유(`counselor_full`)에는 숨기지 않은 기록만 포함되므로 항상 `false`입니다. 전체 백업(`backup_full`)에는 숨긴 기록도 `true`로 포함됩니다.
 
 ### 고정 어휘 목록 (이 목록의 항목을 삭제하거나 이름을 바꾸면 schema_version을 올려야 합니다)
 
@@ -109,15 +112,19 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
   "target_count": 1,
   "custom_days": [1, 3, 5],
   "reminder_mode": "morning",
-  "reminder_times": "08:00, 20:00",
+  "reminder_times": ["08:00", "20:00"],
   "start_date": "2026-07-09",
   "barriers": "피곤함",
   "small_version": "현관 밖으로 나가기",
-  "archived": "0"
+  "archived": false
 }
 ```
 
-`frequency`는 `daily` / `custom` 중 하나, `reminder_mode`는 `morning` / `times` / `off` 중 하나입니다.
+`frequency`는 `daily` / `1week` / `3week` / `custom` 중 하나, `reminder_mode`는 `morning` / `times` / `none` 중 하나입니다.
+
+`reminder_times`는 다른 다중값 필드(`custom_days` 등)와 형식을 통일하기 위해 배열로 저장합니다. 설정한 알림 시각이 없으면 빈 배열입니다.
+
+`archived`는 실천행동을 화면에서 보관(중단) 처리했는지 나타내는 불리언입니다. 전체 백업에서는 보관된 실천 정의도 그대로 복원하기 위해 사용합니다.
 
 ## practice_log payload
 
@@ -127,19 +134,20 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
   "practice_value": "건강",
   "practice_name": "퇴근 후 10분 걷기",
   "target_count": 1,
-  "practice_score": 7,
   "pleasure_score": 8,
   "mastery_score": 7,
   "expected_pleasure_score": 3,
   "expected_mastery_score": 4,
-  "practice_note": "5분이라도 걸었다"
+  "practice_note": "5분이라도 걸었다",
+  "archived": false
 }
 ```
 
-행동활성화(Behavioral Activation) 문헌에서는 실천 후 얻은 즐거움·숙달감이 예상보다 컸는지가 우울 개선과 관련이 크다고 보고합니다. 이를 반영해 단일 `practice_score`를 즐거움/숙달감 두 축으로 나누었습니다.
+행동활성화(Behavioral Activation) 문헌에서는 실천 후 얻은 즐거움·숙달감이 예상보다 컸는지가 우울 개선과 관련이 크다고 보고합니다. 이를 반영해 즐거움/숙달감 두 축으로 나눠 기록합니다.
 
-- `pleasure_score`, `mastery_score`: 실천 후 실제로 느낀 즐거움과 숙달감 (0~10). `practice_score`는 두 값의 평균으로 자동 계산되어 기존 통계·CSV 소비 로직과 호환됩니다.
+- `pleasure_score`, `mastery_score`: 실천 후 실제로 느낀 즐거움과 숙달감 (0~10).
 - `expected_pleasure_score`, `expected_mastery_score`: 실천 전 예상한 즐거움·숙달감 (0~10, 선택 입력). 값이 없으면 예상을 남기지 않은 기록입니다. 실제 값과 비교하면 "생각보다 즐거웠다/힘들었다"는 예측-경험 불일치를 분석할 수 있습니다.
+- 이전 규격에는 두 값의 평균을 미리 계산해 저장한 `practice_score` 필드가 있었지만, `pleasure_score`와 `mastery_score`로부터 그대로 계산되는 값이라 제거했습니다. 평균 수행도가 필요하면 `(pleasure_score + mastery_score) / 2`로 직접 계산하십시오.
 
 ## prediction payload
 
@@ -151,7 +159,8 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
   "status": "occurred",
   "actual_severity": 5,
   "resolved_at": "2026-07-08T00:00:00.000Z",
-  "note": ""
+  "note": "",
+  "archived": false
 }
 ```
 
@@ -169,7 +178,8 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 ```json
 {
   "expansion_score": 7,
-  "note": "저녁에 오랜만에 친구와 산책"
+  "note": "저녁에 오랜만에 친구와 산책",
+  "archived": false
 }
 ```
 
@@ -205,6 +215,15 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 - 같은 `id`가 있으면 `updated_at`을 비교해서, **가져오는 쪽이 더 최신이면 덮어쓰고, 그렇지 않으면 건너뜁니다.**
 - 즉, 기기를 이전할 때뿐 아니라 같은 기기에서 CSV로 "복원"할 때도 실제로 최신 내용이 반영됩니다.
 - 가져오기 결과 메시지에 "신규 N개 / 갱신 N개"로 항목별 처리 내역이 표시됩니다.
+- 가져오기 전에 헤더 순서, 열 개수, 규격 버전, record_type, 중복 ID, 날짜·시각, JSON 형식, 하루마무리 날짜 중복을 파일 전체에서 검사합니다.
+- 오류가 하나라도 있으면 어떤 행도 반영하지 않고 가져오기를 중단합니다. 손상된 행만 조용히 건너뛰는 부분 성공은 허용하지 않습니다.
+
+## 전체 백업과 상담자 공유
+
+- `backup_full`: 선택한 화면 공유 기간과 무관하게 모든 기록을 저장합니다. 숨긴 기록과 보관된 실천 정의를 포함하며 `range_days`는 `all`입니다.
+- `counselor_full`: 화면에서 선택한 7일·14일·28일·전체 범위의 활성 기록만 저장합니다. 실천 정의는 수행 기록을 해석할 수 있도록 함께 저장합니다.
+- 앱의 "최근 CSV 백업" 시각은 `backup_full`을 실제로 저장했을 때만 갱신됩니다. 상담자 공유 파일 생성은 백업 완료로 간주하지 않습니다.
+- `archived`는 모든 record_type의 payload에 공통으로 포함되는 불리언(`true`/`false`) 필드입니다. `counselor_full`은 숨기지 않은 기록만 담으므로 항상 `false`이고, `backup_full`은 숨긴 기록도 `true`로 포함해 완전히 복원할 수 있게 합니다.
 
 ## 상담자 분석 앱에서의 권장 처리
 
@@ -215,18 +234,21 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 - `prediction.related_observation_id`를 `observation.id`와 연결합니다.
 - `daily_checkin`은 `date`별로 최대 1건만 존재합니다.
 - 범주형 필드(`behavior_areas`, `trigger_places` 등)를 분석할 때는 위 "고정 어휘 목록"에 정의된 값만 나온다고 가정해도 됩니다(단, `_custom` 계열 필드는 자유 입력이라 예외).
+- 모든 payload의 배열 필드(`behavior_areas`, `emotion_custom`, `body_custom`, `trigger_*`, `avoidance_*`, `custom_days`, `reminder_times`)는 값이 없어도 빈 배열로 존재하며, 존재 자체가 생략되는 경우는 없습니다. 마찬가지로 `archived`는 모든 record_type에 항상 존재하는 불리언입니다.
 - CSV는 상담자 치료자료 전체본이므로 가족 공유 자료로 사용하지 않습니다.
 
 ## 필드 도입 이력
 
 | 시점 | 추가/변경 내용 |
 | --- | --- |
-| 정리 시점(현재, `maeumgoyo_csv_v1`) | 이전까지의 모든 필드를 정리해 새 기준 버전으로 통합. `range_label`(문자열) → `range_days`(기계 판독용 숫자/`"all"`)로 교체. CSV 가져오기가 upsert(신규 추가 + 최신 갱신) 방식으로 동작하도록 변경. |
+| 구조 정리(현재, `maeumgoyo_csv_v1`) | 이전 버전과의 호환을 고려하지 않고 구조를 다시 정리: (1) `archived`를 모든 record_type에서 문자열 `"0"`/`"1"`이 아닌 진짜 JSON 불리언(`true`/`false`)으로 통일. (2) `emotion_custom`, `body_custom`을 다른 자유 입력 필드와 동일하게 배열로 통일. (3) `reminder_times`를 `custom_days`와 동일하게 배열로 통일. (4) `pleasure_score`/`mastery_score`의 평균을 미리 계산해 저장하던 파생 필드 `practice_score`를 제거. (5) 가져오기 검증에서 모든 필드가 실제로 존재하는지(타입뿐 아니라 존재 여부까지) 확인하도록 강화하고, `observation`의 `archived` 검증 누락을 수정. (6) 이 문서의 JSON 예시를 실제 내보내기 코드와 한 줄씩 대조해 일치시킴. |
+| 정리 시점 | 이전까지의 모든 필드를 정리해 새 기준 버전으로 통합. `range_label`(문자열) → `range_days`(기계 판독용 숫자/`"all"`)로 교체. CSV 가져오기가 upsert(신규 추가 + 최신 갱신) 방식으로 동작하도록 변경. |
 | 이전 이력 1 | `observation`, `practice_definition`, `practice_log` 3개 record_type과 공통 열 구조 도입 (넓은 표 구조에서 전환) |
 | 이전 이력 2 | `practice_log`에 `pleasure_score`, `mastery_score`, `expected_pleasure_score`, `expected_mastery_score` 추가 |
 | 이전 이력 3 | `observation`에 `urge_initial_score`, `urge_end_score` 추가 |
 | 이전 이력 4 | `observation`에 `trigger_places`, `trigger_people`, `trigger_times`, `trigger_custom`, `avoidance_tags`, `avoidance_custom` 추가 |
 | 이전 이력 5 | `prediction` record_type 신규 추가 |
 | 이전 이력 6 | `daily_checkin` record_type 신규 추가 (증상/문제행동 감소와 별개로 삶의 확장감·만족도를 추적하기 위한 회고적 하루 체크인) |
+| 안정화 1 | 전체 백업(`backup_full`)과 기간별 상담자 공유(`counselor_full`)를 분리하고, 전체 백업에 숨긴 기록과 보관 상태를 포함. 가져오기를 파일 단위 사전검증 방식으로 강화 |
 
 앞으로 필드를 추가할 때마다 이 표에 새 행을 추가해주세요. 필드 이름 변경이나 삭제처럼 하위 호환이 깨지는 변경은 이 표가 아니라 "버저닝 정책"에 따라 `schema_version`을 올리고 새 섹션으로 문서화합니다.

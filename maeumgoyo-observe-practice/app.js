@@ -1,4 +1,4 @@
-const APP_VERSION = "v58"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v64"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -25,15 +25,15 @@ const TEXT_LIMITS = {
     const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
     // ===== 재발 신호 분석 (정서적 · 인지적 · 행동적 재발) =====
-    // 상담이 없는 6일 동안의 관찰 기록(불편한 감정/문제 행동 관련 생각/충동/문제행동 활성화 수준/대처)을 근거로
+    // 상담이 없는 6일 동안의 관찰 기록(그때 느낀 감정/그때 든 생각/충동/문제행동 활성화 수준/대처)을 근거로
     // 세 단계의 재발 신호를 참고용으로 안내합니다. 진단이나 예측이 아니라, 스스로 조치할 기회를 알리는 장치입니다.
     const RELAPSE_WINDOW_DAYS = 3;          // "최근 상태"를 볼 때 쓰는 기본 관찰 창
     const RELAPSE_COMPARE_DAYS = 3;         // 추세 비교에 쓰는 그 이전 구간 길이
-    const RELAPSE_EMOTION_HIGH = 6;         // 불편한 감정 0~10점 중 이 이상이면 높음
+    const RELAPSE_EMOTION_HIGH = 6;         // 그때 느낀 감정 0~10점 중 이 이상이면 높음
     const RELAPSE_EMOTION_TREND_RISE = 2;   // 이전 구간 대비 이만큼 오르면 상승 추세로 봄
     const RELAPSE_COPING_LOW = 3;           // 대처 후 도움 정도 0~10점 중 이 이하면 낮음
     const RELAPSE_COPING_TREND_DROP = 2;    // 이전 구간 대비 이만큼 떨어지면 하락 추세로 봄
-    const RELAPSE_THOUGHT_HIGH = 6;         // 문제 행동 관련 생각 0~10점 중 이 이상이면 높음
+    const RELAPSE_THOUGHT_HIGH = 6;         // 그때 든 생각 0~10점 중 이 이상이면 높음
     const RELAPSE_URGE_HIGH = 7;            // 충동 0~10점 중 이 이상이면 높음
     const RELAPSE_ACTION_ANY = 1;           // 문제행동 활성화 수준 0~5점 중 1점 이상이면 행동적 재발로 봄
     const RELAPSE_ACTION_SEVERE = 4;        // 기존 고위험 기준과 동일(멈추기 어려운 수준)
@@ -872,8 +872,8 @@ const TEXT_LIMITS = {
       const copingLow = avgCoping <= RELAPSE_COPING_LOW && recent.length >= 2;
       const emotionUnstable = recent.length >= 3 && emotionStdDev >= RELAPSE_EMOTION_VARIABILITY_HIGH;
 
-      if (avgEmotion >= RELAPSE_EMOTION_HIGH) result.reasons.stage1.push(`최근 ${recent.length}일 평균 불편한 감정 ${avgEmotion.toFixed(1)}/10`);
-      if (highEmotionCount >= 2) result.reasons.stage1.push(`불편한 감정 ${RELAPSE_EMOTION_HIGH}점 이상 기록 ${highEmotionCount}회`);
+      if (avgEmotion >= RELAPSE_EMOTION_HIGH) result.reasons.stage1.push(`최근 ${recent.length}일 평균 그때 느낀 감정 ${avgEmotion.toFixed(1)}/10`);
+      if (highEmotionCount >= 2) result.reasons.stage1.push(`그때 느낀 감정 ${RELAPSE_EMOTION_HIGH}점 이상 기록 ${highEmotionCount}회`);
       if (emotionRising) result.reasons.stage1.push("최근 감정 강도가 이전보다 높아지는 추세");
       if (copingDropping) result.reasons.stage1.push("대처 후 도움 정도가 이전보다 낮아지는 추세");
       if (copingLow) result.reasons.stage1.push("대처 후 도움 정도가 낮게 유지됨");
@@ -882,8 +882,8 @@ const TEXT_LIMITS = {
 
       const highThoughtCount = recent.filter(o => Number(o.thoughtScore) >= RELAPSE_THOUGHT_HIGH).length;
       const thinkingWithoutActing = recent.filter(o => Number(o.urgeScore) >= RELAPSE_URGE_HIGH && Number(o.actionLevel) === 0).length;
-      if (avgThought >= RELAPSE_THOUGHT_HIGH) result.reasons.stage2.push(`최근 ${recent.length}일 평균 문제 행동 관련 생각 ${avgThought.toFixed(1)}/10`);
-      if (highThoughtCount >= 2) result.reasons.stage2.push(`문제 행동 관련 생각 ${RELAPSE_THOUGHT_HIGH}점 이상 기록 ${highThoughtCount}회`);
+      if (avgThought >= RELAPSE_THOUGHT_HIGH) result.reasons.stage2.push(`최근 ${recent.length}일 평균 그때 든 생각 ${avgThought.toFixed(1)}/10`);
+      if (highThoughtCount >= 2) result.reasons.stage2.push(`그때 든 생각 ${RELAPSE_THOUGHT_HIGH}점 이상 기록 ${highThoughtCount}회`);
       if (thinkingWithoutActing >= 2) result.reasons.stage2.push(`충동은 높지만(${RELAPSE_URGE_HIGH}점 이상) 아직 멈춘 상태로 기록된 경우 ${thinkingWithoutActing}회`);
       if (avgUrge >= RELAPSE_URGE_HIGH) result.reasons.stage2.push(`최근 평균 충동 ${avgUrge.toFixed(1)}/10`);
       result.stage2 = result.reasons.stage2.length > 0;
@@ -1095,7 +1095,7 @@ const TEXT_LIMITS = {
       }
       return streak;
     }
-    // 문제행동 없이 보낸 연속일수 (양성 강화 지표). 기록이 없는 날은 끊긴 것으로 보지 않고,
+    // 문제행동 미발생 연속일수 (양성 강화 지표). 기록이 없는 날은 끊긴 것으로 보지 않고,
     // 문제행동 활성화 수준이 1점 이상 기록된 날만 연속기록을 끊는 날로 봅니다.
     function cleanStreakDays() {
       const observations = activeObservations();
@@ -1198,18 +1198,18 @@ const TEXT_LIMITS = {
       if (streak === null) {
         box.innerHTML = `
           <div class="relapse-status level-ok">
-            <h3>연속 기록</h3>
-            <p class="small">첫 관찰 기록을 남기면 여기서 연속일수를 확인할 수 있습니다.</p>
+            <h3>문제행동 미발생 연속일수</h3>
+            <p class="small">첫 관찰 기록을 남기면 여기서 문제행동 미발생 연속일수를 확인할 수 있습니다.</p>
           </div>
         `;
         return;
       }
       const text = streak === 0
-        ? "오늘부터 다시 새로 시작하는 중입니다. 지금 남기는 기록이 다음 연속일수의 첫날이 됩니다."
+        ? "오늘부터 다시 새로 시작하는 중입니다. 오늘 문제행동 활성화 수준을 0점으로 기록하면 다음 문제행동 미발생 연속일수의 첫날이 됩니다."
         : `문제행동 없이 <strong>${streak}일째</strong> 이어가는 중입니다.`;
       box.innerHTML = `
         <div class="relapse-status level-ok">
-          <h3>연속 기록</h3>
+          <h3>문제행동 미발생 연속일수</h3>
           <p class="small">${text}</p>
         </div>
       `;
@@ -1664,7 +1664,7 @@ const TEXT_LIMITS = {
 
         const emotionNow = avg(thisWeek, o => Number(o.emotionScore));
         const emotionPrev = avg(prevWeek, o => Number(o.emotionScore));
-        if (emotionPrev - emotionNow >= 1) candidates.push({ priority: emotionPrev - emotionNow, text: `지난주보다 평균 불편한 감정이 ${(emotionPrev - emotionNow).toFixed(1)}점 낮아졌습니다.` });
+        if (emotionPrev - emotionNow >= 1) candidates.push({ priority: emotionPrev - emotionNow, text: `지난주보다 평균 그때 느낀 감정이 ${(emotionPrev - emotionNow).toFixed(1)}점 낮아졌습니다.` });
       }
 
       const cleanThisWeek = cleanDayCount(6, 0);
@@ -1946,7 +1946,7 @@ const TEXT_LIMITS = {
           <line x1="${pad}" y1="${bottom}" x2="${bottom}" y2="${bottom}" stroke="#1d2924" stroke-width="1.5"/>
           <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${bottom}" stroke="#1d2924" stroke-width="1.5"/>
           ${points}
-          <text x="${(pad + bottom) / 2}" y="${size - 2}" font-size="10" text-anchor="middle" fill="#1d2924" font-weight="700">불편한 감정 (0~10)</text>
+          <text x="${(pad + bottom) / 2}" y="${size - 2}" font-size="10" text-anchor="middle" fill="#1d2924" font-weight="700">그때 느낀 감정 (0~10)</text>
           <text x="12" y="${(pad + bottom) / 2}" font-size="10" text-anchor="middle" fill="#1d2924" font-weight="700" transform="rotate(-90 12 ${(pad + bottom) / 2})">충동 (0~10)</text>
         </svg>
       `;
@@ -2322,13 +2322,14 @@ const TEXT_LIMITS = {
     function rangeDaysValue() {
       return state.shareRange === "all" ? "all" : Number(state.shareRange);
     }
-    function buildCsv() {
+    function buildCsv(options = {}) {
+      const fullBackup = options.fullBackup === true;
       const summary = buildSummary("counselorDetail");
-      const observations = rangeRecords(activeObservations());
-      const logs = rangeRecords(activeLogs());
+      const observations = fullBackup ? state.data.observations.slice() : rangeRecords(activeObservations());
+      const logs = fullBackup ? state.data.logs.slice() : rangeRecords(activeLogs());
       const exportedAt = new Date().toISOString();
       const clientAlias = state.data.settings.alias || "";
-      const csvShareMode = "counselor_full";
+      const csvShareMode = fullBackup ? "backup_full" : "counselor_full";
       const header = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"];
       const rows = [header];
       const addRow = (type, id, date, updatedAt, payload) => {
@@ -2341,7 +2342,7 @@ const TEXT_LIMITS = {
           exportedAt,
           clientAlias,
           csvShareMode,
-          rangeDaysValue(),
+          fullBackup ? "all" : rangeDaysValue(),
           JSON.stringify(payload)
         ]);
       };
@@ -2352,9 +2353,9 @@ const TEXT_LIMITS = {
           behavior_areas: Array.isArray(o.behaviorAreas) ? o.behaviorAreas : splitBehaviorCustom(o.behavior || ""),
           behavior_custom_areas: Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : [],
           emotion: o.emotion || "",
-          emotion_custom: o.emotionCustom || "",
+          emotion_custom: compactList([o.emotionCustom]),
           body_reactions: Array.isArray(o.body) ? o.body : [],
-          body_custom: o.bodyCustom || "",
+          body_custom: compactList([o.bodyCustom]),
           situation: o.situation || "",
           trigger_places: Array.isArray(o.triggerPlaces) ? o.triggerPlaces : [],
           trigger_people: Array.isArray(o.triggerPeople) ? o.triggerPeople : [],
@@ -2374,7 +2375,8 @@ const TEXT_LIMITS = {
           gratitude: o.gratitude || "",
           insight: o.insight || "",
           value: o.value || "",
-          value_action_draft: o.valueActionDraft || ""
+          value_action_draft: o.valueActionDraft || "",
+          archived: Boolean(o.archived)
         });
       });
 
@@ -2387,11 +2389,11 @@ const TEXT_LIMITS = {
           target_count: targetCount(p),
           custom_days: Array.isArray(p.customDays) ? p.customDays : [],
           reminder_mode: p.reminderMode || "morning",
-          reminder_times: p.reminderTimes || "",
+          reminder_times: compactList(String(p.reminderTimes || "").split(",")),
           start_date: p.startDate || "",
           barriers: p.barriers || "",
           small_version: p.smallVersion || "",
-          archived: p.archived ? "1" : "0"
+          archived: Boolean(p.archived)
         });
       });
 
@@ -2402,16 +2404,16 @@ const TEXT_LIMITS = {
           practice_value: p.value || "",
           practice_name: p.name || "",
           target_count: targetCount(p),
-          practice_score: l.score ?? 0,
-          pleasure_score: l.pleasureScore ?? l.score ?? 0,
-          mastery_score: l.masteryScore ?? l.score ?? 0,
+          pleasure_score: l.pleasureScore ?? 0,
+          mastery_score: l.masteryScore ?? 0,
           expected_pleasure_score: l.expectedPleasureScore ?? "",
           expected_mastery_score: l.expectedMasteryScore ?? "",
-          practice_note: l.note || ""
+          practice_note: l.note || "",
+          archived: Boolean(l.archived)
         });
       });
 
-      const predictions = rangeRecords(activePredictions());
+      const predictions = fullBackup ? (state.data.predictions || []).slice() : rangeRecords(activePredictions());
       predictions.forEach(pr => {
         addRow("prediction", pr.id, pr.date, pr.updatedAt, {
           related_observation_id: pr.relatedObservationId || "",
@@ -2420,43 +2422,39 @@ const TEXT_LIMITS = {
           status: pr.status || "pending",
           actual_severity: pr.actualSeverity ?? "",
           resolved_at: pr.resolvedAt || "",
-          note: pr.note || ""
+          note: pr.note || "",
+          archived: Boolean(pr.archived)
         });
       });
 
-      const dailyCheckins = rangeRecords(activeDailyCheckins());
+      const dailyCheckins = fullBackup ? (state.data.dailyCheckins || []).slice() : rangeRecords(activeDailyCheckins());
       dailyCheckins.forEach(c => {
         addRow("daily_checkin", c.id, c.date, c.updatedAt, {
           expansion_score: c.expansionScore ?? 5,
-          note: c.note || ""
+          note: c.note || "",
+          archived: Boolean(c.archived)
         });
       });
 
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
-      const nameMode = "상담자치료자료";
-      return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${rangeLabel()}_${todayISO()}.csv`, summary };
+      const nameMode = fullBackup ? "전체백업" : "상담자치료자료";
+      const nameRange = fullBackup ? "전체" : rangeLabel();
+      return { csv, blob: new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), fileName: `마음고요_관찰과실천_${nameMode}_${nameRange}_${todayISO()}.csv`, summary };
     }
     function verifyCurrentCsv() {
       const { csv } = buildCsv();
-      const rows = parseCsv(csv);
-      const header = rows.shift() || [];
+      const parsedRows = parseCsv(csv);
+      const validation = validateCsvRows(parsedRows);
+      const header = parsedRows[0] || [];
+      const rows = parsedRows.slice(1);
       const report = {
-        ok: true,
-        messages: [],
+        ok: validation.errors.length === 0,
+        messages: validation.errors.slice(),
         counts: { observation: 0, practice_definition: 0, practice_log: 0, prediction: 0, daily_checkin: 0 }
       };
-      if (header[0] !== "schema_version" || header[1] !== "record_type") {
-        report.ok = false;
-        report.messages.push("첫 열 구조가 올바르지 않습니다.");
-      }
       const index = {};
       header.forEach((name, i) => index[name] = i);
-      ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"].forEach(name => {
-        if (!(name in index)) {
-          report.ok = false;
-          report.messages.push(`필수 항목 누락: ${name}`);
-        }
-      });
+      if (!("record_type" in index) || !("id" in index) || !("payload_json" in index) || !("date" in index)) return report;
       const payloadOf = (row, rowIndex) => {
         try {
           return JSON.parse(row[index.payload_json] || "{}");
@@ -2467,25 +2465,9 @@ const TEXT_LIMITS = {
         }
       };
       rows.forEach((row, rowIndex) => {
-        if (row.length !== header.length) {
-          report.ok = false;
-          report.messages.push(`${rowIndex + 2}행의 칸 수가 맞지 않습니다.`);
-        }
-        if (row[index.schema_version] !== CSV_SCHEMA_VERSION) {
-          report.ok = false;
-          report.messages.push(`${rowIndex + 2}행의 schema_version이 맞지 않습니다.`);
-        }
-        if (row[index.share_mode] !== "counselor_full") {
-          report.ok = false;
-          report.messages.push(`${rowIndex + 2}행의 share_mode가 상담자 전체 자료가 아닙니다.`);
-        }
         payloadOf(row, rowIndex);
         const type = row[index.record_type];
         if (type in report.counts) report.counts[type] += 1;
-        else {
-          report.ok = false;
-          report.messages.push(`${rowIndex + 2}행의 record_type을 알 수 없습니다.`);
-        }
       });
       const expected = {
         observation: rangeRecords(activeObservations()).length,
@@ -2543,7 +2525,7 @@ const TEXT_LIMITS = {
           return;
         }
         const payload = payloadOf(row, 0);
-        if (row[index.date] !== record.date || Number(payload.practice_score) !== Number(record.score)) {
+        if (row[index.date] !== record.date || Number(payload.pleasure_score) !== Number(record.pleasureScore) || Number(payload.mastery_score) !== Number(record.masteryScore)) {
           report.ok = false;
           report.messages.push(`수행 기록 값 불일치: ${record.date}`);
         }
@@ -2554,9 +2536,9 @@ const TEXT_LIMITS = {
       const report = verifyCurrentCsv();
       const countText = `관찰 ${report.counts.observation}개, 실천행동 ${report.counts.practice_definition}개, 수행도 ${report.counts.practice_log}개, 걱정기록 ${report.counts.prediction}개, 하루마무리 ${report.counts.daily_checkin}개`;
       $("#shareInfo").textContent = report.ok
-        ? `CSV 복원 점검 통과: ${countText}. 현재 범위의 백업 파일을 다시 읽을 수 있는 구조입니다.`
-        : `CSV 복원 점검 필요: ${report.messages.slice(0, 3).join(" / ")}`;
-      showToast(report.ok ? "CSV 복원 점검을 통과했습니다." : "CSV 구조를 다시 확인해주세요.");
+        ? `상담자 CSV 구조 점검 통과: ${countText}. 현재 범위의 상담자 치료자료를 다시 읽을 수 있는 구조입니다.`
+        : `상담자 CSV 구조 점검 필요: ${report.messages.slice(0, 3).join(" / ")}`;
+      showToast(report.ok ? "상담자 CSV 구조 점검을 통과했습니다." : "CSV 구조를 다시 확인해주세요.");
     }
     function parseCsv(text) {
       const rows = [];
@@ -2589,9 +2571,124 @@ const TEXT_LIMITS = {
           cell += char;
         }
       }
+      if (quoted) throw new Error("닫히지 않은 CSV 따옴표가 있습니다.");
       row.push(cell);
       rows.push(row);
       return rows.filter(r => r.some(c => String(c).trim()));
+    }
+    function validateCsvRows(rows) {
+      const errors = [];
+      const warnings = [];
+      const header = rows[0] || [];
+      const required = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"];
+      if (header.length !== required.length || required.some((name, i) => header[i] !== name)) {
+        errors.push("첫 행은 현재 규격의 10개 열과 순서가 정확히 일치해야 합니다.");
+        return { errors, warnings };
+      }
+      const allowedTypes = new Set(["observation", "practice_definition", "practice_log", "prediction", "daily_checkin"]);
+      const validDate = value => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(value + "T00:00:00Z");
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+      };
+      const ids = new Set();
+      const dailyDates = new Set();
+      const numberInRange = (value, min, max) => {
+        if (value === "" || value === null || value === undefined) return false;
+        const number = Number(value);
+        return !Number.isNaN(number) && number >= min && number <= max;
+      };
+      const optionalNumberInRange = (value, min, max) => {
+        if (value === "" || value === null || value === undefined) return true;
+        return numberInRange(value, min, max);
+      };
+      const expectArray = (payload, key, line) => {
+        if (!(key in payload)) { errors.push(`${line}행: ${key} 필드가 없습니다.`); return; }
+        if (!Array.isArray(payload[key])) errors.push(`${line}행: ${key}는 배열이어야 합니다.`);
+      };
+      const expectString = (payload, key, line) => {
+        if (!(key in payload)) { errors.push(`${line}행: ${key} 필드가 없습니다.`); return; }
+        if (typeof payload[key] !== "string") errors.push(`${line}행: ${key}는 문자열이어야 합니다.`);
+      };
+      const expectBoolean = (payload, key, line) => {
+        if (!(key in payload)) { errors.push(`${line}행: ${key} 필드가 없습니다.`); return; }
+        if (typeof payload[key] !== "boolean") errors.push(`${line}행: ${key}는 true/false 값이어야 합니다.`);
+      };
+      rows.slice(1).forEach((row, offset) => {
+        const line = offset + 2;
+        if (row.length !== required.length) { errors.push(`${line}행: 열 개수가 ${required.length}개가 아닙니다.`); return; }
+        const [version, type, id, date, updatedAt, exportedAt, , shareMode, rangeDays, payloadText] = row;
+        if (version !== CSV_SCHEMA_VERSION) errors.push(`${line}행: 지원하지 않는 schema_version입니다.`);
+        if (!allowedTypes.has(type)) errors.push(`${line}행: 알 수 없는 record_type입니다.`);
+        if (!id) errors.push(`${line}행: id가 비어 있습니다.`);
+        const idKey = `${type}\u0000${id}`;
+        if (ids.has(idKey)) errors.push(`${line}행: 같은 record_type 안에 중복 id가 있습니다.`);
+        ids.add(idKey);
+        if (type !== "practice_definition" && !validDate(date)) errors.push(`${line}행: date가 유효한 YYYY-MM-DD 날짜가 아닙니다.`);
+        if (type === "practice_definition" && date !== "") errors.push(`${line}행: practice_definition의 date는 빈 값이어야 합니다.`);
+        if (!updatedAt || Number.isNaN(Date.parse(updatedAt))) errors.push(`${line}행: updated_at이 올바르지 않습니다.`);
+        if (!exportedAt || Number.isNaN(Date.parse(exportedAt))) errors.push(`${line}행: exported_at이 올바르지 않습니다.`);
+        if (!["counselor_full", "backup_full"].includes(shareMode)) errors.push(`${line}행: share_mode가 올바르지 않습니다.`);
+        if (!(rangeDays === "all" || [7, 14, 28].includes(Number(rangeDays)))) errors.push(`${line}행: range_days가 올바르지 않습니다.`);
+        let payload = {};
+        try {
+          payload = JSON.parse(payloadText || "{}");
+          if (!payload || typeof payload !== "object" || Array.isArray(payload)) errors.push(`${line}행: payload_json은 JSON 객체여야 합니다.`);
+        } catch {
+          errors.push(`${line}행: payload_json을 읽을 수 없습니다.`);
+          payload = null;
+        }
+        if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+          if (type === "observation") {
+            ["behavior_areas", "behavior_custom_areas", "emotion_custom", "body_reactions", "body_custom", "trigger_places", "trigger_people", "trigger_times", "trigger_custom", "avoidance_tags", "avoidance_custom"].forEach(key => expectArray(payload, key, line));
+            ["time_slot", "emotion", "situation", "thought_text", "coping", "gratitude", "insight", "value", "value_action_draft"].forEach(key => expectString(payload, key, line));
+            expectBoolean(payload, "archived", line);
+            [["thought_score", 0, 10], ["emotion_score", 0, 10], ["urge_score", 0, 10], ["action_level", 0, 5], ["coping_score", 0, 10]].forEach(([key, min, max]) => {
+              if (!numberInRange(payload[key], min, max)) errors.push(`${line}행: ${key}는 ${min}-${max} 범위 숫자여야 합니다.`);
+            });
+            [["urge_initial_score", 0, 10], ["urge_end_score", 0, 10]].forEach(([key, min, max]) => {
+              if (!optionalNumberInRange(payload[key], min, max)) errors.push(`${line}행: ${key}는 비어 있거나 ${min}-${max} 범위 숫자여야 합니다.`);
+            });
+          }
+          if (type === "practice_definition") {
+            ["practice_value", "practice_name", "practice_reason", "start_date", "barriers", "small_version"].forEach(key => expectString(payload, key, line));
+            expectArray(payload, "custom_days", line);
+            expectArray(payload, "reminder_times", line);
+            expectBoolean(payload, "archived", line);
+            if (!["daily", "3week", "1week", "custom"].includes(payload.frequency)) errors.push(`${line}행: frequency 값이 올바르지 않습니다.`);
+            if (!["morning", "times", "none"].includes(payload.reminder_mode)) errors.push(`${line}행: reminder_mode 값이 올바르지 않습니다.`);
+            if (!numberInRange(payload.target_count, 1, 12)) errors.push(`${line}행: target_count는 1-12 범위 숫자여야 합니다.`);
+          }
+          if (type === "practice_log") {
+            ["practice_id", "practice_value", "practice_name", "practice_note"].forEach(key => expectString(payload, key, line));
+            expectBoolean(payload, "archived", line);
+            if (!payload.practice_id) errors.push(`${line}행: practice_log에는 practice_id가 필요합니다.`);
+            [["target_count", 1, 12], ["pleasure_score", 0, 10], ["mastery_score", 0, 10]].forEach(([key, min, max]) => {
+              if (!numberInRange(payload[key], min, max)) errors.push(`${line}행: ${key}는 ${min}-${max} 범위 숫자여야 합니다.`);
+            });
+            [["expected_pleasure_score", 0, 10], ["expected_mastery_score", 0, 10]].forEach(([key, min, max]) => {
+              if (!optionalNumberInRange(payload[key], min, max)) errors.push(`${line}행: ${key}는 비어 있거나 ${min}-${max} 범위 숫자여야 합니다.`);
+            });
+          }
+          if (type === "prediction") {
+            ["related_observation_id", "worry_text", "status", "resolved_at", "note"].forEach(key => expectString(payload, key, line));
+            expectBoolean(payload, "archived", line);
+            if (!numberInRange(payload.predicted_severity, 0, 10)) errors.push(`${line}행: predicted_severity는 0-10 범위 숫자여야 합니다.`);
+            if (!optionalNumberInRange(payload.actual_severity, 0, 10)) errors.push(`${line}행: actual_severity는 비어 있거나 0-10 범위 숫자여야 합니다.`);
+            if (!PREDICTION_STATUSES.includes(payload.status)) errors.push(`${line}행: prediction status 값이 올바르지 않습니다.`);
+          }
+          if (type === "daily_checkin") {
+            expectString(payload, "note", line);
+            expectBoolean(payload, "archived", line);
+            if (!numberInRange(payload.expansion_score, 0, 10)) errors.push(`${line}행: expansion_score는 0-10 범위 숫자여야 합니다.`);
+          }
+        }
+        if (type === "daily_checkin") {
+          if (dailyDates.has(date)) errors.push(`${line}행: 같은 날짜의 daily_checkin이 중복되었습니다.`);
+          dailyDates.add(date);
+        }
+      });
+      return { errors, warnings };
     }
     function shouldUpsert(existing, newUpdatedAt) {
       if (!existing) return true;
@@ -2621,16 +2718,18 @@ const TEXT_LIMITS = {
           showToast("CSV를 읽지 못했습니다.");
           return;
         }
-        if (rows.length > MAX_IMPORT_ROWS) {
+        if (rows.length - 1 > MAX_IMPORT_ROWS) {
           $("#importInfo").textContent = "CSV 행이 너무 많습니다. 5,000행 이하의 파일만 가져올 수 있습니다.";
           showToast("CSV 행 수를 줄여주세요.");
           return;
         }
-        const header = rows.shift() || [];
-        if (header[0] !== "schema_version" || header[1] !== "record_type") {
-          $("#importInfo").textContent = "현재 개발용 CSV 구조(maeumgoyo_csv_v1)로 저장한 파일만 가져올 수 있습니다.";
+        const validation = validateCsvRows(rows);
+        if (validation.errors.length) {
+          $("#importInfo").textContent = `가져오기를 중단했습니다. 오류 ${validation.errors.length}개: ${validation.errors.slice(0, 3).join(" / ")}`;
+          showToast("CSV 오류를 먼저 수정해주세요.");
           return;
         }
+        const header = rows.shift() || [];
         const index = {};
         header.forEach((name, i) => index[name] = i);
         const requiredColumns = ["schema_version", "record_type", "id", "date", "updated_at", "exported_at", "client_alias", "share_mode", "range_days", "payload_json"];
@@ -2648,6 +2747,7 @@ const TEXT_LIMITS = {
           prediction: { added: 0, updated: 0 },
           daily_checkin: { added: 0, updated: 0 }
         };
+        const dataBeforeImport = JSON.parse(JSON.stringify(state.data));
         rows.forEach(row => {
           if (cell(row, "schema_version") !== CSV_SCHEMA_VERSION) return;
           const type = cell(row, "record_type");
@@ -2681,9 +2781,9 @@ const TEXT_LIMITS = {
               avoidanceCustom: Array.isArray(payload.avoidance_custom) ? payload.avoidance_custom : [],
               thoughtText: cleanMultiline(payload.thought_text, TEXT_LIMITS.long),
               emotion: cleanText(payload.emotion, TEXT_LIMITS.short),
-              emotionCustom: cleanText(payload.emotion_custom, 10),
+              emotionCustom: cleanText(Array.isArray(payload.emotion_custom) ? payload.emotion_custom.join(", ") : payload.emotion_custom, 10),
               body: Array.isArray(payload.body_reactions) ? payload.body_reactions : splitBehaviorCustom(String(payload.body_reactions || "").replace(/;/g, ",")),
-              bodyCustom: cleanText(payload.body_custom, 10),
+              bodyCustom: cleanText(Array.isArray(payload.body_custom) ? payload.body_custom.join(", ") : payload.body_custom, 10),
               thoughtScore: clampNumber(payload.thought_score, 0, 10, 0),
               emotionScore: clampNumber(payload.emotion_score, 0, 10, 0),
               urgeScore: clampNumber(payload.urge_score, 0, 10, 0),
@@ -2696,7 +2796,7 @@ const TEXT_LIMITS = {
               insight: cleanMultiline(payload.insight, TEXT_LIMITS.reflection),
               value: cleanText(payload.value, TEXT_LIMITS.short),
               valueActionDraft: cleanMultiline(payload.value_action_draft, TEXT_LIMITS.medium),
-              archived: existing ? existing.archived : false,
+              archived: boolFlag(payload.archived),
               updatedAt
             };
             if (existingIndex >= 0) { state.data.observations[existingIndex] = record; stats.observation.updated++; }
@@ -2717,11 +2817,11 @@ const TEXT_LIMITS = {
               customDays: Array.isArray(payload.custom_days) ? payload.custom_days.map(Number).filter(n => !Number.isNaN(n)) : String(payload.custom_days || "").split(";").map(Number).filter(n => !Number.isNaN(n)),
               targetCount: clampNumber(payload.target_count, 1, 12, 1),
               reminderMode: payload.reminder_mode || "morning",
-              reminderTimes: cleanTimeList(payload.reminder_times),
+              reminderTimes: cleanTimeList(Array.isArray(payload.reminder_times) ? payload.reminder_times.join(", ") : payload.reminder_times),
               startDate: cleanDate(payload.start_date || todayISO()),
               barriers: cleanMultiline(payload.barriers, TEXT_LIMITS.long),
               smallVersion: cleanMultiline(payload.small_version, TEXT_LIMITS.medium),
-              archived: payload.archived === "1",
+              archived: boolFlag(payload.archived),
               updatedAt
             };
             if (existingIndex >= 0) { state.data.practices[existingIndex] = record; stats.practice_definition.updated++; }
@@ -2752,11 +2852,8 @@ const TEXT_LIMITS = {
                 updatedAt: new Date().toISOString()
               });
             }
-            const importedScore = clampNumber(payload.practice_score, 0, 10, 0);
-            const pleasureScore = payload.pleasure_score !== undefined && payload.pleasure_score !== ""
-              ? clampNumber(payload.pleasure_score, 0, 10, importedScore) : importedScore;
-            const masteryScore = payload.mastery_score !== undefined && payload.mastery_score !== ""
-              ? clampNumber(payload.mastery_score, 0, 10, importedScore) : importedScore;
+            const pleasureScore = clampNumber(payload.pleasure_score, 0, 10, 0);
+            const masteryScore = clampNumber(payload.mastery_score, 0, 10, 0);
             const record = {
               id,
               practiceId,
@@ -2767,7 +2864,7 @@ const TEXT_LIMITS = {
               expectedPleasureScore: optionalScore(payload.expected_pleasure_score),
               expectedMasteryScore: optionalScore(payload.expected_mastery_score),
               note: cleanMultiline(payload.practice_note, TEXT_LIMITS.long),
-              archived: existing ? existing.archived : false,
+              archived: boolFlag(payload.archived),
               updatedAt
             };
             if (existingIndex >= 0) { state.data.logs[existingIndex] = record; stats.practice_log.updated++; }
@@ -2789,31 +2886,36 @@ const TEXT_LIMITS = {
               actualSeverity: optionalScore(payload.actual_severity),
               resolvedAt: payload.resolved_at || "",
               note: cleanMultiline(payload.note, TEXT_LIMITS.medium),
-              archived: existing ? existing.archived : false,
+              archived: boolFlag(payload.archived),
               updatedAt
             };
             if (existingIndex >= 0) { state.data.predictions[existingIndex] = record; stats.prediction.updated++; }
             else { state.data.predictions.push(record); stats.prediction.added++; }
           }
           if (type === "daily_checkin") {
-            const id = cell(row, "id") || uid();
+            const importedId = cell(row, "id") || uid();
+            const importedDate = cleanDate(cell(row, "date") || todayISO());
             const updatedAt = cell(row, "updated_at") || new Date().toISOString();
-            const existingIndex = state.data.dailyCheckins.findIndex(c => c.id === id);
+            const existingIndex = state.data.dailyCheckins.findIndex(c => c.id === importedId || c.date === importedDate);
             const existing = existingIndex >= 0 ? state.data.dailyCheckins[existingIndex] : null;
             if (!shouldUpsert(existing, updatedAt)) return;
+            const id = existing ? existing.id : importedId;
             const record = {
               id,
-              date: cleanDate(cell(row, "date") || todayISO()),
+              date: importedDate,
               expansionScore: clampNumber(payload.expansion_score, 0, 10, 5),
               note: cleanMultiline(payload.note, TEXT_LIMITS.medium),
-              archived: existing ? existing.archived : false,
+              archived: boolFlag(payload.archived),
               updatedAt
             };
             if (existingIndex >= 0) { state.data.dailyCheckins[existingIndex] = record; stats.daily_checkin.updated++; }
             else { state.data.dailyCheckins.push(record); stats.daily_checkin.added++; }
           }
         });
-        if (!saveData()) return;
+        if (!saveData()) {
+          state.data = dataBeforeImport;
+          return;
+        }
         renderAll();
         $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 신규 ${stats.observation.added}개/갱신 ${stats.observation.updated}개, 실천행동 신규 ${stats.practice_definition.added}개/갱신 ${stats.practice_definition.updated}개, 수행도 신규 ${stats.practice_log.added}개/갱신 ${stats.practice_log.updated}개, 걱정기록 신규 ${stats.prediction.added}개/갱신 ${stats.prediction.updated}개, 하루마무리 신규 ${stats.daily_checkin.added}개/갱신 ${stats.daily_checkin.updated}개`;
         showToast("CSV를 가져왔습니다.");
@@ -3142,8 +3244,11 @@ const TEXT_LIMITS = {
       $("#quickObserve").addEventListener("click", () => startQuickObservation("observe"));
       $("#quickRisk").addEventListener("click", () => startQuickObservation("risk"));
       $("#quickBackup").addEventListener("click", () => {
-        setView("share");
-        showToast("CSV 저장으로 상담자에게 보낼 전체 치료자료를 만들 수 있습니다.");
+        const data = buildCsv({ fullBackup: true });
+        downloadBlob(data.blob, data.fileName);
+        state.data.settings.lastBackupAt = new Date().toISOString();
+        saveData();
+        showToast("모든 기록을 전체 백업했습니다.");
       });
       $("#expansionScore").addEventListener("input", () => {
         $("#expansionScoreValue").textContent = $("#expansionScore").value;
@@ -3202,16 +3307,19 @@ const TEXT_LIMITS = {
       $("#downloadCsv").addEventListener("click", () => {
         const data = buildCsv();
         downloadBlob(data.blob, data.fileName);
+        $("#shareInfo").textContent = `상담자 치료자료 전체본을 저장했습니다: ${data.fileName}`;
+      });
+      $("#downloadFullBackup").addEventListener("click", () => {
+        const data = buildCsv({ fullBackup: true });
+        downloadBlob(data.blob, data.fileName);
         state.data.settings.lastBackupAt = new Date().toISOString();
         if (!saveData()) return;
-        $("#shareInfo").textContent = `상담자 치료자료 전체본을 저장했습니다: ${data.fileName}`;
+        $("#shareInfo").textContent = `숨긴 기록을 포함한 전체 백업을 저장했습니다: ${data.fileName}`;
       });
       $("#verifyCsv").addEventListener("click", renderCsvVerification);
       function prepareCsvForEmail() {
         const data = buildCsv();
         downloadBlob(data.blob, data.fileName);
-        state.data.settings.lastBackupAt = new Date().toISOString();
-        saveData();
         const subjectText = `마음고요 관찰과 실천 상담자 치료자료 ${todayISO()}`;
         const bodyText = `안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`;
         return { fileName: data.fileName, subjectText, bodyText };
@@ -3248,8 +3356,6 @@ const TEXT_LIMITS = {
               text: `받는사람: respectuu@naver.com\n\n${rangeLabel()} 상담자 치료자료 전체본입니다. 이 주소를 복사해서 받는사람 칸에 붙여넣어 주세요.`,
               files: [file]
             });
-            state.data.settings.lastBackupAt = new Date().toISOString();
-            saveData();
             $("#shareInfo").textContent = `상담자 치료자료 전체본을 공유했습니다: ${data.fileName} (받는사람 주소는 공유된 메시지 맨 앞에 있습니다)`;
             return;
           } catch (error) {
@@ -3257,8 +3363,6 @@ const TEXT_LIMITS = {
           }
         }
         downloadBlob(data.blob, data.fileName);
-        state.data.settings.lastBackupAt = new Date().toISOString();
-        if (!saveData()) return;
         const subject = encodeURIComponent(`마음고요 관찰과 실천 상담자 치료자료 ${todayISO()}`);
         const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`);
         window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
