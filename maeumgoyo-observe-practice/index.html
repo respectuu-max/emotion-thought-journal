@@ -195,7 +195,7 @@
                 <input id="observeDate" type="date" required>
               </div>
               <div class="form-row">
-                <label><span class="q-number">①</span>기록 방식</label>
+                <label><span class="q-number" aria-hidden="true">1</span>기록 방식</label>
                 <div class="segmented" id="observeModeButtons">
                   <button type="button" data-value="오전">오전</button>
                   <button type="button" data-value="오후">오후</button>
@@ -204,14 +204,14 @@
                 </div>
               </div>
               <div class="form-row">
-                <label><span class="q-number">②</span>문제 행동 영역</label>
+                <label><span class="q-number" aria-hidden="true">2</span>문제 행동 영역</label>
                 <div class="chip-row" id="behaviorChips"></div>
                 <div style="height:8px"></div>
                 <input id="behaviorCustom" maxlength="160" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
                 <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 여러 영역을 함께 선택할 수 있고, 실제 행동 여부와 정도는 아래 문제행동수준에서 기록합니다.</div>
               </div>
               <div class="form-row">
-                <label for="situation"><span class="q-number">③</span>문제 촉발 상황</label>
+                <label for="situation"><span class="q-number" aria-hidden="true">3</span>문제 촉발 상황</label>
                 <textarea id="situation" maxlength="600" placeholder="어떤 상황에서, 문제되는 생각이나 감정/충동을 느끼고 문제 행동이 자극되었나요? (언제, 어디서, 무슨 일이 있었는지)"></textarea>
               </div>
               <details class="form-row" id="triggerDetails">
@@ -233,7 +233,7 @@
             </div>
             <div class="section-block wizard-step" data-step="1">
               <div class="form-row">
-                <label for="thoughtText"><span class="q-number">①</span>그때 든 생각</label>
+                <label for="thoughtText"><span class="q-number" aria-hidden="true">1</span>그때 든 생각</label>
                 <textarea id="thoughtText" maxlength="600" placeholder="자동적으로 떠오른 생각을 한두 문장으로 적습니다."></textarea>
               </div>
               <details class="form-row" id="worryDetails">
@@ -249,13 +249,13 @@
                 </div>
               </details>
               <div class="form-row">
-                <label><span class="q-number">②</span>그때 느낀 감정</label>
+                <label><span class="q-number" aria-hidden="true">2</span>그때 느낀 감정</label>
                 <div class="chip-row" id="emotionChips"></div>
                 <div style="height:8px"></div>
                 <input id="emotionCustom" maxlength="10" placeholder="기타 감정 10자 이내">
               </div>
               <div class="form-row">
-                <label><span class="q-number">③</span>그때 느낀 몸 반응</label>
+                <label><span class="q-number" aria-hidden="true">3</span>그때 느낀 몸 반응</label>
                 <div class="chip-row" id="bodyChips"></div>
                 <div style="height:8px"></div>
                 <input id="bodyCustom" maxlength="10" placeholder="기타 몸 반응 10자 이내">
@@ -273,17 +273,17 @@
             <div class="section-block wizard-step" data-step="2">
               <div class="form-row">
                 <div class="slider-card">
-                  <div class="slider-top"><span><span class="q-number">①</span>그때 든 생각의 강도</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
+                  <div class="slider-top"><span><span class="q-number" aria-hidden="true">1</span>그때 든 생각의 강도</span><span class="slider-value" id="thoughtScoreValue">0</span></div>
                   <input id="thoughtScore" type="range" min="0" max="10" value="0" aria-label="그때 든 생각의 강도">
                   <div class="small score-help" id="thoughtScoreHelp"></div>
                 </div>
                 <div class="slider-card">
-                  <div class="slider-top"><span><span class="q-number">②</span>그때 느낀 감정의 강도</span><span class="slider-value" id="emotionScoreValue">0</span></div>
+                  <div class="slider-top"><span><span class="q-number" aria-hidden="true">2</span>그때 느낀 감정의 강도</span><span class="slider-value" id="emotionScoreValue">0</span></div>
                   <input id="emotionScore" type="range" min="0" max="10" value="0" aria-label="그때 느낀 감정의 강도">
                   <div class="small score-help" id="emotionScoreHelp"></div>
                 </div>
                 <div class="slider-card">
-                  <div class="slider-top"><span><span class="q-number">③</span>문제행동 충동/갈망 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
+                  <div class="slider-top"><span><span class="q-number" aria-hidden="true">3</span>문제행동 충동/갈망 (정점)</span><span class="slider-value" id="urgeScoreValue">0</span></div>
                   <input id="urgeScore" type="range" min="0" max="10" value="0" aria-label="문제행동 충동/갈망 정점">
                   <div class="small score-help" id="urgeScoreHelp"></div>
                 </div>
@@ -301,7 +301,7 @@
                   </div>
                 </div>
                 <div class="slider-card">
-                  <div class="slider-top"><span><span class="q-number">④</span>문제행동 활성화 수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
+                  <div class="slider-top"><span><span class="q-number" aria-hidden="true">4</span>문제행동 활성화 수준</span><span class="slider-value" id="actionLevelValue">0</span></div>
                   <input id="actionLevel" type="range" min="0" max="5" value="0" aria-label="문제행동 활성화 수준">
                   <div class="small score-help" id="actionLevelHelp"></div>
                 </div>
@@ -309,32 +309,32 @@
             </div>
             <div class="section-block wizard-step" data-step="3">
               <div class="form-row">
-                <label for="coping"><span class="q-number">①</span>대처행동</label>
+                <label for="coping"><span class="q-number" aria-hidden="true">1</span>대처행동</label>
                 <textarea id="coping" maxlength="600" placeholder="멈춤, 한 걸음 뒤로, 호흡, 장소 바꾸기, 연락하기 등"></textarea>
               </div>
               <div class="form-row">
-                <label><span class="q-number">②</span>대처 후 도움 정도</label>
+                <label><span class="q-number" aria-hidden="true">2</span>대처 후 도움 정도</label>
                 <div class="slider-card">
                   <div class="slider-top"><span>도움 정도</span><span class="slider-value" id="copingScoreValue">0</span></div>
                   <input id="copingScore" type="range" min="0" max="10" value="0" aria-label="대처 후 도움 정도">
                 </div>
               </div>
               <div class="form-row">
-                <label for="gratitude"><span class="q-number">③</span>감사 기록</label>
+                <label for="gratitude"><span class="q-number" aria-hidden="true">3</span>감사 기록</label>
                 <textarea id="gratitude" maxlength="160" placeholder="오늘 고마웠던 사람, 일, 또는 나에게 고마운 점"></textarea>
               </div>
               <div class="form-row">
-                <label for="insight"><span class="q-number">④</span>오늘 알아차린 점</label>
+                <label for="insight"><span class="q-number" aria-hidden="true">4</span>오늘 알아차린 점</label>
                 <textarea id="insight" maxlength="800" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
               </div>
               <div class="form-row">
-                <label><span class="q-number">⑤</span>오늘 지키고 싶은 내 삶의 가치</label>
+                <label><span class="q-number" aria-hidden="true">5</span>오늘 지키고 싶은 내 삶의 가치</label>
                 <div class="chip-row" id="valueChips"></div>
                 <div style="height:8px"></div>
                 <input id="valueCustom" maxlength="40" placeholder="직접 입력">
               </div>
               <div class="form-row">
-                <label for="valueActionDraft"><span class="q-number">⑥</span>그 가치를 위한 아주 작은 실천행동</label>
+                <label for="valueActionDraft"><span class="q-number" aria-hidden="true">6</span>그 가치를 위한 아주 작은 실천행동</label>
                 <textarea id="valueActionDraft" maxlength="160" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
                 <div class="small">이 칸은 오늘의 기록으로만 저장됩니다. 반복 추적하고 싶다면 아래 "이 가치로 실천행동 만들기"를 눌러 실천하기에서 등록하세요.</div>
               </div>
@@ -386,7 +386,7 @@
             </div>
             <div class="section-block wizard-step" data-step="0">
               <div class="form-row">
-                <label>추구하는 삶의 가치</label>
+                <label><span class="q-number" aria-hidden="true">1</span>추구하는 삶의 가치</label>
                 <p class="small">가치는 반드시 이뤄야 할 목표가 아니라, 걸어가고 싶은 방향입니다. "건강"이라는 가치는 "헬스장 등록"이라는 목표가 아니라, 몸을 돌보는 쪽으로 계속 걸어가고 싶은 마음입니다.</p>
                 <div class="chip-row" id="practiceValueChips"></div>
                 <div style="height:8px"></div>
@@ -394,7 +394,7 @@
                 <div id="practiceValueGuide" style="margin-top:10px;"></div>
               </div>
               <div class="form-row">
-                <label for="practiceName">가치와 연결된 작은 실천행동</label>
+                <label for="practiceName"><span class="q-number" aria-hidden="true">2</span>가치와 연결된 작은 실천행동</label>
                 <textarea id="practiceName" maxlength="160" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
               </div>
               <div class="form-row">
@@ -404,7 +404,7 @@
             </div>
             <div class="section-block wizard-step" data-step="1">
               <div class="form-row">
-                <label>실천행동의 매주 빈도</label>
+                <label><span class="q-number" aria-hidden="true">1</span>실천행동의 매주 빈도</label>
                 <select id="frequency">
                   <option value="daily">매일</option>
                   <option value="3week">주 3일</option>
@@ -417,12 +417,12 @@
                 <div class="chip-row" id="weekdayChips"></div>
               </div>
               <div class="form-row">
-                <label for="targetCount">하루 횟수</label>
+                <label for="targetCount"><span class="q-number" aria-hidden="true">2</span>하루 횟수</label>
                 <input id="targetCount" type="number" min="1" max="12" value="1">
                 <div class="small">예: 운동을 하루 2번 하기로 약속했다면 2를 입력합니다. 통계는 하루 기록의 평균 수행도로 계산합니다.</div>
               </div>
               <div class="form-row">
-                <label for="reminderMode">알림 방식</label>
+                <label for="reminderMode"><span class="q-number" aria-hidden="true">3</span>알림 방식</label>
                 <select id="reminderMode">
                   <option value="morning">매일 아침에 하루 일정 알림</option>
                   <option value="times">정해진 시간마다 알림</option>
@@ -441,7 +441,7 @@
             </div>
             <div class="section-block wizard-step" data-step="2">
               <div class="form-row">
-                <label for="practiceStart">실천행동 시작일</label>
+                <label for="practiceStart"><span class="q-number" aria-hidden="true">1</span>실천행동 시작일</label>
                 <input id="practiceStart" type="date">
               </div>
               <div class="form-row">

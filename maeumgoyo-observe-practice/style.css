@@ -101,14 +101,25 @@
     .risk-bar-fill { height: 100%; border-radius: 8px; transition: width .2s; }
     .risk-bar-percent { font-weight: 800; font-size: 13px; text-align: right; }
     .section-block { background: var(--surface-2); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    /* 선택 항목 표시 규칙: 하위 필드가 2개 이상이면 <details class="form-row"><summary>...(선택)</summary>로 접어서 기본적으로 숨긴다.
+       필드가 1개뿐이면 접지 않고, 라벨에 "(선택)"만 붙여 항상 보이게 한다.
+       새 선택 항목을 추가할 때 이 기준으로 판단할 것. */
     details.form-row summary { cursor: pointer; font-weight: 650; color: var(--muted); list-style: none; }
     details.form-row summary::-webkit-details-marker { display: none; }
     details.form-row summary::before { content: "▸ "; color: var(--brand); }
     .q-number {
-      color: var(--brand);
-      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      font-size: 12px;
       font-weight: 800;
-      margin-right: 4px;
+      margin-right: 6px;
+      flex-shrink: 0;
       vertical-align: middle;
     }
     details.form-row[open] summary::before { content: "▾ "; }
