@@ -178,7 +178,7 @@
             <div style="height:12px"></div>
             <div class="wizard-nav">
               <div class="wizard-nav-top">
-                <div class="wizard-step-title" id="observeStepTitle" aria-live="polite">1 · 상황과 촉발 단서</div>
+                <div class="wizard-step-title" id="observeStepTitle" aria-live="polite">1 · 문제상황과 촉발단서</div>
                 <button class="quick-save-btn" type="button" id="observeQuickSave">지금까지 저장</button>
               </div>
               <div class="wizard-dots" id="observeStepDots" aria-hidden="true">
@@ -249,7 +249,7 @@
                 </div>
               </details>
               <div class="form-row">
-                <label>그때 느낀 감정 종류</label>
+                <label>그때 느낀 감정</label>
                 <div class="chip-row" id="emotionChips"></div>
                 <div style="height:8px"></div>
                 <input id="emotionCustom" maxlength="10" placeholder="기타 감정 10자 이내">
@@ -386,8 +386,12 @@
             </div>
             <div class="section-block wizard-step" data-step="0">
               <div class="form-row">
-                <label for="practiceValue">추구하는 삶의 가치</label>
-                <input id="practiceValue" maxlength="40" placeholder="예: 건강, 관계, 자기존중">
+                <label>추구하는 삶의 가치</label>
+                <p class="small">가치는 반드시 이뤄야 할 목표가 아니라, 걸어가고 싶은 방향입니다. "건강"이라는 가치는 "헬스장 등록"이라는 목표가 아니라, 몸을 돌보는 쪽으로 계속 걸어가고 싶은 마음입니다.</p>
+                <div class="chip-row" id="practiceValueChips"></div>
+                <div style="height:8px"></div>
+                <input id="practiceValueCustom" maxlength="40" placeholder="직접 입력">
+                <div id="practiceValueGuide" style="margin-top:10px;"></div>
               </div>
               <div class="form-row">
                 <label for="practiceName">가치와 연결된 작은 실천행동</label>
@@ -445,8 +449,9 @@
                 <textarea id="barriers" maxlength="600" placeholder="피곤함, 불안, 갈망, 혼자 있음, 스마트폰 등"></textarea>
               </div>
               <div class="form-row">
-                <label for="smallVersion">30% 버전의 최소 행동</label>
+                <label for="smallVersion">30% 버전의 최소 행동(선택)</label>
                 <textarea id="smallVersion" maxlength="160" placeholder="실천이 어려운 날에도 가능한 가장 작은 버전"></textarea>
+                <div class="small">선택 사항이지만, 미리 정해두면 컨디션이 안 좋은 날에도 이어가기 쉬워집니다.</div>
               </div>
             </div>
             <div class="plain-card wizard-step" data-step="2">

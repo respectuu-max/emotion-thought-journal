@@ -143,10 +143,10 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 }
 ```
 
-행동활성화(Behavioral Activation) 문헌에서는 실천 후 얻은 즐거움·숙달감이 예상보다 컸는지가 우울 개선과 관련이 크다고 보고합니다. 이를 반영해 즐거움/숙달감 두 축으로 나눠 기록합니다.
+행동활성화(Behavioral Activation) 문헌에서는 실천 후 얻은 즐거움·성취감이 예상보다 컸는지가 우울 개선과 관련이 크다고 보고합니다. 이를 반영해 즐거움/성취감 두 축으로 나눠 기록합니다. 화면에는 "성취감"으로 표시되지만, CSV 필드 이름(`mastery_score`)은 화면 표시 문구와 무관한 안정적 식별자라 그대로 유지합니다.
 
-- `pleasure_score`, `mastery_score`: 실천 후 실제로 느낀 즐거움과 숙달감 (0~10).
-- `expected_pleasure_score`, `expected_mastery_score`: 실천 전 예상한 즐거움·숙달감 (0~10, 선택 입력). 값이 없으면 예상을 남기지 않은 기록입니다. 실제 값과 비교하면 "생각보다 즐거웠다/힘들었다"는 예측-경험 불일치를 분석할 수 있습니다.
+- `pleasure_score`, `mastery_score`: 실천 후 실제로 느낀 즐거움과 성취감 (0~10). 화면 표시는 각각 "실제 즐거움", "실제 성취감"입니다.
+- `expected_pleasure_score`, `expected_mastery_score`: 실천 전 예상한 즐거움·성취감 (0~10, 선택 입력). 값이 없으면 예상을 남기지 않은 기록입니다. 실제 값과 비교하면 "생각보다 즐거웠다/힘들었다"는 예측-경험 불일치를 분석할 수 있습니다.
 - 이전 규격에는 두 값의 평균을 미리 계산해 저장한 `practice_score` 필드가 있었지만, `pleasure_score`와 `mastery_score`로부터 그대로 계산되는 값이라 제거했습니다. 평균 수행도가 필요하면 `(pleasure_score + mastery_score) / 2`로 직접 계산하십시오.
 
 ## prediction payload

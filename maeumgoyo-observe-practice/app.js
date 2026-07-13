@@ -1,4 +1,4 @@
-const APP_VERSION = "v71"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v73"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -15,6 +15,23 @@ const TEXT_LIMITS = {
     const RECOVERY_KEY = "maeumgoyo.observePractice.recovery";
     const AUTO_LOCK_MS = 5 * 60 * 1000;
     const values = ["건강", "관계", "정직", "책임", "자기존중", "성장", "안정", "회복", "자유", "배움", "돌봄", "신뢰", "절제", "용기", "의미"];
+    const VALUE_GUIDE = {
+      "건강": { description: "몸과 마음을 돌보며 살아가려는 방향", examples: ["물 한 잔 마시기", "10분만 걷기", "평소보다 30분 일찍 잠자리에 들기", "오늘 한 끼는 제때 챙겨 먹기"] },
+      "관계": { description: "소중한 사람들과 연결되어 있으려는 방향", examples: ["가족에게 안부 문자 보내기", "오랜만에 연락 못 한 사람에게 먼저 연락하기", "대화할 때 상대방 말을 끝까지 듣기"] },
+      "정직": { description: "나 자신과 다른 사람에게 솔직한 태도로 살아가려는 방향", examples: ["오늘 있었던 일을 상담자에게 있는 그대로 말하기", "하기 싫은 약속은 정직하게 거절하기", "실수를 감추지 않고 인정하기"] },
+      "책임": { description: "내가 맡은 일과 관계를 성실히 지켜가려는 방향", examples: ["미뤄둔 답장 하나 보내기", "오늘 할 일 중 가장 작은 것 하나 끝내기", "약속 시간 지키기"] },
+      "자기존중": { description: "나 자신을 함부로 대하지 않고 소중히 여기려는 방향", examples: ["스스로에게 비난 대신 격려의 말 한마디 해보기", "힘들 때 \"괜찮아\"라고 말해주기", "무리한 부탁은 거절하기"] },
+      "성장": { description: "지금보다 조금씩 나아지고 배워가려는 방향", examples: ["관심 있던 것 5분만 찾아보기", "오늘 배운 것 한 줄 적어보기", "새로운 것 아주 조금 시도해보기"] },
+      "안정": { description: "흔들리지 않는 편안한 일상을 만들어가려는 방향", examples: ["정해진 시간에 자고 일어나기", "방 한 구석 정리하기", "오늘 하루 일과를 간단히 계획해보기"] },
+      "회복": { description: "지치고 상한 마음과 몸을 의도적으로 돌보며 채워가려는 방향", examples: ["의도적으로 10분 쉬기", "좋아하는 음악 듣기", "따뜻한 차 한잔 마시기"] },
+      "자유": { description: "스스로 선택하며 나답게 살아가려는 방향", examples: ["오늘 저녁 메뉴는 내가 원하는 대로 골라보기", "쉬고 싶을 때 잠깐 쉬어도 된다고 스스로에게 허락하기", "답장을 꼭 바로 안 해도 된다고 허락하기"] },
+      "배움": { description: "새로운 것을 알아가고 이해를 넓혀가려는 방향", examples: ["궁금했던 것 검색해보기", "책 한 페이지 읽기", "상담에서 배운 것 한 가지 다시 떠올려보기"] },
+      "돌봄": { description: "나 또는 다른 사람을 살피고 챙기려는 방향", examples: ["화분에 물 주기", "반려동물과 시간 보내기", "나 자신을 위한 작은 간식 챙기기"] },
+      "신뢰": { description: "약속을 지키고 믿을 수 있는 사람이 되어가려는 방향", examples: ["작은 약속 하나 지켜보기", "스스로에게 한 다짐 하나 실천해보기", "상담자에게 솔직하게 상황을 알리기"] },
+      "절제": { description: "순간의 충동보다 내가 원하는 방향을 선택하려는 방향", examples: ["충동이 들 때 10분만 미뤄보기", "물 한 잔 마시고 잠시 자리 옮기기", "미리 정한 대체 행동 하나 해보기"] },
+      "용기": { description: "두렵거나 불편해도 중요한 일을 시도해보려는 방향", examples: ["불편했던 대화를 다시 꺼내보기", "미뤄왔던 전화 한 통 해보기", "도움을 요청해보기"] },
+      "의미": { description: "내 삶에 중요한 뜻과 목적을 찾아가려는 방향", examples: ["오늘 감사했던 일 하나 적어보기", "내게 의미 있었던 순간 떠올려보기", "소중한 사람에게 그 이유를 말해보기"] }
+    };
     const emotions = ["불안", "외로움", "분노", "공허함", "수치심", "우울", "초조", "지루함", "피곤함", "무기력"];
     const bodies = ["가슴 답답함", "두근거림", "근육 긴장", "열감", "손 떨림", "시선 고정", "멍함", "얼어붙음", "호흡 짧음"];
     const defaultBehaviors = ["도박", "성행동", "쇼핑", "음주", "게임", "스마트폰/인터넷", "회피/미루기", "분노표출", "과식", "자기비난", "무기력"];
@@ -113,6 +130,7 @@ const TEXT_LIMITS = {
       observeMode: "저녁",
       observeStep: 0,
       practiceStep: 0,
+      practiceValue: "",
       behavior: "",
       behaviorAreas: [],
       emotion: "",
@@ -636,7 +654,7 @@ const TEXT_LIMITS = {
         }
       };
     }
-    const OBSERVE_STEP_TITLES = ["1 · 상황과 촉발 단서", "2 · 마음 관찰", "3 · 강도 기록", "4 · 대처와 성찰"];
+    const OBSERVE_STEP_TITLES = ["1 · 문제상황과 촉발단서", "2 · 마음 관찰", "3 · 강도 기록", "4 · 대처와 성찰"];
     const OBSERVE_STEP_LABELS = [
       "1단계 / 4단계 · 30초면 충분합니다",
       "2단계 / 4단계 · 해당하는 것만 눌러주세요",
@@ -789,6 +807,7 @@ const TEXT_LIMITS = {
       setChipGroup("#emotionChips", emotions, "emotion", state.emotion, 6);
       setChipGroup("#bodyChips", bodies, "body", "", 6);
       setChipGroup("#valueChips", values, "value", state.value, 6);
+      renderPracticeValueChips();
       setMultiChipGroup("#triggerPlaceChips", triggerPlaces, "triggerPlaces");
       setMultiChipGroup("#triggerPeopleChips", triggerPeople, "triggerPeople");
       setMultiChipGroup("#triggerTimeChips", triggerTimes, "triggerTimes");
@@ -1392,9 +1411,9 @@ const TEXT_LIMITS = {
         <div class="list">
           ${todayLogs.slice(0, 4).map(item => {
             const expectedText = item.expectedPleasureScore !== null && item.expectedMasteryScore !== null
-              ? ` · 예상 즐거움 ${item.expectedPleasureScore}/숙달감 ${item.expectedMasteryScore}`
+              ? ` · 예상 즐거움 ${item.expectedPleasureScore}/성취감 ${item.expectedMasteryScore}`
               : "";
-            return `<div class="plain-card small">즐거움 ${escapeHtml(item.pleasureScore)}/10 · 숙달감 ${escapeHtml(item.masteryScore)}/10${expectedText} · ${escapeHtml(formatSavedTime(item.updatedAt))}${item.note ? `<br>${escapeHtml(item.note)}` : ""}<div class="button-row record-actions"><button class="danger-btn" type="button" data-delete-log="${escapeHtml(item.id)}">수행 기록 숨김</button></div></div>`;
+            return `<div class="plain-card small">즐거움 ${escapeHtml(item.pleasureScore)}/10 · 성취감 ${escapeHtml(item.masteryScore)}/10${expectedText} · ${escapeHtml(formatSavedTime(item.updatedAt))}${item.note ? `<br>${escapeHtml(item.note)}` : ""}<div class="button-row record-actions"><button class="danger-btn" type="button" data-delete-log="${escapeHtml(item.id)}">수행 기록 숨김</button></div></div>`;
           }).join("")}
         </div>
       ` : "";
@@ -1413,8 +1432,8 @@ const TEXT_LIMITS = {
             <input data-practice-expected-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 즐거움">
           </div>
           <div class="slider-card">
-            <div class="slider-top"><span>예상 숙달감</span><span class="slider-value" data-practice-expected-mastery-value="${escapeHtml(p.id)}">5</span></div>
-            <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 숙달감">
+            <div class="slider-top"><span>예상 성취감</span><span class="slider-value" data-practice-expected-mastery-value="${escapeHtml(p.id)}">5</span></div>
+            <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 성취감">
           </div>
         </div>
         <div style="height:4px"></div>
@@ -1422,10 +1441,11 @@ const TEXT_LIMITS = {
           <div class="slider-top"><span>실제 즐거움</span><span class="slider-value" data-practice-pleasure-value="${escapeHtml(p.id)}">0</span></div>
           <input data-practice-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 즐거움">
           <div class="small score-help" data-practice-pleasure-help="${escapeHtml(p.id)}">${escapeHtml(pleasureScoreText(0))}</div>
+          <div class="small">이 점수는 이 실천을 계속해야 할 이유가 아니라, 지금 즐거움을 느끼는 감각이 살아있는지 살펴보는 참고 지표입니다. 가치에 맞는 행동이 재미없어도 괜찮습니다.</div>
         </div>
         <div class="slider-card">
-          <div class="slider-top"><span>실제 숙달감</span><span class="slider-value" data-practice-mastery-value="${escapeHtml(p.id)}">0</span></div>
-          <input data-practice-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 숙달감">
+          <div class="slider-top"><span>실제 성취감</span><span class="slider-value" data-practice-mastery-value="${escapeHtml(p.id)}">0</span></div>
+          <input data-practice-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 성취감">
           <div class="small score-help" data-practice-mastery-help="${escapeHtml(p.id)}">${escapeHtml(masteryScoreText(0))}</div>
         </div>
         <textarea data-practice-note="${escapeHtml(p.id)}" maxlength="600" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
@@ -1610,7 +1630,7 @@ const TEXT_LIMITS = {
           <div class="small">알림: ${escapeHtml(reminderLabel(p))}</div>
           <div class="small">방해요인: ${escapeHtml(p.barriers || "-")}</div>
           <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
-          <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)} (즐거움 ${avg(logs, l => Number(l.pleasureScore)).toFixed(1)} · 숙달감 ${avg(logs, l => Number(l.masteryScore)).toFixed(1)})</div>
+          <div class="small">기록 ${logs.length}회 · 평균 수행도 ${avg(logs, l => Number(l.score)).toFixed(1)} (즐거움 ${avg(logs, l => Number(l.pleasureScore)).toFixed(1)} · 성취감 ${avg(logs, l => Number(l.masteryScore)).toFixed(1)})</div>
           <div style="height:8px"></div>
           <div class="button-row">
             <button class="ghost-btn" type="button" data-edit-practice="${escapeHtml(p.id)}">수정</button>
@@ -3149,7 +3169,7 @@ const TEXT_LIMITS = {
       const id = $("#practiceId").value || uid();
       const entry = {
         id,
-        value: cleanText($("#practiceValue").value, TEXT_LIMITS.short),
+        value: currentPracticeValue(),
         name: cleanMultiline($("#practiceName").value, TEXT_LIMITS.medium),
         reason: cleanMultiline($("#practiceReason").value, TEXT_LIMITS.long),
         frequency: $("#frequency").value,
@@ -3167,9 +3187,6 @@ const TEXT_LIMITS = {
         showToast("가치와 실천행동을 입력해주세요.");
         return;
       }
-      if (!entry.smallVersion && !confirm("30% 버전의 최소 행동이 비어 있습니다. 기분이 좋지 않은 날에도 이어갈 수 있도록 최소 행동을 정하는 것을 권장합니다. 그래도 저장할까요?")) {
-        return;
-      }
       const index = state.data.practices.findIndex(p => p.id === id);
       if (index >= 0) state.data.practices[index] = { ...state.data.practices[index], ...entry };
       else state.data.practices.push(entry);
@@ -3178,13 +3195,38 @@ const TEXT_LIMITS = {
       renderAll();
       showToast("작은 실천행동을 저장했습니다.");
     }
+    function currentPracticeValue() {
+      return cleanText($("#practiceValueCustom").value || state.practiceValue || "", TEXT_LIMITS.short);
+    }
+    function setPracticeValueGuide() {
+      const box = $("#practiceValueGuide");
+      if (!box) return;
+      const value = currentPracticeValue();
+      const guide = VALUE_GUIDE[value];
+      if (!value || !guide) { box.innerHTML = ""; return; }
+      box.innerHTML = `
+        <div class="plain-card" style="background:var(--surface-2);">
+          <div class="small" style="font-weight:800; color:var(--brand-dark);">${escapeHtml(value)} — ${escapeHtml(guide.description)}</div>
+          <div class="small" style="margin-top:6px;">아래 예시를 누르면 실천행동 칸에 채워집니다. 그대로 써도 되고, 자유롭게 고쳐도 됩니다.</div>
+          <div class="chip-row" style="margin-top:8px;">
+            ${guide.examples.map(example => `<button type="button" class="chip" data-value-example="${escapeHtml(example)}">${escapeHtml(example)}</button>`).join("")}
+          </div>
+        </div>
+      `;
+    }
+    function renderPracticeValueChips() {
+      setChipGroup("#practiceValueChips", values, "practiceValue", state.practiceValue, 6);
+      $("#practiceValueChips").addEventListener("click", () => setPracticeValueGuide());
+      setPracticeValueGuide();
+    }
     function editPractice(id) {
       const p = state.data.practices.find(x => x.id === id);
       if (!p) return;
       $("#practiceId").value = p.id;
       $("#practiceForm").dataset.editValue = p.value || "";
       $("#practiceForm").dataset.editName = p.name || "";
-      $("#practiceValue").value = p.value || "";
+      state.practiceValue = values.includes(p.value) ? p.value : "";
+      $("#practiceValueCustom").value = values.includes(p.value) ? "" : (p.value || "");
       $("#practiceName").value = p.name || "";
       $("#practiceReason").value = p.reason || "";
       $("#frequency").value = p.frequency || "daily";
@@ -3200,6 +3242,7 @@ const TEXT_LIMITS = {
       $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none";
       state.practiceStep = 0;
       renderPracticeStep();
+      renderPracticeValueChips();
       setView("practice");
     }
     function clearPracticeForm() {
@@ -3212,11 +3255,13 @@ const TEXT_LIMITS = {
       $("#reminderMode").value = "morning";
       $("#reminderTimes").value = "";
       state.customDays = [];
+      state.practiceValue = "";
       $$("#weekdayChips button").forEach(b => b.classList.remove("active"));
       $("#customDaysRow").style.display = "none";
       $("#reminderTimesRow").style.display = "none";
       state.practiceStep = 0;
       renderPracticeStep();
+      renderPracticeValueChips();
     }
     function startFreshPracticeFromTopFields() {
       const form = $("#practiceForm");
@@ -3224,7 +3269,7 @@ const TEXT_LIMITS = {
       if (!id) return;
       const originalValue = form.dataset.editValue || "";
       const originalName = form.dataset.editName || "";
-      const currentValue = $("#practiceValue").value.trim();
+      const currentValue = currentPracticeValue();
       const currentName = $("#practiceName").value.trim();
       if (currentValue === originalValue && currentName === originalName) return;
       $("#practiceId").value = "";
@@ -3252,7 +3297,14 @@ const TEXT_LIMITS = {
         return;
       }
       clearPracticeForm();
-      $("#practiceValue").value = value;
+      if (values.includes(value)) {
+        state.practiceValue = value;
+        $("#practiceValueCustom").value = "";
+      } else {
+        state.practiceValue = "";
+        $("#practiceValueCustom").value = value;
+      }
+      renderPracticeValueChips();
       $("#practiceName").value = action;
       $("#practiceStart").value = todayISO();
       setView("practice");
@@ -3357,7 +3409,16 @@ const TEXT_LIMITS = {
         else observeSubmit({ preventDefault: () => {}, target: form });
       });
       $("#practiceForm").addEventListener("submit", practiceSubmit);
-      $("#practiceValue").addEventListener("input", startFreshPracticeFromTopFields);
+      $("#practiceValueCustom").addEventListener("input", () => {
+        setPracticeValueGuide();
+        startFreshPracticeFromTopFields();
+      });
+      $("#practiceValueGuide").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-value-example]");
+        if (!button) return;
+        $("#practiceName").value = button.dataset.valueExample;
+        $("#practiceName").focus();
+      });
       $("#practiceName").addEventListener("input", startFreshPracticeFromTopFields);
       $("#sendToPractice").addEventListener("click", sendObservationToPractice);
       $("#clearPracticeForm").addEventListener("click", clearPracticeForm);
