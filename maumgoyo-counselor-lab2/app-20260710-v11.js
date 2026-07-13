@@ -1,4 +1,4 @@
-const APP_VERSION = "20260713v31";
+const APP_VERSION = "20260713v44";
 
 // 이 앱은 마음고요 관찰과 실천의 현재 CSV 규격(maeumgoyo_csv_v1)만 읽습니다.
 // 구버전 CSV 하위 호환은 지원하지 않습니다 — 다른 규격의 CSV는 명확한 오류로 안내하고 중단합니다.
@@ -14,6 +14,7 @@ const state = {
   predictions: [],
   observationDays: [],
   dailyCheckins: [],
+  reflectionDays: [],
   relapseWindow: null,
   activeView: "data",
   fileName: "",
@@ -52,6 +53,10 @@ const els = {
   urgeThreshold: document.getElementById("urgeThreshold"),
   actionThreshold: document.getElementById("actionThreshold"),
   practiceThreshold: document.getElementById("practiceThreshold"),
+  urgeGoalInput: document.getElementById("urgeGoalInput"),
+  actionGoalInput: document.getElementById("actionGoalInput"),
+  practiceGoalInput: document.getElementById("practiceGoalInput"),
+  expansionGoalInput: document.getElementById("expansionGoalInput"),
   sampleBtn: document.getElementById("sampleBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
   resetBtn: document.getElementById("resetBtn"),
@@ -59,6 +64,13 @@ const els = {
   exportBtn: document.getElementById("exportBtn"),
   copySummaryBtn: document.getElementById("copySummaryBtn"),
   patientModeBtn: document.getElementById("patientModeBtn"),
+  reflectionDailyList: document.getElementById("reflectionDailyList"),
+  copyAllReflectionBtn: document.getElementById("copyAllReflectionBtn"),
+  copyReflectionPromptBtn: document.getElementById("copyReflectionPromptBtn"),
+  copyDraftPromptBtn: document.getElementById("copyDraftPromptBtn"),
+  buildAiReportBtn: document.getElementById("buildAiReportBtn"),
+  aiReportBox: document.getElementById("aiReportBox"),
+  copyAiReportBtn: document.getElementById("copyAiReportBtn"),
 };
 
 const VIEWS = [
@@ -82,19 +94,71 @@ const CATEGORY_LABELS = {
   practice: "대처/실천",
 };
 
-// maeumgoyo_csv_v1(현재 규격, 연동명세서 2.0) 예시. archived가 모든 record_type에 실제 불리언으로 들어가고,
-// 보관된 실천행동(archived:true)과 daily_checkin까지 포함해 "예시" 버튼만으로 v2.0 파싱 경로 전체를 확인할 수 있게 했습니다.
+// maeumgoyo_csv_v1(현재 규격, 연동명세서 2.0) 예시. 3주(21일)치 회복 궤적을 담아, 초반엔 충동·문제행동이 높고
+// 실천·확장감은 낮다가, 시간이 지나며 실천이 늘수록 확장감은 오르고 충동·문제행동은 낮아지는 흐름을 볼 수 있게 했습니다.
+// 다중 관찰이 있는 날, 보관된 실천행동, 충동곡선, 예측 4종 상태, 매일 daily_checkin까지 모두 포함합니다.
 const sampleCsv = `schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mode,range_days,payload_json
-maeumgoyo_csv_v1,observation,o1,2026-07-05,2026-07-05T21:10:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""time_slot"":""저녁"",""behavior_areas"":[""음주""],""behavior_custom_areas"":[],""emotion"":""공허함"",""emotion_custom"":[],""body_reactions"":[""가슴 답답함"",""초조함""],""body_custom"":[],""situation"":""퇴근 후 혼자 집에 있었고 술 생각이 강해짐"",""trigger_places"":[""집""],""trigger_people"":[""혼자 있을 때""],""trigger_times"":[""밤/늦은 시간""],""trigger_custom"":[],""avoidance_tags"":[""연락에 답하지 않음""],""avoidance_custom"":[],""thought_text"":""오늘은 너무 힘들었으니 한 잔 정도는 괜찮다"",""thought_score"":7,""emotion_score"":8,""urge_score"":9,""urge_initial_score"":6,""urge_end_score"":3,""action_level"":4,""coping"":""편의점 앞에서 10분 걷기"",""coping_score"":3,""gratitude"":"""",""insight"":"""",""value"":""가족과 약속 지키기"",""value_action_draft"":""집에 오면 바로 샤워하고 따뜻한 차 마시기"",""archived"":false}"
-maeumgoyo_csv_v1,observation,o2,2026-07-07,2026-07-07T13:20:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""time_slot"":""오후"",""behavior_areas"":[""회피/미루기""],""behavior_custom_areas"":[],""emotion"":""불안"",""emotion_custom"":[],""body_reactions"":[""손 떨림""],""body_custom"":[],""situation"":""친구의 권유를 받음"",""trigger_places"":[],""trigger_people"":[""특정 인물과 함께""],""trigger_times"":[],""trigger_custom"":[],""avoidance_tags"":[],""avoidance_custom"":[],""thought_text"":""거절하면 관계가 어색해질 것이다"",""thought_score"":6,""emotion_score"":6,""urge_score"":8,""urge_initial_score"":"""",""urge_end_score"":"""",""action_level"":1,""coping"":""잠깐 화장실에 가서 STOP을 떠올림"",""coping_score"":7,""gratitude"":"""",""insight"":"""",""value"":""회복을 우선하기"",""value_action_draft"":""오늘은 약속이 있다고 말하기"",""archived"":false}"
-maeumgoyo_csv_v1,observation,o3,2026-07-09,2026-07-09T22:05:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""time_slot"":""저녁"",""behavior_areas"":[],""behavior_custom_areas"":[],""emotion"":""수치심"",""emotion_custom"":[],""body_reactions"":[""무기력""],""body_custom"":[],""situation"":""자기 전에 스마트폰을 오래 봄"",""trigger_places"":[],""trigger_people"":[],""trigger_times"":[],""trigger_custom"":[],""avoidance_tags"":[],""avoidance_custom"":[],""thought_text"":""나는 결국 못 바뀐다"",""thought_score"":5,""emotion_score"":6,""urge_score"":4,""urge_initial_score"":"""",""urge_end_score"":"""",""action_level"":0,""coping"":""상담 메모 보기"",""coping_score"":5,""gratitude"":""오늘은 저녁을 챙겨 먹었다"",""insight"":"""",""value"":""건강 회복"",""value_action_draft"":""내일 오전 병원 예약 확인"",""archived"":false}"
-maeumgoyo_csv_v1,practice_definition,p1,,2026-07-01T08:00:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""practice_value"":""건강"",""practice_name"":""귀가 후 10분 걷기"",""practice_reason"":""회피가 좁힌 생활반경을 넓힌다"",""frequency"":""3week"",""target_count"":1,""custom_days"":[],""reminder_mode"":""morning"",""reminder_times"":[],""start_date"":""2026-07-01"",""barriers"":"""",""small_version"":""현관 밖으로 나가기"",""archived"":false}"
-maeumgoyo_csv_v1,practice_definition,p2,,2026-06-20T08:00:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""practice_value"":""관계"",""practice_name"":""친구에게 안부 연락"",""practice_reason"":""고립감을 줄이려고"",""frequency"":""1week"",""target_count"":1,""custom_days"":[],""reminder_mode"":""none"",""reminder_times"":[],""start_date"":""2026-06-20"",""barriers"":""어색함"",""small_version"":""짧은 문자만 보내기"",""archived"":true}"
-maeumgoyo_csv_v1,practice_log,l1,2026-07-06,2026-07-06T20:30:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""practice_id"":""p1"",""practice_value"":""건강"",""practice_name"":""귀가 후 10분 걷기"",""target_count"":1,""pleasure_score"":6,""mastery_score"":5,""expected_pleasure_score"":3,""expected_mastery_score"":3,""practice_note"":""생각보다 개운했다"",""archived"":false}"
-maeumgoyo_csv_v1,practice_log,l2,2026-07-08,2026-07-08T21:00:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""practice_id"":""p1"",""practice_value"":""건강"",""practice_name"":""귀가 후 10분 걷기"",""target_count"":1,""pleasure_score"":0,""mastery_score"":0,""practice_note"":""비가 와서 못 했다. 대신 바로 누웠다."",""archived"":false}"
-maeumgoyo_csv_v1,prediction,pr1,2026-07-07,2026-07-08T09:00:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""related_observation_id"":""o2"",""worry_text"":""거절하면 그 친구가 완전히 멀어질 것이다"",""predicted_severity"":8,""status"":""occurred"",""actual_severity"":3,""resolved_at"":""2026-07-09T00:00:00.000Z"",""note"":""다음 날 평소처럼 연락이 왔다"",""archived"":false}"
-maeumgoyo_csv_v1,daily_checkin,c1,2026-07-07,2026-07-07T23:00:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""expansion_score"":5,""note"":""거절하고 나니 오히려 마음이 편했다"",""archived"":false}"
-maeumgoyo_csv_v1,daily_checkin,c2,2026-07-09,2026-07-09T23:10:00.000Z,2026-07-10T09:00:00.000Z,K-001,counselor_full,7,"{""expansion_score"":2,""note"":"""",""archived"":false}"`;
+maeumgoyo_csv_v1,observation,obs-001,2026-06-20,2026-06-20T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""충동 발생"", ""behavior_areas"": [""도박""], ""behavior_custom_areas"": [], ""emotion"": ""공허함"", ""emotion_custom"": [], ""body_reactions"": [""가슴 답답함"", ""초조함""], ""body_custom"": [], ""situation"": ""혼자 집에 있었고 스마트폰으로 도박 사이트 생각이 남"", ""trigger_places"": [""집""], ""trigger_people"": [""혼자 있을 때""], ""trigger_times"": [""밤/늦은 시간""], ""trigger_custom"": [], ""avoidance_tags"": [""하루 종일 집에만 있음""], ""avoidance_custom"": [], ""thought_text"": ""한 번만 하면 스트레스가 풀릴 것 같다"", ""thought_score"": 7, ""emotion_score"": 7, ""urge_score"": 8, ""urge_initial_score"": 4, ""urge_end_score"": 7, ""action_level"": 3, ""coping"": ""10분 미루고 밖으로 나감"", ""coping_score"": 3, ""gratitude"": """", ""insight"": """", ""value"": ""자기존중"", ""value_action_draft"": ""잠들기 전 오늘 기록 남기기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-002,2026-06-21,2026-06-21T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [""음주""], ""behavior_custom_areas"": [], ""emotion"": ""초조"", ""emotion_custom"": [], ""body_reactions"": [""손 떨림""], ""body_custom"": [], ""situation"": ""회사에서 스트레스 받은 뒤 퇴근길 편의점 앞을 서성임"", ""trigger_places"": [""직장/학교"", ""이동 중(차·대중교통)""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""한 잔 정도는 괜찮을 것이다"", ""thought_score"": 6, ""emotion_score"": 6, ""urge_score"": 7, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 2, ""coping"": ""편의점 앞에서 그냥 지나감"", ""coping_score"": 4, ""gratitude"": """", ""insight"": """", ""value"": ""책임"", ""value_action_draft"": ""다음엔 술자리 대신 약속을 미리 만들기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-003,2026-06-21,2026-06-21T08:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오전"", ""behavior_areas"": [""음주""], ""behavior_custom_areas"": [], ""emotion"": ""초조"", ""emotion_custom"": [], ""body_reactions"": [""손 떨림""], ""body_custom"": [], ""situation"": ""아침에도 비슷한 생각이 스쳐감"", ""trigger_places"": [""직장/학교"", ""이동 중(차·대중교통)""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""이 생각이 또 드는구나 하고 알아차림"", ""thought_score"": 6, ""emotion_score"": 6, ""urge_score"": 4, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""아침 루틴으로 전환"", ""coping_score"": 5, ""gratitude"": """", ""insight"": """", ""value"": ""책임"", ""value_action_draft"": ""다음엔 술자리 대신 약속을 미리 만들기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-004,2026-06-22,2026-06-22T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [""음주""], ""behavior_custom_areas"": [], ""emotion"": ""분노"", ""emotion_custom"": [], ""body_reactions"": [""근육 긴장""], ""body_custom"": [], ""situation"": ""친구 모임에서 술을 계속 권유받음"", ""trigger_places"": [""술자리/모임""], ""trigger_people"": [""사교 모임 상황""], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""오늘같은 날은 예외로 해도 된다"", ""thought_score"": 8, ""emotion_score"": 8, ""urge_score"": 9, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 4, ""coping"": ""화장실에 가서 숨 고르기"", ""coping_score"": 2, ""gratitude"": """", ""insight"": ""혼자 있는 시간이 위험하다는 걸 알았다"", ""value"": ""건강"", ""value_action_draft"": ""귀가 후 바로 샤워하기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-005,2026-06-23,2026-06-23T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [""도박""], ""behavior_custom_areas"": [], ""emotion"": ""외로움"", ""emotion_custom"": [], ""body_reactions"": [""무기력""], ""body_custom"": [], ""situation"": ""혼자 저녁을 먹다가 갑자기 공허함이 몰려옴"", ""trigger_places"": [""집""], ""trigger_people"": [""혼자 있을 때""], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [""하루 종일 집에만 있음""], ""avoidance_custom"": [], ""thought_text"": ""이렇게 사는 게 무슨 의미가 있나"", ""thought_score"": 5, ""emotion_score"": 5, ""urge_score"": 6, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 1, ""coping"": ""상담 메모를 다시 읽음"", ""coping_score"": 5, ""gratitude"": """", ""insight"": """", ""value"": ""회복"", ""value_action_draft"": ""돈 관련 생각 들면 가계부부터 보기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-006,2026-06-24,2026-06-24T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""밤/늦은 시간"", ""behavior_areas"": [""도박""], ""behavior_custom_areas"": [], ""emotion"": ""불안"", ""emotion_custom"": [], ""body_reactions"": [""가슴 답답함""], ""body_custom"": [], ""situation"": ""월급날이라 도박 사이트 생각이 강하게 남"", ""trigger_places"": [""집""], ""trigger_people"": [""혼자 있을 때""], ""trigger_times"": [""밤/늦은 시간""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""돈을 좀 벌어야 마음이 편해질 것 같다"", ""thought_score"": 7, ""emotion_score"": 7, ""urge_score"": 8, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 3, ""coping"": ""가계부를 보며 마음을 다잡음"", ""coping_score"": 3, ""gratitude"": """", ""insight"": """", ""value"": ""정직"", ""value_action_draft"": ""월급날엔 미리 계획 세우기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-007,2026-06-25,2026-06-25T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [""음주""], ""behavior_custom_areas"": [], ""emotion"": ""분노"", ""emotion_custom"": [], ""body_reactions"": [""열감""], ""body_custom"": [], ""situation"": ""야근 후 스트레스가 심해서 술 생각이 남"", ""trigger_places"": [""직장/학교""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""이 정도 스트레스는 풀어야 한다"", ""thought_score"": 6, ""emotion_score"": 6, ""urge_score"": 7, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 2, ""coping"": ""동료에게 잠깐 이야기함"", ""coping_score"": 4, ""gratitude"": """", ""insight"": """", ""value"": ""절제"", ""value_action_draft"": ""야근 후엔 바로 걷기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-008,2026-06-26,2026-06-26T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""충동 발생"", ""behavior_areas"": [""도박""], ""behavior_custom_areas"": [], ""emotion"": ""외로움"", ""emotion_custom"": [], ""body_reactions"": [""멍함""], ""body_custom"": [], ""situation"": ""주말 저녁 혼자 있는 시간이 길어짐"", ""trigger_places"": [""집""], ""trigger_people"": [""혼자 있을 때""], ""trigger_times"": [""주말""], ""trigger_custom"": [], ""avoidance_tags"": [""하루 종일 집에만 있음""], ""avoidance_custom"": [], ""thought_text"": ""혼자 있으면 결국 예전처럼 될 것 같다"", ""thought_score"": 7, ""emotion_score"": 8, ""urge_score"": 8, ""urge_initial_score"": 4, ""urge_end_score"": 7, ""action_level"": 4, ""coping"": ""TV를 틀어놓고 버팀"", ""coping_score"": 2, ""gratitude"": """", ""insight"": """", ""value"": ""안정"", ""value_action_draft"": ""주말 계획을 미리 세워두기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-009,2026-06-27,2026-06-27T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [""회피/미루기""], ""behavior_custom_areas"": [], ""emotion"": ""피곤함"", ""emotion_custom"": [], ""body_reactions"": [""피곤함""], ""body_custom"": [], ""situation"": ""퇴근 후 걷기를 하려다 피곤해서 미룸"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""오늘은 피곤하니 다음에 하자"", ""thought_score"": 5, ""emotion_score"": 5, ""urge_score"": 6, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 2, ""coping"": ""그래도 5분만 걸음"", ""coping_score"": 5, ""gratitude"": """", ""insight"": """", ""value"": ""건강"", ""value_action_draft"": ""피곤해도 5분만이라도 걷기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-010,2026-06-28,2026-06-28T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [""음주""], ""behavior_custom_areas"": [], ""emotion"": ""불안"", ""emotion_custom"": [], ""body_reactions"": [""손 떨림""], ""body_custom"": [], ""situation"": ""친구가 술자리에 불렀지만 짧게만 참석함"", ""trigger_places"": [""술자리/모임""], ""trigger_people"": [""사교 모임 상황""], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""잠깐만 있다 와도 괜찮다"", ""thought_score"": 5, ""emotion_score"": 5, ""urge_score"": 5, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 1, ""coping"": ""짧게만 있다가 먼저 나옴"", ""coping_score"": 6, ""gratitude"": """", ""insight"": """", ""value"": ""관계"", ""value_action_draft"": ""모임 시간을 미리 정해두기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-011,2026-06-29,2026-06-29T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""지루함"", ""emotion_custom"": [], ""body_reactions"": [""가슴 답답함""], ""body_custom"": [], ""situation"": ""스트레스 받았지만 산책으로 대신함"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""걷고 나니 생각이 정리된다"", ""thought_score"": 6, ""emotion_score"": 6, ""urge_score"": 7, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 3, ""coping"": ""산책으로 대신함"", ""coping_score"": 4, ""gratitude"": """", ""insight"": ""걷고 나면 충동이 확실히 줄어든다"", ""value"": ""건강"", ""value_action_draft"": ""산책을 습관으로 만들기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-012,2026-06-29,2026-06-29T08:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오전"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""지루함"", ""emotion_custom"": [], ""body_reactions"": [""가슴 답답함""], ""body_custom"": [], ""situation"": ""오전에 짧게 산책하며 마음을 다잡음"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""이 생각이 또 드는구나 하고 알아차림"", ""thought_score"": 6, ""emotion_score"": 6, ""urge_score"": 4, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""아침 루틴으로 전환"", ""coping_score"": 5, ""gratitude"": """", ""insight"": ""걷고 나면 충동이 확실히 줄어든다"", ""value"": ""건강"", ""value_action_draft"": ""산책을 습관으로 만들기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-013,2026-06-30,2026-06-30T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오후"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""초조"", ""emotion_custom"": [], ""body_reactions"": [""근육 긴장""], ""body_custom"": [], ""situation"": ""충동이 왔지만 상담 메모를 보며 넘김"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""낮""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""이 순간만 넘기면 괜찮아질 것이다"", ""thought_score"": 4, ""emotion_score"": 4, ""urge_score"": 4, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""상담에서 배운 호흡법 사용"", ""coping_score"": 7, ""gratitude"": """", ""insight"": """", ""value"": ""회복"", ""value_action_draft"": ""충동 기록을 상담 전에 다시 보기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-014,2026-07-01,2026-07-01T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""안정"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""가족과 짧게 통화하며 안정감을 느낌"", ""trigger_places"": [""집""], ""trigger_people"": [""특정 인물과 함께""], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""가족이 옆에 있다는 게 힘이 된다"", ""thought_score"": 5, ""emotion_score"": 5, ""urge_score"": 6, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 1, ""coping"": ""가족과 통화함"", ""coping_score"": 6, ""gratitude"": ""가족에게 감사함"", ""insight"": ""가족이 큰 힘이 된다"", ""value"": ""관계"", ""value_action_draft"": ""가족과 통화 시간 정해두기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-015,2026-07-02,2026-07-02T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""성취감"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""퇴근 후 걷기를 하고 일기를 씀"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""기록하니 내가 뭘 원하는지 보인다"", ""thought_score"": 4, ""emotion_score"": 4, ""urge_score"": 5, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 1, ""coping"": ""일기를 쓰며 정리함"", ""coping_score"": 6, ""gratitude"": """", ""insight"": """", ""value"": ""성장"", ""value_action_draft"": ""매일 짧게라도 기록하기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-016,2026-07-03,2026-07-03T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""충동 발생"", ""behavior_areas"": [""음주""], ""behavior_custom_areas"": [], ""emotion"": ""불안"", ""emotion_custom"": [], ""body_reactions"": [""가슴 답답함""], ""body_custom"": [], ""situation"": ""친구 모임에 갔지만 술은 마시지 않음"", ""trigger_places"": [""술자리/모임""], ""trigger_people"": [""사교 모임 상황""], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""예전엔 이런 자리를 피할 수 없었는데 지금은 다르다"", ""thought_score"": 3, ""emotion_score"": 4, ""urge_score"": 4, ""urge_initial_score"": 0, ""urge_end_score"": 0, ""action_level"": 0, ""coping"": ""무알코올 음료로 대신함"", ""coping_score"": 7, ""gratitude"": """", ""insight"": """", ""value"": ""절제"", ""value_action_draft"": ""무알코올 음료를 미리 준비하기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-017,2026-07-04,2026-07-04T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오전"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""안정"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""아침 걷기를 하고 하루를 시작함"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""아침""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""몸을 움직이니 하루가 다르게 시작된다"", ""thought_score"": 3, ""emotion_score"": 3, ""urge_score"": 3, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""아침 걷기 그대로 함"", ""coping_score"": 8, ""gratitude"": """", ""insight"": """", ""value"": ""건강"", ""value_action_draft"": ""아침 루틴 유지하기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-018,2026-07-05,2026-07-05T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오후"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""편안함"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""동료와 점심을 편하게 먹음"", ""trigger_places"": [""직장/학교""], ""trigger_people"": [], ""trigger_times"": [""낮""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""사람들과 있는 게 편안하다"", ""thought_score"": 3, ""emotion_score"": 3, ""urge_score"": 4, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""동료와 대화하며 풀림"", ""coping_score"": 7, ""gratitude"": ""동료에게 감사함"", ""insight"": """", ""value"": ""관계"", ""value_action_draft"": ""동료와의 대화 시간 늘리기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-019,2026-07-06,2026-07-06T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""성취감"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""퇴근 후 가족과 저녁을 함께 함"", ""trigger_places"": [""집""], ""trigger_people"": [""특정 인물과 함께""], ""trigger_times"": [""저녁""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""이런 평범한 시간이 소중하다"", ""thought_score"": 2, ""emotion_score"": 2, ""urge_score"": 2, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""가족과 저녁 시간 보냄"", ""coping_score"": 8, ""gratitude"": """", ""insight"": ""사람들과 있는 시간이 회복에 도움이 된다"", ""value"": ""가족"", ""value_action_draft"": ""가족 저녁 시간 지키기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-020,2026-07-07,2026-07-07T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""밤/늦은 시간"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""초조"", ""emotion_custom"": [], ""body_reactions"": [""근육 긴장""], ""body_custom"": [], ""situation"": ""잠깐 옛 습관 생각이 났지만 바로 알아차림"", ""trigger_places"": [""온라인/SNS""], ""trigger_people"": [], ""trigger_times"": [""밤/늦은 시간""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""예전 생각이 났지만 그냥 지나가는 생각일 뿐이다"", ""thought_score"": 3, ""emotion_score"": 3, ""urge_score"": 3, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 1, ""coping"": ""생각을 알아차리고 흘려보냄"", ""coping_score"": 6, ""gratitude"": """", ""insight"": """", ""value"": ""회복"", ""value_action_draft"": ""생각이 스칠 때 메모만 하고 넘기기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-021,2026-07-08,2026-07-08T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오후"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""기쁨"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""주말에 오랜만에 취미 활동을 함"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""주말""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""오랜만에 좋아하던 걸 하니 즐겁다"", ""thought_score"": 2, ""emotion_score"": 2, ""urge_score"": 2, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""취미 활동에 집중함"", ""coping_score"": 8, ""gratitude"": ""취미를 다시 찾은 것에 감사함"", ""insight"": """", ""value"": ""성장"", ""value_action_draft"": ""취미 시간을 주 2회로 늘리기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-022,2026-07-09,2026-07-09T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""오후"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""편안함"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""친구와 산책하며 대화함"", ""trigger_places"": [""집""], ""trigger_people"": [""특정 인물과 함께""], ""trigger_times"": [""주말""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""이야기를 나누니 마음이 가벼워진다"", ""thought_score"": 2, ""emotion_score"": 3, ""urge_score"": 3, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""친구와 산책함"", ""coping_score"": 7, ""gratitude"": """", ""insight"": """", ""value"": ""관계"", ""value_action_draft"": ""친구와의 산책을 정기화하기"", ""archived"": false}"
+maeumgoyo_csv_v1,observation,obs-023,2026-07-10,2026-07-10T21:10:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""time_slot"": ""저녁"", ""behavior_areas"": [], ""behavior_custom_areas"": [], ""emotion"": ""성취감"", ""emotion_custom"": [], ""body_reactions"": [], ""body_custom"": [], ""situation"": ""한 주를 돌아보며 기록을 정리함"", ""trigger_places"": [""집""], ""trigger_people"": [], ""trigger_times"": [""주말""], ""trigger_custom"": [], ""avoidance_tags"": [], ""avoidance_custom"": [], ""thought_text"": ""한 주 동안 내가 꽤 노력했다는 게 보인다"", ""thought_score"": 2, ""emotion_score"": 2, ""urge_score"": 2, ""urge_initial_score"": """", ""urge_end_score"": """", ""action_level"": 0, ""coping"": ""한 주 기록을 정리하며 스스로 점검함"", ""coping_score"": 8, ""gratitude"": ""이번 주 스스로에게 감사함"", ""insight"": ""돌아보니 이번 주는 확실히 달랐다"", ""value"": ""성장"", ""value_action_draft"": ""다음 주 계획을 오늘 세워두기"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_definition,prac-201,,2026-06-20T08:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""practice_reason"": ""회피가 좁힌 생활반경을 넓힌다"", ""frequency"": ""daily"", ""target_count"": 1, ""custom_days"": [], ""reminder_mode"": ""morning"", ""reminder_times"": [], ""start_date"": ""2026-06-20"", ""barriers"": ""피곤함"", ""small_version"": ""현관 밖으로 나가기"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_definition,prac-202,,2026-06-20T08:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_value"": ""성장"", ""practice_name"": ""하루 감정 일기 쓰기"", ""practice_reason"": ""감정을 알아차리는 연습"", ""frequency"": ""1week"", ""target_count"": 1, ""custom_days"": [], ""reminder_mode"": ""none"", ""reminder_times"": [], ""start_date"": ""2026-06-22"", ""barriers"": ""귀찮음"", ""small_version"": ""한 줄만 쓰기"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_definition,prac-203,,2026-06-20T08:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_value"": ""관계"", ""practice_name"": ""예전에 시도했던 동호회 가입"", ""practice_reason"": ""고립감을 줄이려 했음"", ""frequency"": ""1week"", ""target_count"": 1, ""custom_days"": [], ""reminder_mode"": ""none"", ""reminder_times"": [], ""start_date"": ""2026-05-01"", ""barriers"": ""어색함"", ""small_version"": ""온라인으로만 참여"", ""archived"": true}"
+maeumgoyo_csv_v1,practice_log,plog-024,2026-06-28,2026-06-28T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 4, ""mastery_score"": 3, ""expected_pleasure_score"": 3, ""expected_mastery_score"": 3, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-025,2026-06-30,2026-06-30T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 5, ""mastery_score"": 4, ""expected_pleasure_score"": 3, ""expected_mastery_score"": 3, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-026,2026-07-02,2026-07-02T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 6, ""mastery_score"": 5, ""expected_pleasure_score"": 3, ""expected_mastery_score"": 3, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-027,2026-07-04,2026-07-04T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 7, ""mastery_score"": 6, ""expected_pleasure_score"": 5, ""expected_mastery_score"": 5, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-028,2026-07-06,2026-07-06T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 8, ""mastery_score"": 7, ""expected_pleasure_score"": 5, ""expected_mastery_score"": 5, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-029,2026-07-08,2026-07-08T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 9, ""mastery_score"": 8, ""expected_pleasure_score"": 5, ""expected_mastery_score"": 5, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-030,2026-07-10,2026-07-10T20:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 10, ""mastery_score"": 9, ""expected_pleasure_score"": 5, ""expected_mastery_score"": 5, ""practice_note"": ""생각보다 개운했다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-031,2026-06-28,2026-06-28T21:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-202"", ""practice_value"": ""성장"", ""practice_name"": ""하루 감정 일기 쓰기"", ""target_count"": 1, ""pleasure_score"": 6, ""mastery_score"": 7, ""expected_pleasure_score"": 4, ""expected_mastery_score"": 4, ""practice_note"": ""쓰고 나니 생각이 정리됐다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-032,2026-07-05,2026-07-05T21:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-202"", ""practice_value"": ""성장"", ""practice_name"": ""하루 감정 일기 쓰기"", ""target_count"": 1, ""pleasure_score"": 6, ""mastery_score"": 7, ""expected_pleasure_score"": 4, ""expected_mastery_score"": 4, ""practice_note"": ""쓰고 나니 생각이 정리됐다"", ""archived"": false}"
+maeumgoyo_csv_v1,practice_log,plog-033,2026-06-23,2026-06-23T22:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""practice_id"": ""prac-201"", ""practice_value"": ""건강"", ""practice_name"": ""퇴근 후 10분 걷기"", ""target_count"": 1, ""pleasure_score"": 0, ""mastery_score"": 0, ""expected_pleasure_score"": 3, ""expected_mastery_score"": 3, ""practice_note"": ""너무 지쳐서 못 했다"", ""archived"": false}"
+maeumgoyo_csv_v1,prediction,pred-034,2026-06-22,2026-06-22T22:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""related_observation_id"": """", ""worry_text"": ""이번 주말엔 결국 또 도박 사이트를 볼 것 같다"", ""predicted_severity"": 8, ""status"": ""did_not_occur"", ""actual_severity"": 2, ""resolved_at"": ""2026-06-26T00:00:00.000Z"", ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,prediction,pred-035,2026-06-28,2026-06-28T22:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""related_observation_id"": """", ""worry_text"": ""친구 모임에 가면 결국 많이 마실 것 같다"", ""predicted_severity"": 7, ""status"": ""partial"", ""actual_severity"": 3, ""resolved_at"": ""2026-06-29T00:00:00.000Z"", ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,prediction,pred-036,2026-07-03,2026-07-03T22:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""related_observation_id"": """", ""worry_text"": ""가족 모임에서 예전 얘기가 나오면 무너질 것 같다"", ""predicted_severity"": 6, ""status"": ""occurred"", ""actual_severity"": 4, ""resolved_at"": ""2026-07-04T00:00:00.000Z"", ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,prediction,pred-037,2026-07-09,2026-07-09T22:30:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""related_observation_id"": """", ""worry_text"": ""다음 주에도 이 페이스를 유지할 수 있을지 걱정된다"", ""predicted_severity"": 5, ""status"": ""pending"", ""actual_severity"": """", ""resolved_at"": """", ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-038,2026-06-20,2026-06-20T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 2, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-039,2026-06-21,2026-06-21T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 3, ""note"": ""힘든 하루였다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-040,2026-06-22,2026-06-22T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 2, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-041,2026-06-23,2026-06-23T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 4, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-042,2026-06-24,2026-06-24T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 2, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-043,2026-06-25,2026-06-25T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 3, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-044,2026-06-26,2026-06-26T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 2, ""note"": ""그래도 버텼다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-045,2026-06-27,2026-06-27T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 4, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-046,2026-06-28,2026-06-28T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 5, ""note"": ""짧게라도 사람을 만났다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-047,2026-06-29,2026-06-29T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 4, ""note"": ""산책이 도움이 됐다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-048,2026-06-30,2026-06-30T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 6, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-049,2026-07-01,2026-07-01T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 5, ""note"": ""가족과 통화해서 좋았다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-050,2026-07-02,2026-07-02T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 6, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-051,2026-07-03,2026-07-03T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 6, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-052,2026-07-04,2026-07-04T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 7, ""note"": ""아침이 다르게 느껴졌다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-053,2026-07-05,2026-07-05T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 7, ""note"": ""동료와 편하게 지냈다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-054,2026-07-06,2026-07-06T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 8, ""note"": ""가족과 좋은 시간이었다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-055,2026-07-07,2026-07-07T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 6, ""note"": """", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-056,2026-07-08,2026-07-08T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 8, ""note"": ""취미를 다시 찾아서 좋았다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-057,2026-07-09,2026-07-09T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 7, ""note"": ""친구와 산책해서 좋았다"", ""archived"": false}"
+maeumgoyo_csv_v1,daily_checkin,chk-058,2026-07-10,2026-07-10T23:00:00.000Z,2026-07-11T09:00:00.000Z,K-101,counselor_full,21,"{""expansion_score"": 8, ""note"": ""이번 주를 돌아보니 뿌듯하다"", ""archived"": false}"`;
 
 function init() {
   if (els.versionBadge) els.versionBadge.textContent = APP_VERSION;
@@ -102,7 +166,41 @@ function init() {
   renderMenu();
   bindEvents();
   applyPatientMode();
+  initSidebarResize();
   render();
+}
+
+// 사이드바 폭을 마우스로 드래그해 조정합니다. PC 모니터가 큰 경우 상담 메모·AI 분석용 정리본·
+// 자기성찰 요약문을 더 편하게 볼 수 있도록 280~720px 사이에서 자유롭게 늘리고 줄일 수 있습니다.
+const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 720;
+
+function initSidebarResize() {
+  const handle = document.getElementById("sidebarResizeHandle");
+  const shell = document.querySelector(".app-shell");
+  if (!handle || !shell) return;
+  let dragging = false;
+
+  const setWidth = (px) => {
+    const clamped = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, px));
+    shell.style.setProperty("--sidebar-width", `${clamped}px`);
+  };
+
+  handle.addEventListener("mousedown", (event) => {
+    dragging = true;
+    handle.classList.add("dragging");
+    event.preventDefault();
+  });
+  window.addEventListener("mousemove", (event) => {
+    if (!dragging) return;
+    const shellRect = shell.getBoundingClientRect();
+    setWidth(event.clientX - shellRect.left);
+  });
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove("dragging");
+  });
 }
 
 function bindEvents() {
@@ -136,6 +234,10 @@ function bindEvents() {
     });
   });
 
+  [els.urgeGoalInput, els.actionGoalInput, els.practiceGoalInput, els.expansionGoalInput].forEach((input) => {
+    input.addEventListener("input", () => render());
+  });
+
   els.sampleBtn.addEventListener("click", () => ingestCsv(sampleCsv, "예시 CSV"));
   els.resetBtn.addEventListener("click", () => resetAll());
   els.printBtn.addEventListener("click", () => window.print());
@@ -143,6 +245,57 @@ function bindEvents() {
   els.copySummaryBtn.addEventListener("click", copySessionSummary);
   els.refreshBtn.addEventListener("click", refreshApp);
   els.patientModeBtn.addEventListener("click", togglePatientMode);
+  // 자기성찰 요약문은 CSV를 다시 불러올 때마다 목록 전체가 새로 그려지므로,
+  // 각 항목에 리스너를 매번 새로 붙이지 않고 목록 컨테이너에서 한 번만 위임 처리합니다.
+  els.reflectionDailyList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-copy-reflection]");
+    if (!button) return;
+    const day = state.reflectionDays[Number(button.dataset.copyReflection)];
+    if (day) copyTextToClipboard(day.text, "자기성찰 요약문을 클립보드에 복사했습니다.");
+  });
+  els.copyAllReflectionBtn.addEventListener("click", () => {
+    if (!state.reflectionDays.length) {
+      showImportMessages(["복사할 자기성찰 요약문이 없습니다."]);
+      return;
+    }
+    const combined = state.reflectionDays.map((day) => day.text).join("\n\n---\n\n");
+    copyTextToClipboard(combined, `자기성찰 요약문 ${state.reflectionDays.length}건을 클립보드에 복사했습니다.`);
+  });
+  els.copyReflectionPromptBtn.addEventListener("click", () => {
+    if (!state.reflectionDays.length) {
+      showImportMessages(["복사할 자기성찰 요약문이 없습니다."]);
+      return;
+    }
+    const combined = state.reflectionDays.map((day) => day.text).join("\n\n---\n\n");
+    copyTextToClipboard(`${REFLECTION_AI_PROMPT}\n\n${combined}`, `AI 프롬프트와 자기성찰 요약문 ${state.reflectionDays.length}건을 함께 복사했습니다.`);
+  });
+  els.copyDraftPromptBtn.addEventListener("click", () => {
+    if (!state.reflectionDays.length) {
+      showImportMessages(["복사할 자기성찰 요약문이 없습니다."]);
+      return;
+    }
+    const combined = state.reflectionDays.map((day) => day.text).join("\n\n---\n\n");
+    copyTextToClipboard(`${REFLECTION_DRAFT_PROMPT}\n\n${combined}`, `AI 예비 반성문 초안 프롬프트와 자기성찰 요약문 ${state.reflectionDays.length}건을 함께 복사했습니다.`);
+  });
+  els.buildAiReportBtn.addEventListener("click", () => {
+    if (!state.rows.length) {
+      showImportMessages(["CSV를 먼저 불러오세요."]);
+      return;
+    }
+    const usableRows = filterUsableRows(state.rows);
+    if (!usableRows.length) {
+      showImportMessages(["정리본을 만들 분석 대상 행이 없습니다."]);
+      return;
+    }
+    els.aiReportBox.value = buildAiAnalysisReport(usableRows);
+    els.aiReportBox.hidden = false;
+    els.copyAiReportBtn.hidden = false;
+  });
+  // 클립보드 API가 막힌 환경에서는 텍스트 상자를 눌렀을 때 전체 선택해 Ctrl/Cmd+C로 수동 복사할 수 있게 합니다.
+  els.aiReportBox.addEventListener("click", () => els.aiReportBox.select());
+  els.copyAiReportBtn.addEventListener("click", () => {
+    copyTextToClipboard(els.aiReportBox.value, "AI 분석용 정리본을 클립보드에 복사했습니다.");
+  });
 }
 
 // 환자용 보기 전환. 데이터를 다시 계산하지 않고 순수 CSS 클래스만 바꿉니다 —
@@ -232,6 +385,7 @@ function ingestCsv(text, fileName) {
   state.predictions = extractPredictions(usableRows);
   state.observationDays = extractObservationDays(usableRows);
   state.dailyCheckins = extractDailyCheckins(usableRows);
+  state.reflectionDays = extractDailyReflectionSummaries(usableRows);
   state.relapseWindow = computeRelapseWindowSignal(state.observationDays, rangeWindow.endTs);
   state.importMessages = validation.warnings;
   detectMeta(rangeWindow, usableRows);
@@ -441,6 +595,35 @@ function aggregateTagHeatmap(observationDays, field) {
     .sort((a, b) => b.count - a.count);
 }
 
+// aggregateTagHeatmap과 같은 패턴이지만 평균 문제행동 수준(action_level)도 함께 계산합니다.
+// 관계적 촉발요인은 충동만이 아니라 "실제 행동으로 이어지는지"가 핵심이라 이 값이 따로 필요합니다.
+function aggregateTagHeatmapWithAction(observationDays, field) {
+  const map = new Map();
+  observationDays.forEach((day) => {
+    (day[field] || []).forEach((tag) => {
+      if (!map.has(tag)) map.set(tag, { tag, count: 0, urgeSum: 0, urgeCount: 0, actionSum: 0, actionCount: 0 });
+      const entry = map.get(tag);
+      entry.count += 1;
+      if (day.urgeScore !== null) {
+        entry.urgeSum += day.urgeScore;
+        entry.urgeCount += 1;
+      }
+      if (day.actionLevel !== null) {
+        entry.actionSum += day.actionLevel;
+        entry.actionCount += 1;
+      }
+    });
+  });
+  return [...map.values()]
+    .map((entry) => ({
+      tag: entry.tag,
+      count: entry.count,
+      avgUrge: entry.urgeCount ? Math.round((entry.urgeSum / entry.urgeCount) * 10) / 10 : null,
+      avgAction: entry.actionCount ? Math.round((entry.actionSum / entry.actionCount) * 10) / 10 : null,
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
 function tagHeatmapRowsHtml(items) {
   if (!items.length) return `<p class="muted">기록된 값 없음</p>`;
   const maxCount = Math.max(...items.map((item) => item.count));
@@ -470,6 +653,40 @@ function triggerHeatmapCard() {
     `<p class="muted">평균충동이 높게 표시된 항목은 등장 횟수는 적어도 우선 확인할 가치가 있습니다.</p>${sections}`,
     "focus",
     ["가장 자주 등장하는 촉발단서는 무엇인가요?", "평균 충동이 가장 높은 항목은 등장 빈도와 일치하나요, 다른가요?", "이 패턴을 회피계획이나 환경조정에 어떻게 반영할까요?"],
+  );
+}
+
+// trigger_people(혼자 있을 때/특정 인물과 함께/갈등 직후/사교 모임 상황)은 위 히트맵 안에도 있지만
+// 다른 촉발단서 종류와 섞여 있어 두드러지지 않습니다. 관계·부부 문제로 상담하는 경우 이 축이 핵심이라
+// 전용 카드로 분리하고, 충동뿐 아니라 실제 행동으로 이어졌는지(평균 문제행동 수준)까지 함께 봅니다.
+function findTagExample(field, tag) {
+  const exampleChain = state.chains.find((chain) => {
+    const payload = chain.records[0]?.payload || {};
+    return asTagArray(payload[field]).includes(tag);
+  });
+  if (!exampleChain) return null;
+  const payload = exampleChain.records[0]?.payload || {};
+  if (!payload.situation) return null;
+  return { date: exampleChain.date, situation: payload.situation };
+}
+
+function buildRelationalTriggerCard() {
+  const stats = aggregateTagHeatmapWithAction(state.observationDays, "triggerPeople");
+  if (!stats.length) {
+    return card("관계적 촉발요인", "<p>trigger_people(혼자 있을 때/특정 인물과 함께/갈등 직후/사교 모임 상황) 기록이 없습니다.</p>", "focus");
+  }
+
+  const rows = stats.map((entry) => `<li><strong>${escapeHtml(entry.tag)}</strong> — ${entry.count}회, 평균 충동 ${entry.avgUrge ?? "-"}/10, 평균 문제행동 수준 ${entry.avgAction ?? "-"}/5</li>`).join("");
+
+  const topRisk = [...stats].sort((a, b) => (b.avgAction ?? -1) - (a.avgAction ?? -1))[0];
+  const example = topRisk ? findTagExample("trigger_people", topRisk.tag) : null;
+  const exampleHtml = example ? `<p class="muted">예시(${escapeHtml(formatDate(example.date))}, "${escapeHtml(topRisk.tag)}"): ${escapeHtml(example.situation)}</p>` : "";
+
+  return card(
+    "관계적 촉발요인",
+    `<p>혼자 있을 때, 특정 인물과 함께, 갈등 직후, 사교 모임 상황이 각각 충동·문제행동과 어떻게 연결되는지 봅니다. 부부·관계 문제로 상담하는 경우 특히 중요한 축입니다.</p><ul>${rows}</ul>${exampleHtml}`,
+    "focus",
+    ["관계적 촉발요인 중 평균 문제행동 수준이 가장 높은 것은 무엇인가요?", "그 상황을 피하기보다 다르게 대응할 방법이 있을까요?", "신뢰할 사람과 이 패턴을 미리 공유해둘 수 있을까요?"],
   );
 }
 
@@ -995,6 +1212,7 @@ function render() {
   renderMenu();
   renderTherapyView();
   renderChains();
+  renderReflectionDaily();
 }
 
 function renderMeta() {
@@ -1230,6 +1448,70 @@ function renderMeasurementFeedbackView() {
   ]);
 }
 
+// 변화언어/유지언어 비율이 시간에 따라 늘고 있는지 줄고 있는지를 봅니다.
+// 동기강화상담(MI)에서는 변화언어 비율의 증가 자체를 예후와 관련된 과정 지표로 봅니다.
+// 기존 detectMotivation()은 스냅샷(지금 몇 건)만 보여주고 추세는 안 보여줘서 이 카드를 추가합니다.
+function computeMotivationTrend() {
+  const combined = [
+    ...detectMotivation("change").map((item) => ({ date: item.record.createdAt, type: "change" })),
+    ...detectMotivation("sustain").map((item) => ({ date: item.record.createdAt, type: "sustain" })),
+  ]
+    .filter((entry) => entry.date)
+    .sort((a, b) => a.date - b.date);
+
+  if (!combined.length) return { hasData: false };
+
+  const changeRatio = (list) => (list.length ? list.filter((entry) => entry.type === "change").length / list.length : null);
+  const totalChange = combined.filter((entry) => entry.type === "change").length;
+  const totalSustain = combined.length - totalChange;
+  const overallRatio = changeRatio(combined);
+
+  const mid = Math.floor(combined.length / 2);
+  const front = combined.slice(0, mid);
+  const back = combined.slice(mid);
+  const frontRatio = changeRatio(front);
+  const backRatio = changeRatio(back);
+
+  let trendText = "추세를 보기엔 기록이 부족함";
+  let kind = "focus";
+  let hasHalves = false;
+  if (front.length && back.length && frontRatio !== null && backRatio !== null) {
+    hasHalves = true;
+    if (backRatio > frontRatio) {
+      trendText = "후반부에 변화언어 비율 상승 — 동기가 강화되고 있는 신호일 수 있습니다";
+      kind = "ok";
+    } else if (backRatio < frontRatio) {
+      trendText = "후반부에 변화언어 비율 하락 — 반박보다 양가감정을 반영하며 자율성을 강조하는 접근이 필요할 수 있습니다";
+      kind = "warn";
+    } else {
+      trendText = "기간 내 큰 변화 없음";
+    }
+  }
+
+  return { hasData: true, totalChange, totalSustain, overallRatio, hasHalves, frontRatio, backRatio, trendText, kind };
+}
+
+function buildMotivationTrendCard() {
+  const result = computeMotivationTrend();
+
+  if (!result.hasData) {
+    return card("변화언어 비율 추세", "<p>변화언어·유지언어로 감지된 기록이 없습니다.</p>", "focus");
+  }
+
+  const halfCompare = result.hasHalves
+    ? `<p>전반부 변화언어 비율 ${(result.frontRatio * 100).toFixed(0)}% → 후반부 ${(result.backRatio * 100).toFixed(0)}%</p>`
+    : "";
+
+  return card(
+    "변화언어 비율 추세",
+    `<p>변화언어(변화 의지가 담긴 표현)와 유지언어(현재 상태를 정당화하는 표현)의 비율이 시간에 따라 어떻게 바뀌는지 봅니다.</p>
+     <p>전체: 변화언어 ${result.totalChange}건 · 유지언어 ${result.totalSustain}건 (변화언어 비율 ${result.overallRatio !== null ? (result.overallRatio * 100).toFixed(0) : "-"}%)</p>
+     ${halfCompare}
+     <p><strong>추세: ${result.trendText}</strong></p>`,
+    result.kind,
+  );
+}
+
 function renderFeedbackReadinessView() {
   const change = detectMotivation("change").slice(0, 8).map((item) => recordCard(item.record, item.label, "ok", [
     "이 말을 더 자세히 말해 달라고 요청합니다.",
@@ -1257,6 +1539,7 @@ function renderFeedbackReadinessView() {
     ],
   );
   return visual + workbench([
+    ["변화언어 비율 추세", [buildMotivationTrendCard()]],
     ["변화언어", change],
     ["유지언어", sustain],
     ["피드백 방식", dips.concat([card("준비도 판단", "", "focus", [
@@ -1266,6 +1549,104 @@ function renderFeedbackReadinessView() {
       "내담자 자신의 이전 기록과 비교하는 개인 내 피드백을 우선합니다.",
     ])])],
   ]);
+}
+
+// 내담자가 실제로 "도움이 됐다"고 기록한 대처 방법을 모아 개인화된 안전계획 카드를 만듭니다.
+// STOP/TIPP 같은 일반 기법과 달리, 이 사람에게 실제로 통했던 방법을 위기 순간 우선 참고자료로 제공합니다.
+const SAFETY_COPING_THRESHOLD = 6;
+
+// 문제행동(도박·음주 등)과는 별개로, 약속 회피·연락 두절 같은 일반적인 활동 축소(우울·무기력 신호)가
+// 늘고 있는지 줄고 있는지를 봅니다. 촉발단서 히트맵에도 회피 신호가 있지만, 그건 빈도·평균충동 상관만
+// 보여줄 뿐 시간에 따른 추세는 보여주지 않아서 이 카드를 별도로 둡니다.
+function computeAvoidanceTrend() {
+  const sorted = [...state.observationDays].sort((a, b) => a.dateTs - b.dateTs);
+  const allTags = [];
+  sorted.forEach((day) => allTags.push(...(day.avoidanceTags || [])));
+
+  if (!allTags.length) return { hasData: false, totalDays: sorted.length };
+
+  const topTags = topFrequency(allTags, 3);
+  const perDayCounts = sorted.map((day) => (day.avoidanceTags || []).length);
+  const daysWithAvoidance = perDayCounts.filter((count) => count > 0).length;
+
+  let trendText = "추세를 보기엔 기록이 부족함";
+  let kind = "focus";
+  if (perDayCounts.length >= 2) {
+    const mid = Math.floor(perDayCounts.length / 2);
+    const frontAvg = average(perDayCounts.slice(0, mid));
+    const backAvg = average(perDayCounts.slice(mid));
+    if (backAvg > frontAvg) {
+      trendText = "후반부에 증가 추세 — 우울·무기력이 진행되고 있을 수 있어 확인이 필요합니다";
+      kind = "warn";
+    } else if (backAvg < frontAvg) {
+      trendText = "후반부에 감소 추세";
+      kind = "ok";
+    } else {
+      trendText = "기간 내 큰 변화 없음";
+    }
+  }
+
+  return { hasData: true, topTags, daysWithAvoidance, totalDays: sorted.length, trendText, kind };
+}
+
+function buildAvoidanceTrendCard() {
+  const result = computeAvoidanceTrend();
+
+  if (!result.hasData) {
+    return card(
+      "회피 신호 추세",
+      "<p>문제행동과는 별개로, 약속 회피·연락 두절 같은 활동 축소 신호를 추적합니다. 이 기간에는 해당 기록이 없습니다.</p>",
+      "ok",
+    );
+  }
+
+  return card(
+    "회피 신호 추세",
+    `<p>문제행동(도박·음주 등)과는 별개로, 약속 회피·연락 두절 같은 일반적인 활동 축소를 추적합니다. 문제행동은 줄어도 이 신호가 늘고 있다면 우울·무기력이 진행되고 있을 수 있습니다.</p>
+     <p>회피 신호가 있었던 관찰: ${result.daysWithAvoidance}건 / 전체 ${result.totalDays}건</p>
+     <p>자주 나온 신호: ${result.topTags.map(([tag, count]) => `${tag} ${count}회`).join(", ")}</p>
+     <p><strong>추세: ${result.trendText}</strong></p>`,
+    result.kind,
+  );
+}
+
+function computeSafetyPlanRanked() {
+  const grouped = new Map();
+  state.chains.forEach((chain) => {
+    if (!chain.chainId.startsWith("observation-")) return;
+    const payload = chain.records[0]?.payload || {};
+    const copingText = (payload.coping || "").trim();
+    const copingScore = score10(payload.coping_score);
+    if (!copingText || copingScore === null || copingScore < SAFETY_COPING_THRESHOLD) return;
+    if (!grouped.has(copingText)) grouped.set(copingText, { coping: copingText, scores: [], latestDate: null });
+    const entry = grouped.get(copingText);
+    entry.scores.push(copingScore);
+    if (chain.date && (!entry.latestDate || chain.date > entry.latestDate)) entry.latestDate = chain.date;
+  });
+  return [...grouped.values()]
+    .map((entry) => ({ coping: entry.coping, avg: average(entry.scores), count: entry.scores.length, latestDate: entry.latestDate }))
+    .sort((a, b) => (b.avg - a.avg) || (b.count - a.count))
+    .slice(0, 5);
+}
+
+function buildPersonalizedSafetyCard() {
+  const ranked = computeSafetyPlanRanked();
+
+  if (!ranked.length) {
+    return card(
+      "개인화된 안전계획",
+      `<p>아직 도움 정도 ${SAFETY_COPING_THRESHOLD}점 이상으로 기록된 대처 사례가 없습니다. 기록이 쌓이면 이 카드가 자동으로 채워집니다.</p>`,
+      "focus",
+    );
+  }
+
+  const items = ranked.map((entry) => `<li><strong>${escapeHtml(entry.coping)}</strong> — 평균 도움 ${entry.avg.toFixed(1)}/10 (${entry.count}회 기록${entry.latestDate ? `, 최근 ${escapeHtml(formatDate(entry.latestDate))}` : ""})</li>`).join("");
+
+  return card(
+    "개인화된 안전계획 — 나에게 효과가 있었던 것들",
+    `<p>지금까지 기록에서 도움 정도 ${SAFETY_COPING_THRESHOLD}점 이상으로 남긴 대처 방법입니다. 위기 순간에는 일반적인 기법보다, 이미 나에게 통했던 방법부터 먼저 시도해 봅니다.</p><ul>${items}</ul>`,
+    "ok",
+  );
 }
 
 function relapseWindowSummaryCard() {
@@ -1311,7 +1692,8 @@ function renderRelapseEarlyWarningView() {
     ],
   );
   return visual + workbench([
-    ["공식 재발신호", [`<div class="counselor-only">${relapseWindowSummaryCard()}</div>`]],
+    ["개인화된 안전계획", [buildPersonalizedSafetyCard()]],
+    ["공식 재발신호", [`<div class="counselor-only">${relapseWindowSummaryCard()}</div>`, `<div class="counselor-only">${buildAvoidanceTrendCard()}</div>`]],
     ["1. 정서적 재발 주의", emotional.map(({ chain, signals }) => relapseCard(chain, "emotional", signals.emotional))],
     ["2. 인지적 재발 경고", cognitive.map(({ chain, signals }) => relapseCard(chain, "cognitive", signals.cognitive))],
     ["정서·인지 신호 겹침", overlap.map(({ chain, signals }) => relapseCard(chain, "overlap", signals.emotional.concat(signals.cognitive)))],
@@ -1361,6 +1743,466 @@ function relapseCard(chain, type, reasons) {
   return card(title, `<p><strong>${escapeHtml(formatDate(chain.date))}</strong> · ${escapeHtml(reasons.join(" / "))}</p><p>${escapeHtml(chainSummary(chain))}</p><p>${escapeHtml(scoreLine(chain))}</p>`, kind, guidance);
 }
 
+// --- 자기성찰 요약문 (반성문 참고자료) ---
+// 절대 반성문을 대신 쓰지 않습니다. 기록이 있는 날짜마다, 그날의 마음(생각·감정·충동·몸반응)과
+// 행동의 관계를 사실 그대로 정리한 순수 텍스트를 만듭니다. 상담자가 이 텍스트를 원자료 삼아
+// (필요하면 AI 도구 등을 활용해) 성찰문 작성을 돕는 데 씁니다. 최대 14일치까지만 만듭니다.
+const REFLECTION_DAY_LIMIT = 14;
+
+// 상담자가 아래 자기성찰 요약문을 AI에 붙여넣을 때 함께 쓸 수 있는 안내 프롬프트입니다.
+// 질문 생성 자체는 이 앱이 아니라 AI가 원자료를 읽고 판단하는 영역이라는 전제를 명시합니다.
+const REFLECTION_AI_PROMPT = `아래는 내담자가 스스로 기록한 자기관찰 자료(날짜별 상황·생각·감정·충동·행동·실천)입니다.
+이 자료를 바탕으로, 내담자가 스스로 답하며 자기 성찰을 심화할 수 있는 질문을 5개 이상 만들어 주세요.
+
+조건:
+- 막연한 일반론이 아니라, 아래 기록에 나온 구체적인 상황·생각·행동을 근거로 삼아 질문을 만들어 주세요.
+- "무조건 잘못했다"는 결론을 유도하지 말고, 그 순간의 생각·감정·충동이 실제로 어떻게 행동으로(또는 행동으로 이어지지 않고) 연결됐는지 스스로 짚어보게 하는 질문으로 만들어 주세요.
+- 자기비난만이 아니라, 기록에 있는 작은 실천이나 가치도 함께 짚어 균형 있게 만들어 주세요.
+- 질문에 대한 답은 절대 대신 작성하지 마세요. 질문만 만들어 주세요.
+
+[자기성찰 요약문]`;
+
+// 예비 수준의 반성문 초안을 만들 때 함께 쓰는 프롬프트입니다. "최종본이 아니라 출발점"이라는 점과
+// "근거 없는 상투적 문구 금지"를 명시해, 이 기능이 애초에 막으려던 형식적 반성문이 AI 버전으로
+// 재생산되지 않도록 안전장치를 프롬프트 안에 직접 넣었습니다.
+const REFLECTION_DRAFT_PROMPT = `아래는 내담자가 스스로 기록한 자기관찰 자료(날짜별 상황·생각·감정·충동·행동·실천)입니다.
+이 자료를 바탕으로, 내담자가 반성문을 쓸 때 출발점으로 삼을 수 있는 예비 수준의 초안을 작성해 주세요.
+
+조건:
+- 이 초안은 최종본이 아니라 내담자가 자기 언어로 고쳐 쓰기 위한 출발점입니다. 그 사실을 초안 맨 앞에 한 줄로 명시해 주세요.
+- 아래 기록에 실제로 나온 상황·생각·행동만 근거로 삼고, 기록에 없는 감정이나 반성을 지어내지 마세요.
+- "죄송합니다", "다시는 안 그러겠습니다" 같은 근거 없는 상투적 문구로 채우지 말고, 그 순간 실제 생각·감정·충동이 어떻게 행동으로 이어졌는지를 구체적으로 서술하는 데 집중해 주세요.
+- 자기비난만 나열하지 말고, 기록에 있는 대처 시도나 작은 실천, 가치도 균형 있게 포함해 주세요.
+- 행동이 다른 사람에게 미쳤을 영향에 대한 서술은 기록에서 확인 가능한 범위 안에서만 조심스럽게 포함하고, 과장하거나 단정하지 마세요.
+- 분량은 A4 반 페이지를 넘기지 마세요.
+
+[자기성찰 요약문]`;
+
+// 그 순간의 충동 점수와 실제 행동 수준을 대조해, "마음이 어떻게 행동으로(또는 행동으로 이어지지 않고)
+// 연결됐는지"를 한 문장으로 요약합니다. 판단이 아니라 사실 연결이 목적입니다.
+function relationshipNote(urgeScore, actionLevel) {
+  if (urgeScore === null || actionLevel === null) return "";
+  if (actionLevel >= 1 && urgeScore >= 6) return "충동이 높아지며 결국 행동으로 이어짐";
+  if (actionLevel >= 1 && urgeScore < 6) return "충동이 크지 않았는데도 행동으로 이어짐 — 다른 요인 확인 필요";
+  if (actionLevel === 0 && urgeScore >= 7) return "충동은 높았지만 행동으로 이어지지 않음(대처가 작동함)";
+  return "";
+}
+
+function formatObservationBlock(payload, index, total) {
+  const label = total > 1 ? `[관찰 ${index + 1}]` : "[관찰]";
+  const trigger = joinText([textList(payload.trigger_places), textList(payload.trigger_people), textList(payload.trigger_times), textList(payload.trigger_custom)]);
+  const behaviorAreas = joinText([textList(payload.behavior_areas), textList(payload.behavior_custom_areas)]);
+  const emotionText = joinText([payload.emotion, textList(payload.emotion_custom)]);
+  const bodyText = joinText([textList(payload.body_reactions), textList(payload.body_custom)]);
+  const hasCurve = payload.urge_initial_score !== undefined && payload.urge_initial_score !== "" && payload.urge_end_score !== undefined && payload.urge_end_score !== "";
+  const urgeText = hasCurve ? `시작 ${payload.urge_initial_score} → 정점 ${payload.urge_score ?? "-"} → 종료 ${payload.urge_end_score}` : `${payload.urge_score ?? "-"}/10`;
+  const relation = relationshipNote(score10(payload.urge_score), score5(payload.action_level));
+  const noted = joinText([
+    payload.value ? `가치=${payload.value}` : "",
+    payload.value_action_draft ? `다음 작은 행동="${payload.value_action_draft}"` : "",
+    payload.insight ? `알아차림="${payload.insight}"` : "",
+    payload.gratitude ? `감사="${payload.gratitude}"` : "",
+  ]);
+  return [
+    `${label} 상황: ${payload.situation || "기록 없음"}`,
+    trigger ? `  촉발단서: ${trigger}` : "",
+    behaviorAreas ? `  관련 영역: ${behaviorAreas}` : "",
+    `  생각(${payload.thought_score ?? "-"}/10): ${payload.thought_text || "기록 없음"}`,
+    `  감정(${payload.emotion_score ?? "-"}/10): ${emotionText || "기록 없음"}`,
+    `  몸 반응: ${bodyText || "기록 없음"}`,
+    `  충동: ${urgeText}`,
+    `  행동: ${actionLabel(payload.action_level) || "기록 없음"}`,
+    payload.coping ? `  대처: ${payload.coping}` : "",
+    relation ? `  → 마음-행동 관계: ${relation}` : "",
+    noted ? `  스스로 적은 것: ${noted}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function extractDailyReflectionSummaries(rows, limit = REFLECTION_DAY_LIMIT) {
+  const parseRow = (row) => ({ row, payload: parsePayload(row.payload_json) || {} });
+  const observations = rows.filter((row) => row.record_type === "observation").map(parseRow);
+  const logs = rows.filter((row) => row.record_type === "practice_log").map(parseRow);
+  const checkins = rows.filter((row) => row.record_type === "daily_checkin").map(parseRow);
+  const predictions = rows.filter((row) => row.record_type === "prediction").map(parseRow);
+  const defs = new Map();
+  rows.filter((row) => row.record_type === "practice_definition").forEach((row) => defs.set(row.id, parsePayload(row.payload_json) || {}));
+
+  const dateSet = new Set();
+  [...observations, ...logs, ...checkins].forEach(({ row }) => { if (row.date) dateSet.add(row.date); });
+  const sortedDates = [...dateSet].filter((date) => dateOnly(date) !== null).sort((a, b) => dateOnly(a) - dateOnly(b));
+  const recentDates = limit ? sortedDates.slice(-limit) : sortedDates;
+
+  return recentDates.map((date) => {
+    const dayObs = observations.filter(({ row }) => row.date === date);
+    const dayLogs = logs.filter(({ row }) => row.date === date);
+    const dayCheckin = checkins.find(({ row }) => row.date === date);
+    const dayPredictions = predictions.filter(({ row }) => row.date === date);
+
+    const sections = [`[자기성찰 요약문 — ${date}]`, ""];
+
+    if (dayObs.length) {
+      sections.push("■ 그날 있었던 일 (마음과 행동)");
+      dayObs.forEach(({ payload }, index) => sections.push(formatObservationBlock(payload, index, dayObs.length)));
+      sections.push("");
+    }
+
+    if (dayLogs.length) {
+      sections.push("■ 그날의 실천행동");
+      dayLogs.forEach(({ payload }) => {
+        const def = defs.get(payload.practice_id) || {};
+        const name = def.practice_name || payload.practice_name || "실천행동";
+        const pleasure = score10(payload.pleasure_score);
+        const mastery = score10(payload.mastery_score);
+        const expPleasure = score10(payload.expected_pleasure_score);
+        const compare = pleasure !== null && expPleasure !== null ? ` (예상 즐거움 ${expPleasure} → 실제 ${pleasure})` : "";
+        sections.push(`- ${name}: 즐거움 ${pleasure ?? "-"}/10, 숙달감 ${mastery ?? "-"}/10${compare}${payload.practice_note ? ` · "${payload.practice_note}"` : ""}`);
+      });
+      sections.push("");
+    }
+
+    if (dayCheckin) {
+      const expansion = score10(dayCheckin.payload.expansion_score);
+      sections.push("■ 그날의 삶의 확장감·만족도");
+      sections.push(`- ${expansion ?? "-"}/10${dayCheckin.payload.note ? ` · "${dayCheckin.payload.note}"` : ""}`);
+      sections.push("");
+    }
+
+    if (dayPredictions.length) {
+      const statusLabels = { pending: "확인 전", occurred: "실제로 일어남", partial: "부분적으로 그러함", did_not_occur: "일어나지 않음" };
+      sections.push("■ 걱정-결과 비교");
+      dayPredictions.forEach(({ payload }) => {
+        const actual = score10(payload.actual_severity);
+        sections.push(`- 걱정: "${payload.worry_text || ""}" (예상 ${payload.predicted_severity ?? "-"}/10) → ${statusLabels[payload.status] || payload.status}${actual !== null ? ` (실제 ${actual}/10)` : ""}`);
+      });
+      sections.push("");
+    }
+
+    return { date, dateTs: dateOnly(date), text: sections.join("\n").trim() };
+  });
+}
+
+// --- AI 분석용 정리본 ---
+// 「AI 분석용 정리본 생성」명세서 그대로 구현합니다. 이 기능은 진단이나 개입을 결정하지 않고,
+// 데이터를 분석하기 좋은 형태로 "정리"만 합니다. 화면 텍스트 상자 + 클립보드 복사로만 제공하며,
+// 파일 다운로드는 만들지 않습니다.
+function topFrequency(items, limit) {
+  const counts = new Map();
+  items.forEach((item) => {
+    if (!item) return;
+    counts.set(item, (counts.get(item) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
+}
+
+function buildAiReportSection1(observations, practiceDefs, practiceLogs, checkins) {
+  const lines = [];
+
+  const allTriggers = [];
+  observations.forEach(({ payload }) => {
+    allTriggers.push(...asTagArray(payload.trigger_places), ...asTagArray(payload.trigger_people), ...asTagArray(payload.trigger_times), ...asTagArray(payload.trigger_custom));
+  });
+  const topTriggers = topFrequency(allTriggers, 3);
+  lines.push(`1) 상황과 촉발단서: 관찰 기록 ${observations.length}건.`);
+  lines.push(`   자주 나온 촉발단서: ${topTriggers.length ? topTriggers.map(([tag, count]) => `${tag} ${count}회`).join(", ") : "기록 없음"}`);
+
+  const thoughtScores = observations.map(({ payload }) => score10(payload.thought_score)).filter((v) => v !== null);
+  lines.push(`2) 생각: 평균 강도 ${thoughtScores.length ? average(thoughtScores).toFixed(1) : "-"}/10`);
+
+  const emotionScores = observations.map(({ payload }) => score10(payload.emotion_score)).filter((v) => v !== null);
+  const allEmotions = [];
+  observations.forEach(({ payload }) => {
+    if (payload.emotion) allEmotions.push(payload.emotion);
+    allEmotions.push(...asTagArray(payload.emotion_custom));
+  });
+  const topEmotions = topFrequency(allEmotions, 3);
+  lines.push(`3) 감정: 평균 강도 ${emotionScores.length ? average(emotionScores).toFixed(1) : "-"}/10`);
+  lines.push(`   자주 나온 감정: ${topEmotions.length ? topEmotions.map(([tag, count]) => `${tag} ${count}회`).join(", ") : "기록 없음"}`);
+
+  const allBody = [];
+  observations.forEach(({ payload }) => allBody.push(...asTagArray(payload.body_reactions), ...asTagArray(payload.body_custom)));
+  const topBody = topFrequency(allBody, 3);
+  lines.push(`4) 몸 반응: 자주 나온 반응 - ${topBody.length ? topBody.map(([tag, count]) => `${tag} ${count}회`).join(", ") : "기록 없음"}`);
+
+  const urgeEntries = observations.map(({ row, payload }) => ({ date: row.date, score: score10(payload.urge_score) })).filter((entry) => entry.score !== null);
+  const avgUrge = urgeEntries.length ? average(urgeEntries.map((entry) => entry.score)) : null;
+  const maxUrge = urgeEntries.length ? urgeEntries.reduce((best, entry) => (entry.score > best.score ? entry : best)) : null;
+  lines.push(`5) 충동: 평균(정점) ${avgUrge !== null ? avgUrge.toFixed(1) : "-"}/10`);
+  lines.push(`   최고점: ${maxUrge ? `${maxUrge.score}/10 (${maxUrge.date})` : "기록 없음"}`);
+
+  const actionScores = observations.map(({ payload }) => score5(payload.action_level)).filter((v) => v !== null);
+  const avgAction = actionScores.length ? average(actionScores) : null;
+  const actionDaySet = new Set(observations.filter(({ payload }) => (score5(payload.action_level) ?? 0) >= 1).map(({ row }) => row.date));
+  lines.push(`6) 문제행동: 평균 활성화 수준 ${avgAction !== null ? avgAction.toFixed(1) : "-"}/5`);
+  lines.push(`   1점 이상 기록된 날: ${actionDaySet.size}일`);
+
+  const copingEntries = observations.filter(({ payload }) => payload.coping).map(({ row, payload }) => ({ date: row.date, coping: payload.coping, score: score10(payload.coping_score) }));
+  const copingScores = copingEntries.map((entry) => entry.score).filter((v) => v !== null);
+  const scoredCoping = copingEntries.filter((entry) => entry.score !== null);
+  const bestCoping = scoredCoping.length ? scoredCoping.reduce((best, entry) => (entry.score > best.score ? entry : best)) : null;
+  lines.push(`7) 대처: 평균 도움 정도 ${copingScores.length ? average(copingScores).toFixed(1) : "-"}/10`);
+  lines.push(`   가장 도움이 됐던 대처: ${bestCoping ? `${bestCoping.date} - "${bestCoping.coping}"` : "기록 없음"}`);
+
+  const values = [];
+  observations.forEach(({ payload }) => { if (payload.value) values.push(payload.value); });
+  practiceDefs.forEach(({ payload }) => { if (payload.practice_value) values.push(payload.practice_value); });
+  const topValue = topFrequency(values, 1);
+  const practiceAvgScores = practiceLogs
+    .map(({ payload }) => {
+      const pleasure = score10(payload.pleasure_score);
+      const mastery = score10(payload.mastery_score);
+      if (pleasure !== null && mastery !== null) return (pleasure + mastery) / 2;
+      return pleasure ?? mastery;
+    })
+    .filter((v) => v !== null);
+  lines.push(`8) 가치 기반 작은 실천행동: 가장 많이 선택한 가치 - ${topValue.length ? topValue[0][0] : "기록 없음"}`);
+  lines.push(`   실천 평균 수행도: ${practiceAvgScores.length ? average(practiceAvgScores).toFixed(1) : "-"}/10`);
+
+  if (!checkins.length) {
+    lines.push("9) 삶의 확장감과 만족도: 이번 기간 하루 마무리 기록 없음");
+  } else {
+    const expScores = checkins.map(({ payload }) => score10(payload.expansion_score)).filter((v) => v !== null);
+    const avgExp = expScores.length ? average(expScores) : null;
+    let trendText = "추세를 보기엔 기록이 부족함";
+    if (checkins.length >= 2) {
+      const mid = Math.floor(checkins.length / 2);
+      const front = checkins.slice(0, mid).map(({ payload }) => score10(payload.expansion_score)).filter((v) => v !== null);
+      const back = checkins.slice(mid).map(({ payload }) => score10(payload.expansion_score)).filter((v) => v !== null);
+      if (front.length && back.length) {
+        const frontAvg = average(front);
+        const backAvg = average(back);
+        trendText = backAvg > frontAvg ? "후반부에 상승 추세" : backAvg < frontAvg ? "후반부에 하락 추세" : "기간 내 큰 변화 없음";
+      }
+    }
+    lines.push(`9) 삶의 확장감과 만족도: 평균 ${avgExp !== null ? avgExp.toFixed(1) : "-"}/10`);
+    lines.push(`   추세: ${trendText}`);
+  }
+
+  return lines.join("\n");
+}
+
+function buildAiReportSection2(observations) {
+  if (!observations.length) return "(해당 기간에 관찰 기록이 없습니다.)";
+  return observations.map(({ row, payload }) => {
+    const lines = [`${row.date} · ${payload.time_slot || "-"}`];
+    if (payload.situation) lines.push(`  상황: ${payload.situation}`);
+    const triggerText = joinText([textList(payload.trigger_places), textList(payload.trigger_people), textList(payload.trigger_times), textList(payload.trigger_custom)]);
+    if (triggerText) lines.push(`  촉발단서: ${triggerText}`);
+    const behaviorText = joinText([textList(payload.behavior_areas)]);
+    if (behaviorText) lines.push(`  문제행동영역: ${behaviorText}`);
+    if (payload.thought_text) lines.push(`  그때 든 생각의 강도(${payload.thought_score ?? "-"}/10): ${payload.thought_text}`);
+    const emotionText = joinText([payload.emotion, textList(payload.emotion_custom)]);
+    lines.push(`  그때 느낀 감정의 강도(${payload.emotion_score ?? "-"}/10): ${emotionText || "-"}`);
+    const bodyText = joinText([textList(payload.body_reactions), textList(payload.body_custom)]);
+    if (bodyText) lines.push(`  몸반응: ${bodyText}`);
+    const hasCurve = payload.time_slot === "충동 발생" && payload.urge_initial_score !== undefined && payload.urge_initial_score !== "" && payload.urge_end_score !== undefined && payload.urge_end_score !== "";
+    lines.push(`  충동: ${hasCurve ? `초기 ${payload.urge_initial_score} → 정점 ${payload.urge_score ?? "-"}/10 → 종료 ${payload.urge_end_score}` : `충동(정점): ${payload.urge_score ?? "-"}/10`}`);
+    lines.push(`  문제행동 활성화 수준: ${payload.action_level ?? "-"}/5`);
+    if (payload.coping) lines.push(`  대처(도움 ${payload.coping_score ?? "-"}/10): ${payload.coping}`);
+    if (payload.value || payload.value_action_draft) lines.push(`  가치/의도: ${payload.value || "-"} - ${payload.value_action_draft || "-"}`);
+    return lines.join("\n");
+  }).join("\n\n");
+}
+
+function buildTriggerUrgeComparison(observations, limit) {
+  const allTags = [];
+  observations.forEach(({ payload }) => {
+    const tags = new Set([...asTagArray(payload.trigger_places), ...asTagArray(payload.trigger_people), ...asTagArray(payload.trigger_times), ...asTagArray(payload.trigger_custom)]);
+    tags.forEach((tag) => allTags.push(tag));
+  });
+  const topTags = topFrequency(allTags, limit);
+  if (!topTags.length) return "  (촉발단서 기록 없음)";
+  return topTags.map(([tag, count]) => {
+    const withGroup = [];
+    const withoutGroup = [];
+    observations.forEach(({ payload }) => {
+      const tags = new Set([...asTagArray(payload.trigger_places), ...asTagArray(payload.trigger_people), ...asTagArray(payload.trigger_times), ...asTagArray(payload.trigger_custom)]);
+      const urge = score10(payload.urge_score);
+      if (urge === null) return;
+      (tags.has(tag) ? withGroup : withoutGroup).push(urge);
+    });
+    const withAvg = withGroup.length ? average(withGroup).toFixed(1) : "-";
+    const withoutAvg = withoutGroup.length ? average(withoutGroup).toFixed(1) : "-";
+    return `  - ${tag} (${count}회): 있음 평균 충동 ${withAvg}점 / 없음 평균 충동 ${withoutAvg}점`;
+  }).join("\n");
+}
+
+function buildAiReportSection3(rows, observations) {
+  const observationDays = extractObservationDays(rows);
+  const uniqueDates = [...new Set(observationDays.map((day) => day.dateTs))];
+  let emotionalDayCount = 0;
+  let cognitiveDayCount = 0;
+  uniqueDates.forEach((dateTs) => {
+    const signal = computeRelapseWindowSignal(observationDays, dateTs);
+    if (signal.emotional.active) emotionalDayCount += 1;
+    if (signal.cognitive.active) cognitiveDayCount += 1;
+  });
+  const actionDateTs = [...new Set(observationDays.filter((day) => (day.actionLevel ?? 0) >= 1).map((day) => day.dateTs))].sort((a, b) => a - b);
+  const severeDateTs = actionDateTs.filter((ts) => observationDays.some((day) => day.dateTs === ts && (day.actionLevel ?? 0) >= 4));
+  const totalDays = uniqueDates.length;
+
+  return [
+    `- 정서적 재발 신호가 있었던 날: ${emotionalDayCount}일 / ${totalDays}일 중`,
+    `- 인지적 재발 신호가 있었던 날: ${cognitiveDayCount}일 / ${totalDays}일 중`,
+    `- 문제행동이 기록된 날: ${actionDateTs.length}일 (${actionDateTs.map((ts) => formatDate(new Date(ts))).join(", ") || "없음"})`,
+    `- 고위험 수준(문제행동 활성화 수준 4점 이상): ${severeDateTs.length}일`,
+    "",
+    "반복되는 촉발 단서와 평균 충동 비교 (자주 나온 순, 상위 5개):",
+    buildTriggerUrgeComparison(observations, 5),
+  ].join("\n");
+}
+
+function buildAiReportSection4(practiceDefs, practiceLogs) {
+  const activeDefs = practiceDefs.filter(({ payload }) => payload.archived !== true);
+  if (!activeDefs.length) return "(활성 실천행동 계획이 없습니다.)";
+  return activeDefs.map(({ row, payload }) => {
+    const header = `- ${payload.practice_name || "실천행동"} (가치: ${payload.practice_value || "-"}) · 목표 ${payload.target_count ?? "-"}회/일`;
+    const logs = practiceLogs.filter(({ payload: logPayload }) => logPayload.practice_id === row.id);
+    if (!logs.length) return `${header}\n  이번 기간 수행 기록 없음`;
+    const pleasureScores = logs.map(({ payload: p }) => score10(p.pleasure_score)).filter((v) => v !== null);
+    const masteryScores = logs.map(({ payload: p }) => score10(p.mastery_score)).filter((v) => v !== null);
+    const expectedScores = logs.map(({ payload: p }) => score10(p.expected_pleasure_score)).filter((v) => v !== null);
+    const avgPleasure = pleasureScores.length ? average(pleasureScores) : null;
+    const avgMastery = masteryScores.length ? average(masteryScores) : null;
+    let secondLine = `  수행 ${logs.length}회 · 평균 즐거움 ${avgPleasure !== null ? avgPleasure.toFixed(1) : "-"} · 평균 성취감 ${avgMastery !== null ? avgMastery.toFixed(1) : "-"}`;
+    if (expectedScores.length && avgPleasure !== null) {
+      const avgExpected = average(expectedScores);
+      const diff = avgPleasure - avgExpected;
+      secondLine += `\n  예상 즐거움 평균 ${avgExpected.toFixed(1)} 대비 실제는 ${diff >= 0 ? "+" : ""}${diff.toFixed(1)}`;
+    }
+    return `${header}\n${secondLine}`;
+  }).join("\n\n");
+}
+
+function buildAiReportSection5(checkins) {
+  if (!checkins.length) return "(이번 기간 하루 마무리 기록 없음)";
+  const scores = checkins.map(({ payload }) => score10(payload.expansion_score)).filter((v) => v !== null);
+  const avg = scores.length ? average(scores) : null;
+  const lines = [`평균 ${avg !== null ? avg.toFixed(1) : "-"}/10 (기록 ${checkins.length}일)`];
+  checkins.forEach(({ row, payload }) => {
+    const score = score10(payload.expansion_score);
+    lines.push(`  ${row.date}: ${score !== null ? score : "-"}/10${payload.note ? ` - ${payload.note}` : ""}`);
+  });
+  return lines.join("\n");
+}
+
+const AI_REPORT_USAGE_NOTE = `이 문서는 마음고요 관찰과 실천 앱의 관찰 기록을 정리한 원자료 정리본입니다.
+진단이나 치료 개입을 자동으로 결정하지 않으며, 상담자의 임상적 판단 아래 참고 자료로만 활용되어야 합니다.`;
+
+// 정리본 맨 앞에 붙는 분석 요청 프롬프트입니다. 이 앱이 직접 진단·개입을 결정하지 않는다는 경계는 그대로 두되,
+// 상담자가 이 정리본을 별도 AI에 붙여넣을 때 곧바로 쓸 수 있도록 요청 문구를 미리 포함해 둡니다.
+const AI_REPORT_ANALYSIS_PROMPT = `아래는 내담자의 자기관찰 기록을 정리한 원자료입니다(9개 영역 요약, 관찰 기록 원자료, 재발 위험, 실천행동 효과, 삶의 확장감, 개인화된 안전계획, 회피 신호 추세, 관계적 촉발요인, 변화언어 비율 추세, 목표 대비 진행률 포함). 이 자료를 분석하여 아래 보고서 형식에 맞춰 작성해 주세요.
+
+[보고서 형식]
+1. 사례 개요 — 기간, 주요 문제행동 영역, 전반적 패턴을 한 문단으로 요약
+2. 심리학적 사례개념화(Case Formulation) — 다음 네 요인으로 구분해 서술
+   - 유발요인(Predisposing factors)
+   - 촉발요인(Precipitating factors)
+   - 지속요인(Perpetuating factors)
+   - 보호요인(Protective factors)
+3. 기능분석 — 감정·생각·충동·문제행동 간의 연쇄관계 특성(관계적 촉발요인 포함)
+4. 재발 위험 평가 — 재발 위험 및 재발 요소, 회피 신호 추세를 포함
+5. 강점 및 자원 — 작은 실천행동의 효과, 개인화된 안전계획, 변화언어 비율 추세, 목표 대비 진행률
+6. 치료적 개입 제안 — 위 분석에 근거한 구체적 개입 방향을 단기 목표와 장기 목표로 구분해 제안
+7. 다음 회기를 위한 제언
+
+조건:
+- 아래 자료에 실제로 나온 수치와 서술에만 근거하고, 자료에 없는 내용을 지어내지 마세요.
+- 확정적인 진단명을 붙이지 말고, 잠정적 개념화로 서술해 주세요.
+- 이 분석과 제안은 상담자의 최종 임상적 판단을 대체하지 않는 참고 자료라는 점을 답변 마지막에 명시해 주세요.`;
+
+function buildAiReportSection6() {
+  const ranked = computeSafetyPlanRanked();
+  if (!ranked.length) return `(도움 정도 ${SAFETY_COPING_THRESHOLD}점 이상으로 기록된 대처 사례가 없습니다.)`;
+  return ranked.map((entry) => `- ${entry.coping} (평균 도움 ${entry.avg.toFixed(1)}/10, ${entry.count}회 기록${entry.latestDate ? `, 최근 ${formatDate(entry.latestDate)}` : ""})`).join("\n");
+}
+
+function buildAiReportSection7() {
+  const result = computeAvoidanceTrend();
+  if (!result.hasData) return "(회피 신호 기록이 없습니다.)";
+  return [
+    `회피 신호가 있었던 관찰: ${result.daysWithAvoidance}건 / 전체 ${result.totalDays}건`,
+    `자주 나온 신호: ${result.topTags.map(([tag, count]) => `${tag} ${count}회`).join(", ")}`,
+    `추세: ${result.trendText}`,
+  ].join("\n");
+}
+
+function buildAiReportSection8() {
+  const stats = aggregateTagHeatmapWithAction(state.observationDays, "triggerPeople");
+  if (!stats.length) return "(관계적 촉발요인(trigger_people) 기록이 없습니다.)";
+  const lines = stats.map((entry) => `- ${entry.tag}: ${entry.count}회, 평균 충동 ${entry.avgUrge ?? "-"}/10, 평균 문제행동 수준 ${entry.avgAction ?? "-"}/5`);
+  const topRisk = [...stats].sort((a, b) => (b.avgAction ?? -1) - (a.avgAction ?? -1))[0];
+  const example = topRisk ? findTagExample("trigger_people", topRisk.tag) : null;
+  if (example) lines.push(`예시(${formatDate(example.date)}, "${topRisk.tag}"): ${example.situation}`);
+  return lines.join("\n");
+}
+
+function buildAiReportSection9() {
+  const result = computeMotivationTrend();
+  if (!result.hasData) return "(변화언어·유지언어로 감지된 기록이 없습니다.)";
+  const lines = [`전체: 변화언어 ${result.totalChange}건 · 유지언어 ${result.totalSustain}건 (변화언어 비율 ${result.overallRatio !== null ? (result.overallRatio * 100).toFixed(0) : "-"}%)`];
+  if (result.hasHalves) lines.push(`전반부 변화언어 비율 ${(result.frontRatio * 100).toFixed(0)}% → 후반부 ${(result.backRatio * 100).toFixed(0)}%`);
+  lines.push(`추세: ${result.trendText}`);
+  return lines.join("\n");
+}
+
+function buildAiReportSection10() {
+  return computeGoalProgress().map(formatGoalRowText).join("\n");
+}
+
+function buildAiAnalysisReport(rows) {
+  const parseRow = (row) => ({ row, payload: parsePayload(row.payload_json) || {} });
+  const observations = rows.filter((row) => row.record_type === "observation").map(parseRow)
+    .sort((a, b) => (dateOnly(a.row.date) ?? 0) - (dateOnly(b.row.date) ?? 0));
+  const practiceDefs = rows.filter((row) => row.record_type === "practice_definition").map(parseRow);
+  const practiceLogs = rows.filter((row) => row.record_type === "practice_log").map(parseRow);
+  const checkins = rows.filter((row) => row.record_type === "daily_checkin").map(parseRow)
+    .sort((a, b) => (dateOnly(a.row.date) ?? 0) - (dateOnly(b.row.date) ?? 0));
+
+  const clientAlias = rows[0]?.client_alias || "내담자";
+  const rangeText = state.rangeLabel || (state.rangeDays ? `최근 ${state.rangeDays}일` : "전체 기간");
+
+  return [
+    AI_REPORT_ANALYSIS_PROMPT,
+    "",
+    "=== 마음고요 관찰과 실천 — AI 분석용 정리본 ===",
+    `기간: ${rangeText} · 내담자 별칭: ${clientAlias}`,
+    `생성 시각: ${new Date().toISOString()}`,
+    "",
+    "[1. 9개 영역별 요약 통계]",
+    buildAiReportSection1(observations, practiceDefs, practiceLogs, checkins),
+    "",
+    `[2. 관찰 기록 연쇄관계 원자료] (총 ${observations.length}건, 날짜순)`,
+    buildAiReportSection2(observations),
+    "",
+    "[3. 재발 위험 및 요소]",
+    buildAiReportSection3(rows, observations),
+    "",
+    "[4. 작은 실천행동의 효과]",
+    buildAiReportSection4(practiceDefs, practiceLogs),
+    "",
+    "[5. 삶의 확장감과 만족도]",
+    buildAiReportSection5(checkins),
+    "",
+    "[6. 개인화된 안전계획 — 효과가 있었던 대처]",
+    buildAiReportSection6(),
+    "",
+    "[7. 회피 신호 추세]",
+    buildAiReportSection7(),
+    "",
+    "[8. 관계적 촉발요인]",
+    buildAiReportSection8(),
+    "",
+    "[9. 변화언어 비율 추세]",
+    buildAiReportSection9(),
+    "",
+    "[10. 목표 대비 진행률]",
+    buildAiReportSection10(),
+    "",
+    "[11. 활용 안내]",
+    AI_REPORT_USAGE_NOTE,
+  ].join("\n");
+}
+
 function renderChainUnderstandingView() {
   const highRisk = chains((chain) => chain.actionized || chain.highUrge).slice(0, 6);
   const latent = chains(isLatentChain).slice(0, 6);
@@ -1386,6 +2228,7 @@ function renderChainUnderstandingView() {
       "회피대처가 재발의 준비단계가 되지 않는지 점검합니다.",
     ]))],
     ["촉발단서 분석", [triggerHeatmapCard()]],
+    ["관계적 촉발요인", [buildRelationalTriggerCard()]],
     ["연쇄 질문", all.map((chain) => card("상담자 탐색 질문", `<p><strong>생각</strong>: ${escapeHtml(texts(chain, "thought") || "기록 없음")}</p><p><strong>감정/몸</strong>: ${escapeHtml(texts(chain, "emotion") || "기록 없음")}</p>`, "focus", [
       "트리거는 무엇이었나요?",
       "행동화 직전 마음속 문장은 무엇이었나요?",
@@ -1560,6 +2403,69 @@ function renderPredictionView() {
   ]);
 }
 
+// 상담자가 사이드바에 입력한 목표치(회복 목표)와 이번 기간 실제 값을 비교합니다.
+// "위험 기준"은 경고를 띄우는 임계값이고, 이건 "이번 기간에 도달하고 싶은 목표"라 성격이 다릅니다.
+function computeGoalProgress() {
+  const urgeGoal = clamp(Number(els.urgeGoalInput?.value), 0, 10, 5);
+  const actionGoal = clamp(Number(els.actionGoalInput?.value), 0, 5, 1);
+  const practiceGoal = clamp(Number(els.practiceGoalInput?.value), 0, 100, 70);
+  const expansionGoal = clamp(Number(els.expansionGoalInput?.value), 0, 10, 6);
+
+  const urgeScores = state.observationDays.map((day) => day.urgeScore).filter((v) => v !== null);
+  const actionScores = state.observationDays.map((day) => day.actionLevel).filter((v) => v !== null);
+  const avgUrge = urgeScores.length ? average(urgeScores) : null;
+  const avgAction = actionScores.length ? average(actionScores) : null;
+
+  const activeGroups = groupPractice().filter((group) => group.plannedTotal);
+  const totalPlanned = activeGroups.reduce((sum, group) => sum + (group.plannedTotal || 0), 0);
+  const totalCompleted = activeGroups.reduce((sum, group) => sum + (group.completedCount || 0), 0);
+  const practiceRate = totalPlanned ? Math.round((totalCompleted / totalPlanned) * 100) : null;
+
+  const expansionScores = state.dailyCheckins.map((entry) => entry.expansionScore).filter((v) => v !== null);
+  const avgExpansion = expansionScores.length ? average(expansionScores) : null;
+
+  return [
+    { label: "충동 평균(낮을수록 좋음)", actual: avgUrge, goal: urgeGoal, unit: "", higherIsBetter: false },
+    { label: "문제행동 평균(낮을수록 좋음)", actual: avgAction, goal: actionGoal, unit: "", higherIsBetter: false },
+    { label: "실천 완료율(높을수록 좋음)", actual: practiceRate, goal: practiceGoal, unit: "%", higherIsBetter: true },
+    { label: "삶의 확장감 평균(높을수록 좋음)", actual: avgExpansion, goal: expansionGoal, unit: "", higherIsBetter: true },
+  ];
+}
+
+function goalRowParts(item) {
+  const { actual, goal, higherIsBetter } = item;
+  if (actual === null) return null;
+  const achieved = higherIsBetter ? actual >= goal : actual <= goal;
+  const diff = higherIsBetter ? actual - goal : goal - actual;
+  return { achieved, diffAbs: Math.abs(diff) };
+}
+
+function formatGoalRowHtml(item) {
+  const { label, actual, goal, unit } = item;
+  if (actual === null) return `<li>${label}: 이번 기간 기록 없음 (목표 ${goal}${unit})</li>`;
+  const { achieved, diffAbs } = goalRowParts(item);
+  const diffText = achieved ? `목표 대비 ${diffAbs.toFixed(1)}${unit} 여유` : `목표까지 ${diffAbs.toFixed(1)}${unit} 남음`;
+  return `<li>${label}: 이번 기간 ${actual.toFixed(1)}${unit} / 목표 ${goal}${unit} — <strong>${achieved ? "달성" : "미달"}</strong> (${diffText})</li>`;
+}
+
+function formatGoalRowText(item) {
+  const { label, actual, goal, unit } = item;
+  if (actual === null) return `- ${label}: 이번 기간 기록 없음 (목표 ${goal}${unit})`;
+  const { achieved, diffAbs } = goalRowParts(item);
+  const diffText = achieved ? `목표 대비 ${diffAbs.toFixed(1)}${unit} 여유` : `목표까지 ${diffAbs.toFixed(1)}${unit} 남음`;
+  return `- ${label}: 이번 기간 ${actual.toFixed(1)}${unit} / 목표 ${goal}${unit} — ${achieved ? "달성" : "미달"} (${diffText})`;
+}
+
+function buildGoalProgressCard() {
+  const items = computeGoalProgress().map(formatGoalRowHtml).join("");
+
+  return card(
+    "목표 대비 진행률",
+    `<p>사이드바 "회복 목표"에서 설정한 값과 이번 기간 실제 평균을 비교합니다. 목표는 상담 중 언제든 조정할 수 있습니다.</p><ul>${items}</ul>`,
+    "focus",
+  );
+}
+
 function renderSessionFeedbackSummaryView() {
   const risky = chains((chain) => chain.highUrge && chain.actionized).slice(0, 3);
   const latent = chains(isLatentChain).slice(0, 3);
@@ -1588,13 +2494,30 @@ function renderSessionFeedbackSummaryView() {
     ["오늘의 위험", risky.map((chain) => chainCard(chain, "고위험 연쇄", "warn")).concat(latent.map((chain) => chainCard(chain, "저충동 잠복 연쇄", "focus")))],
     ["오늘의 변화", success.map((chain) => chainCard(chain, isPartialSuccess(chain) ? "강도감소 성공" : "성공/억제 연쇄", "ok")).concat(changeTalk.map((item) => recordCard(item.record, item.label, "ok")))],
     ["회복 유지", maintenance.map((chain) => chainCard(chain, "회복 유지 위험", "focus"))],
-    ["다음 주 계획", [card("회기 피드백 요약", `<p>요약 저장 파일에는 원본 CSV가 저장되지 않고 현재 분석 요약과 상담 메모만 저장됩니다.</p>`, "focus", [
+    ["다음 주 계획", [buildGoalProgressCard(), card("회기 피드백 요약", `<p>요약 저장 파일에는 원본 CSV가 저장되지 않고 현재 분석 요약과 상담 메모만 저장됩니다.</p>`, "focus", [
       "다음 주 첫 번째로 확인할 위험 신호는 무엇인가?",
       "다시 재현할 작은 성공 조건은 무엇인가?",
       "위기 때 사용할 30초 마음챙김 호흡 과제는 무엇인가?",
       "가치 쪽으로 움직이는 1% 실천행동은 무엇인가?",
     ])]],
   ]);
+}
+
+function renderReflectionDaily() {
+  if (!els.reflectionDailyList) return;
+  if (!state.reflectionDays.length) {
+    els.reflectionDailyList.innerHTML = `<p class="muted">CSV를 불러오면 기록이 있는 날짜별로 자동 생성됩니다.</p>`;
+    return;
+  }
+  els.reflectionDailyList.innerHTML = state.reflectionDays.map((day, index) => `
+    <article class="reflection-item">
+      <div class="reflection-item-head">
+        <strong>${escapeHtml(day.date)}</strong>
+        <button type="button" class="secondary small" data-copy-reflection="${index}">복사</button>
+      </div>
+      <pre>${escapeHtml(day.text)}</pre>
+    </article>
+  `).join("");
 }
 
 function renderChains() {
@@ -1981,15 +2904,19 @@ function renderEmpty() {
   return `<div class="empty">CSV를 불러오면 이 작업 순서에 맞춘 내담자 자료 기반 분석이 표시됩니다.</div>`;
 }
 
-async function copySessionSummary() {
-  const text = buildSummaryText();
+async function copyTextToClipboard(text, successMessage) {
   try {
     if (!navigator.clipboard) throw new Error("Clipboard unavailable");
     await navigator.clipboard.writeText(text);
-    showImportMessages(["회기 요약을 클립보드에 복사했습니다. 민감정보가 포함될 수 있으니 필요한 곳에만 붙여넣으세요."]);
+    showImportMessages([`${successMessage} 민감정보가 포함될 수 있으니 필요한 곳에만 붙여넣으세요.`]);
   } catch (error) {
-    showImportMessages(["요약을 복사하지 못했습니다. 브라우저의 클립보드 권한을 허용한 뒤 다시 시도하세요."]);
+    showImportMessages(["복사하지 못했습니다. 브라우저의 클립보드 권한을 허용한 뒤 다시 시도하세요."]);
   }
+}
+
+async function copySessionSummary() {
+  const text = buildSummaryText();
+  await copyTextToClipboard(text, "회기 요약을 클립보드에 복사했습니다.");
 }
 
 function exportSummary() {
@@ -2147,6 +3074,7 @@ function resetDataOnly() {
   state.predictions = [];
   state.observationDays = [];
   state.dailyCheckins = [];
+  state.reflectionDays = [];
   state.relapseWindow = null;
   state.fileName = "";
   state.shareMode = "";
@@ -2155,6 +3083,11 @@ function resetDataOnly() {
   state.rangeDays = null;
   state.importMessages = [];
   state.practicePlans = [];
+  if (els.aiReportBox) {
+    els.aiReportBox.value = "";
+    els.aiReportBox.hidden = true;
+  }
+  if (els.copyAiReportBtn) els.copyAiReportBtn.hidden = true;
 }
 
 function parsePayload(value) {
@@ -2268,8 +3201,10 @@ function detectMotivation(type) {
   const sustainWords = ["괜찮", "어쩔 수", "못 바뀐", "포기", "힘들었으니", "한 잔", "참을 수", "소용없", "무능", "부족"];
   const words = type === "change" ? changeWords : sustainWords;
   const label = type === "change" ? "변화언어 후보" : "유지언어 후보";
+  // record.title은 "대처/가치실천"처럼 고정된 카테고리 이름이라, 내담자의 실제 말이 아닙니다.
+  // 예전에는 title까지 같이 검사해서 "가치"라는 제목 자체 때문에 내용과 무관하게 오탐되는 문제가 있었습니다.
   return state.records
-    .filter((record) => words.some((word) => `${record.title} ${record.content}`.includes(word)))
+    .filter((record) => record.content && words.some((word) => record.content.includes(word)))
     .map((record) => ({ record, label }));
 }
 
