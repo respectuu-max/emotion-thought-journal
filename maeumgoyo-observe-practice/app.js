@@ -1,4 +1,4 @@
-const APP_VERSION = "v70"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v71"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -601,6 +601,41 @@ const TEXT_LIMITS = {
       box.classList.toggle("hidden", !show);
       if (show) box.querySelectorAll("input[type='checkbox']").forEach(input => input.checked = false);
     }
+    function createWizardController(config) {
+      return {
+        render() {
+          const step = state[config.stepKey];
+          $$(`#${config.formId} .wizard-step`).forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
+          $$(`#${config.dotsId} .wizard-dot`).forEach((dot, i) => {
+            dot.classList.toggle("done", i < step);
+            dot.classList.toggle("current", i === step);
+          });
+          const titleBox = $(`#${config.titleId}`);
+          const labelBox = $(`#${config.labelId}`);
+          if (titleBox) titleBox.textContent = config.titles[step];
+          if (labelBox) labelBox.textContent = config.labels[step];
+          const backBtn = $(`#${config.backId}`);
+          const nextBtn = $(`#${config.nextId}`);
+          const saveBtn = $(`#${config.saveId}`);
+          if (backBtn) backBtn.classList.toggle("hidden", step === 0);
+          const isLastStep = step === config.titles.length - 1;
+          if (nextBtn) nextBtn.classList.toggle("hidden", isLastStep);
+          if (saveBtn) saveBtn.classList.toggle("hidden", !isLastStep);
+          (config.lastStepOnlyIds || []).forEach(id => {
+            const el = $("#" + id);
+            if (el) el.classList.toggle("hidden", !isLastStep);
+          });
+        },
+        go(delta) {
+          const next = state[config.stepKey] + delta;
+          if (next < 0 || next > config.titles.length - 1) return;
+          state[config.stepKey] = next;
+          this.render();
+          const form = $(`#${config.formId}`);
+          if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
+    }
     const OBSERVE_STEP_TITLES = ["1 · 상황과 촉발 단서", "2 · 마음 관찰", "3 · 강도 기록", "4 · 대처와 성찰"];
     const OBSERVE_STEP_LABELS = [
       "1단계 / 4단계 · 30초면 충분합니다",
@@ -608,70 +643,28 @@ const TEXT_LIMITS = {
       "3단계 / 4단계 · 강도만 옮기면 됩니다",
       "4단계 / 4단계 · 여기부터는 전부 선택입니다"
     ];
-    function renderObserveStep() {
-      const step = state.observeStep;
-      $$("#observeForm .wizard-step").forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
-      $$("#observeStepDots .wizard-dot").forEach((dot, i) => {
-        dot.classList.toggle("done", i < step);
-        dot.classList.toggle("current", i === step);
-      });
-      const titleBox = $("#observeStepTitle");
-      const labelBox = $("#observeStepLabel");
-      if (titleBox) titleBox.textContent = OBSERVE_STEP_TITLES[step];
-      if (labelBox) labelBox.textContent = OBSERVE_STEP_LABELS[step];
-      const backBtn = $("#observeStepBack");
-      const nextBtn = $("#observeStepNext");
-      const saveBtn = $("#observeStepSave");
-      const sendBtn = $("#sendToPractice");
-      const sendHint = $("#sendToPracticeHint");
-      if (backBtn) backBtn.classList.toggle("hidden", step === 0);
-      const isLastStep = step === OBSERVE_STEP_TITLES.length - 1;
-      if (nextBtn) nextBtn.classList.toggle("hidden", isLastStep);
-      if (saveBtn) saveBtn.classList.toggle("hidden", !isLastStep);
-      if (sendBtn) sendBtn.classList.toggle("hidden", !isLastStep);
-      if (sendHint) sendHint.classList.toggle("hidden", !isLastStep);
-    }
-    function goObserveStep(delta) {
-      const next = state.observeStep + delta;
-      if (next < 0 || next > OBSERVE_STEP_TITLES.length - 1) return;
-      state.observeStep = next;
-      renderObserveStep();
-      const form = $("#observeForm");
-      if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    const observeWizard = createWizardController({
+      formId: "observeForm", dotsId: "observeStepDots", titleId: "observeStepTitle", labelId: "observeStepLabel",
+      backId: "observeStepBack", nextId: "observeStepNext", saveId: "observeStepSave", stepKey: "observeStep",
+      titles: OBSERVE_STEP_TITLES, labels: OBSERVE_STEP_LABELS,
+      lastStepOnlyIds: ["sendToPractice", "sendToPracticeHint"]
+    });
+    function renderObserveStep() { observeWizard.render(); }
+    function goObserveStep(delta) { observeWizard.go(delta); }
     const PRACTICE_STEP_TITLES = ["1 · 가치와 실천행동", "2 · 빈도와 알림", "3 · 시작일과 대비책"];
     const PRACTICE_STEP_LABELS = [
       "1단계 / 3단계 · 무엇을, 어떤 가치로",
       "2단계 / 3단계 · 얼마나 자주 할지 정해요",
       "3단계 / 3단계 · 시작일과 최소 버전"
     ];
-    function renderPracticeStep() {
-      const step = state.practiceStep;
-      $$("#practiceForm .wizard-step").forEach(panel => panel.classList.toggle("active", Number(panel.dataset.step) === step));
-      $$("#practiceStepDots .wizard-dot").forEach((dot, i) => {
-        dot.classList.toggle("done", i < step);
-        dot.classList.toggle("current", i === step);
-      });
-      const titleBox = $("#practiceStepTitle");
-      const labelBox = $("#practiceStepLabel");
-      if (titleBox) titleBox.textContent = PRACTICE_STEP_TITLES[step];
-      if (labelBox) labelBox.textContent = PRACTICE_STEP_LABELS[step];
-      const backBtn = $("#practiceStepBack");
-      const nextBtn = $("#practiceStepNext");
-      const saveBtn = $("#practiceStepSave");
-      if (backBtn) backBtn.classList.toggle("hidden", step === 0);
-      const isLastStep = step === PRACTICE_STEP_TITLES.length - 1;
-      if (nextBtn) nextBtn.classList.toggle("hidden", isLastStep);
-      if (saveBtn) saveBtn.classList.toggle("hidden", !isLastStep);
-    }
-    function goPracticeStep(delta) {
-      const next = state.practiceStep + delta;
-      if (next < 0 || next > PRACTICE_STEP_TITLES.length - 1) return;
-      state.practiceStep = next;
-      renderPracticeStep();
-      const form = $("#practiceForm");
-      if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    const practiceWizard = createWizardController({
+      formId: "practiceForm", dotsId: "practiceStepDots", titleId: "practiceStepTitle", labelId: "practiceStepLabel",
+      backId: "practiceStepBack", nextId: "practiceStepNext", saveId: "practiceStepSave", stepKey: "practiceStep",
+      titles: PRACTICE_STEP_TITLES, labels: PRACTICE_STEP_LABELS,
+      lastStepOnlyIds: []
+    });
+    function renderPracticeStep() { practiceWizard.render(); }
+    function goPracticeStep(delta) { practiceWizard.go(delta); }
     function startQuickObservation(kind = "observe") {
       setView("observe");
       $("#observeDate").value = todayISO();
