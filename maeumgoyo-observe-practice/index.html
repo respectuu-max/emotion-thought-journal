@@ -52,7 +52,7 @@
     <main>
       <section class="view active" id="todayView">
         <div class="lead">
-          상담실 밖의 하루도 상담 과정의 일부입니다. 오늘의 마음을 관찰하고, 내가 중요하게 여기는 방향으로 아주 작은 행동을 해보세요.
+          오늘은 한 줄만 남겨도 충분합니다. 상담실 밖의 하루도 상담 과정의 일부입니다.
         </div>
         <div class="plain-card" style="margin-top:10px;">
           <h3>처음 사용 안내</h3>
@@ -62,10 +62,22 @@
           <div class="card-divider"></div>
           <h3>빠른 시작</h3>
           <div class="quick-actions">
-            <button class="solid-btn" type="button" id="quickObserve">30초 관찰하기</button>
+            <button class="solid-btn" type="button" id="quickObserve">30초 관찰기록</button>
+            <button class="ghost-btn" type="button" data-jump="observe">자세히 관찰기록</button>
             <button class="ghost-btn" type="button" id="quickRisk">고위험 신호 남기기</button>
             <button class="ghost-btn" type="button" id="quickBackup">CSV 백업하기</button>
           </div>
+        </div>
+        <div class="plain-card" style="margin-top:10px;">
+          <h3>이번 주 기록 초점</h3>
+          <p class="small" id="weeklyFocusDisplay">상담자와 정한 기록 초점이 있으면 여기에 적어두세요.</p>
+          <details class="form-row">
+            <summary>기록 초점 수정</summary>
+            <div style="height:8px"></div>
+            <textarea id="weeklyFocusInput" maxlength="160" placeholder="예: 충동이 올라간 순간의 몸반응만 기록하기"></textarea>
+            <div style="height:8px"></div>
+            <button class="ghost-btn full" id="saveWeeklyFocus" type="button">기록 초점 저장</button>
+          </details>
         </div>
         <div class="plain-card" style="margin-top:10px;">
           <div id="todayTaskSummary"></div>
@@ -99,7 +111,7 @@
           <div class="card">
             <div class="section-head" style="margin-top:0">
               <h2>오늘의 관찰</h2>
-              <button class="ghost-btn" data-jump="observe">기록하기</button>
+              <button class="ghost-btn" data-jump="observe">자세히 관찰기록</button>
             </div>
             <div class="triple">
               <div class="plain-card metric">
@@ -157,6 +169,9 @@
             <h2>관찰 기록</h2>
             <p class="small">감정, 생각, 몸 반응, 충동과 문제 행동의 흐름을 기록합니다. 정직한 기록은 심판이 아니라 치료 자료입니다.</p>
             <div class="lead">
+              모든 칸을 채우지 않아도 됩니다. 오늘 가장 선명한 것 하나만 남겨도 상담에서 함께 다룰 수 있습니다.
+            </div>
+            <div class="lead">
               지금 혼자 버티기 어렵다면 기록을 마치려고 애쓰기보다 가까운 사람이나 상담자에게 먼저 연락하세요.
             </div>
             <div style="height:10px"></div>
@@ -188,6 +203,7 @@
                 <div class="wizard-dot" data-dot="3"></div>
               </div>
               <div class="wizard-step-label" id="observeStepLabel" aria-live="polite">1단계 / 4단계 · 30초면 충분합니다</div>
+              <p class="small">1단계만 남겨도 저장할 수 있습니다. 나머지는 기억나는 만큼만 적어도 됩니다.</p>
             </div>
             <div class="section-block wizard-step" data-step="0">
               <div class="form-row">

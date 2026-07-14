@@ -1,4 +1,4 @@
-const APP_VERSION = "v81"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v86"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -146,7 +146,7 @@ const TEXT_LIMITS = {
       shareRange: 7,
       trendRange: 14,
       shareMode: "counselorDetail",
-      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [] } },
+      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "" } },
       lastActive: Date.now()
     };
 
@@ -544,7 +544,8 @@ const TEXT_LIMITS = {
           behaviorAliases: normalizeBehaviorAliases(settings.behaviorAliases),
           noRecordReminderTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(settings.noRecordReminderTime || "") ? settings.noRecordReminderTime : "20:00",
           lastBackupAt: settings.lastBackupAt || "",
-          safetyContacts: normalizeSafetyContacts(settings.safetyContacts)
+          safetyContacts: normalizeSafetyContacts(settings.safetyContacts),
+          weeklyFocus: cleanMultiline(settings.weeklyFocus, TEXT_LIMITS.medium)
         }
       };
     }
@@ -567,7 +568,7 @@ const TEXT_LIMITS = {
         state.data = normalizeData(parsed);
         if (!current && legacy) saveData();
       } catch {
-        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [] } };
+        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "" } };
         showToast("저장된 기록을 읽지 못해 새 기록 공간으로 시작합니다.");
       }
     }
@@ -1360,6 +1361,7 @@ const TEXT_LIMITS = {
     }
     function renderToday() {
       updateMetrics();
+      renderWeeklyFocus();
       renderTodayTaskSummary();
       renderCleanStreak();
       renderRelapseToday();
@@ -1371,6 +1373,17 @@ const TEXT_LIMITS = {
       $("#todayPracticeList").innerHTML = practices.length ? practices.map(p => renderPracticeToday(p)).join("") : `<div class="empty">아직 설정된 작은 실천행동이 없습니다.</div>`;
       bindTodayLogButtons();
       bindObservationActions();
+    }
+    function renderWeeklyFocus() {
+      const focus = cleanMultiline(state.data.settings.weeklyFocus, TEXT_LIMITS.medium);
+      const display = $("#weeklyFocusDisplay");
+      const input = $("#weeklyFocusInput");
+      if (display) {
+        display.textContent = focus
+          ? `이번 주에는 이것만 우선 봅니다: ${focus}`
+          : "상담자와 정한 기록 초점이 있으면 여기에 적어두세요. 예: 충동이 올라간 순간의 몸반응만 기록하기";
+      }
+      if (input && document.activeElement !== input) input.value = focus;
     }
     function triggerText(o) {
       const items = compactList([...(Array.isArray(o.triggerPlaces) ? o.triggerPlaces : []), ...(Array.isArray(o.triggerPeople) ? o.triggerPeople : []), ...(Array.isArray(o.triggerTimes) ? o.triggerTimes : []), ...(Array.isArray(o.triggerCustom) ? o.triggerCustom : [])]);
@@ -3127,7 +3140,7 @@ const TEXT_LIMITS = {
       const isHighRisk = entry.urgeScore >= 8 || entry.actionLevel >= 4;
       showRiskFollowup(isHighRisk);
       showRelapseFollowup(entry);
-      showToast(isHighRisk ? "고위험 신호를 저장했습니다. 지금은 안전한 장소와 연락을 먼저 챙겨주세요." : "관찰 기록을 저장했습니다.");
+      showToast(isHighRisk ? "고위험 신호를 저장했습니다. 지금은 안전한 장소와 연락을 먼저 챙겨주세요." : "기록했습니다. 상담에서 함께 다룰 장면 하나가 남았습니다.");
     }
     function resetObserveDefaults() {
       $("#observeId").value = "";
@@ -3446,6 +3459,12 @@ const TEXT_LIMITS = {
         state.data.settings.lastBackupAt = new Date().toISOString();
         saveData();
         showToast("모든 기록을 전체 백업했습니다.");
+      });
+      $("#saveWeeklyFocus").addEventListener("click", () => {
+        state.data.settings.weeklyFocus = cleanMultiline($("#weeklyFocusInput").value, TEXT_LIMITS.medium);
+        if (!saveData()) return;
+        renderWeeklyFocus();
+        showToast(state.data.settings.weeklyFocus ? "이번 주 기록 초점을 저장했습니다." : "이번 주 기록 초점을 비웠습니다.");
       });
       $("#expansionScore").addEventListener("input", () => {
         $("#expansionScoreValue").textContent = $("#expansionScore").value;
