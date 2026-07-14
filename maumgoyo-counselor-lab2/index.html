@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>마음고요 상담분석실 20260713v44</title>
-  <link rel="stylesheet" href="styles-20260710-v11.css?v=20260713v44">
+  <title>마음고요 상담분석실 20260714v55</title>
+  <link rel="stylesheet" href="styles-20260714-v55.css?v=20260714v55">
 </head>
 <body>
   <header class="app-header">
     <div>
       <p class="eyebrow">상담자용 CSV 분석 도구</p>
-      <h1>마음고요 상담분석실 <span class="version-badge">20260713v44</span></h1>
-      <p class="version-note">단계별 시각적 피드백 그래프 · 측정기록 기반 질문 · STOP/TIPP 호흡훈련 · 가치기반 실천</p>
+      <h1>마음고요 상담분석실 <span class="version-badge">20260714v55</span></h1>
+      <p class="version-note">측정치 기반 피드백 치료 · 측정치 너머의 삶의 맥락 · 중독유형별 초점 · 가치기반 실천 습관화</p>
     </div>
     <div class="header-actions">
       <button id="patientModeBtn" class="primary mode-toggle" type="button">환자용 보기</button>
@@ -22,6 +22,8 @@
       <button id="exportBtn" class="primary counselor-only" type="button">요약 저장</button>
     </div>
   </header>
+
+  <div id="atAGlanceBanner" class="at-a-glance counselor-only" hidden></div>
 
   <main class="app-shell">
     <aside class="sidebar counselor-only">
@@ -38,7 +40,9 @@
           <strong>CSV를 불러오면 표시됩니다.</strong>
           <p>상담자용 상세, 상담자용 요약, 가족회복용 여부와 민감정보 제외 가능성을 확인합니다.</p>
         </div>
-        <p class="privacy-note">이 앱은 원본 CSV 파일 자체를 저장하지 않습니다. 새 CSV를 불러오거나 자료를 제거하면 현재 분석과 상담 메모가 초기화됩니다. 단, "요약 저장" 파일에는 내담자의 실제 기록 문장이 포함되므로 민감정보 문서로 안전하게 보관하세요.</p>
+        <p class="privacy-note">이 앱은 CSV 파일을 서버에 저장하지 않으며, 불러온 자료는 이 브라우저 탭 안에만 있습니다. <strong>새 CSV를 불러오면 같은 내담자 자료에 이어서 누적됩니다</strong>(다른 내담자 파일이면 자동으로 병합을 막고 알려줍니다). 자료를 지우려면 "자료 제거"를 누르세요.</p>
+        <button id="exportAccumulatedCsvBtn" class="secondary small" type="button">전체 자료 저장(CSV)</button>
+        <p class="privacy-note">지금까지 누적된 원본 기록 전체를 CSV로 저장합니다. 파일명은 "내담자별칭_첫날~마지막날_전체자료.csv"로 자동 지정되며, 다음에 이 파일 하나만 다시 불러오면 지금까지의 누적 자료가 그대로 복원됩니다. 실제 기록 문장이 포함된 민감정보 파일이므로 안전하게 보관하세요.</p>
       </section>
 
       <section class="panel">
@@ -58,6 +62,17 @@
         <label>실천 완료율 목표%(이상) <input id="practiceGoalInput" type="number" min="0" max="100" step="5" value="70"></label>
         <label>삶의 확장감 평균 목표(이상) <input id="expansionGoalInput" type="number" min="0" max="10" step="0.5" value="6"></label>
         <p class="privacy-note">"위험 기준"은 경고를 띄우는 임계값이고, 이건 이번 기간에 도달하고 싶은 목표입니다. "9. 회기 피드백 요약" 탭에서 실제 값과 비교해 보여줍니다.</p>
+      </section>
+
+      <section class="panel">
+        <h2>지난 회기와 비교</h2>
+        <p class="privacy-note">지난주에 저장해둔 "요약 저장" JSON 파일을 다시 불러오면, 그 안의 수치와 이번 주 CSV를 비교합니다. 이 앱은 원본 CSV를 저장하지 않으므로, 비교하려면 상담자가 직접 저장해둔 요약 파일이 필요합니다.</p>
+        <label class="drop-zone" for="previousSummaryInput" id="previousSummaryDropZone">
+          <strong>이전 요약 JSON 불러오기</strong>
+          <span>지난 회기에 저장했던 "maeumgoyo-counselor-summary-*.json" 파일을 선택하세요.</span>
+          <input id="previousSummaryInput" type="file" accept=".json,application/json">
+        </label>
+        <div id="sessionComparisonResult" class="file-meta">비교할 이전 요약 파일을 아직 불러오지 않았습니다.</div>
       </section>
 
       <section class="panel">
@@ -118,6 +133,6 @@
     </section>
   </main>
 
-  <script src="app-20260710-v11.js?v=20260713v44"></script>
+  <script src="app-20260714-v55.js?v=20260714v55"></script>
 </body>
 </html>
