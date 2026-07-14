@@ -1,4 +1,4 @@
-const APP_VERSION = "v86"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v87"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -1300,6 +1300,10 @@ const TEXT_LIMITS = {
         <p class="small">관찰 기록: ${observationCount > 0 ? `완료 ${observationCount}건` : "아직 없음"}</p>
         <p class="small">실천 기록: ${dueTargets ? `${loggedCount}/${dueTargets}회` : "오늘 예정된 실천 없음"}</p>
         <p class="small">오늘 남은 실천: ${remaining}회</p>
+        <div class="button-row">
+          <button class="solid-btn" type="button" data-scroll-target="todayPracticeList">실천 수행도 체크</button>
+          <button class="ghost-btn" type="button" data-jump="observe">관찰기록 남기기</button>
+        </div>
         <p class="small">${escapeHtml(notificationStatusText())}</p>
         <p class="small">최근 CSV 백업: ${escapeHtml(lastBackup)}</p>
         ${backupWarning ? `<p class="small backup-warning">${escapeHtml(backupWarning)}</p>` : ""}
@@ -1371,8 +1375,31 @@ const TEXT_LIMITS = {
       $("#todayObservations").innerHTML = obs.length ? obs.map(renderObservationItem).join("") : `<div class="empty">아직 오늘의 관찰 기록이 없습니다.</div>`;
       const practices = activePractices();
       $("#todayPracticeList").innerHTML = practices.length ? practices.map(p => renderPracticeToday(p)).join("") : `<div class="empty">아직 설정된 작은 실천행동이 없습니다.</div>`;
+      bindInlineNavigation();
       bindTodayLogButtons();
       bindObservationActions();
+    }
+    function scrollToTodayPractice() {
+      setView("today");
+      setTimeout(() => {
+        const target = $("#todayPracticeList");
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+    }
+    function bindInlineNavigation() {
+      $$("[data-scroll-target]").forEach(button => {
+        if (button.dataset.boundScroll) return;
+        button.dataset.boundScroll = "1";
+        button.addEventListener("click", () => {
+          const target = $(`#${selectorEscape(button.dataset.scrollTarget)}`);
+          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+      $$("[data-jump]").forEach(button => {
+        if (button.dataset.boundJump) return;
+        button.dataset.boundJump = "1";
+        button.addEventListener("click", () => setView(button.dataset.jump));
+      });
     }
     function renderWeeklyFocus() {
       const focus = cleanMultiline(state.data.settings.weeklyFocus, TEXT_LIMITS.medium);
@@ -1463,7 +1490,7 @@ const TEXT_LIMITS = {
         </div>
         <textarea data-practice-note="${escapeHtml(p.id)}" maxlength="600" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
         <div style="height:8px"></div>
-        <button class="solid-btn full" data-save-log="${escapeHtml(p.id)}" type="button">오늘 실천 추가 기록</button>
+        <button class="solid-btn full" data-save-log="${escapeHtml(p.id)}" type="button">실천 수행도 체크 저장</button>
         ${logHistory}
       </div>`;
     }
@@ -1540,7 +1567,7 @@ const TEXT_LIMITS = {
           state.data.logs.push(entry);
           if (!saveData()) return;
           renderAll();
-          showToast("오늘의 실천 기록을 저장했습니다.");
+          showToast("실천 수행도를 저장했습니다. 오늘의 작은 방향 전환이 기록으로 남았습니다.");
         });
       });
       $$("[data-delete-log]").forEach(button => {
@@ -3141,6 +3168,13 @@ const TEXT_LIMITS = {
       showRiskFollowup(isHighRisk);
       showRelapseFollowup(entry);
       showToast(isHighRisk ? "고위험 신호를 저장했습니다. 지금은 안전한 장소와 연락을 먼저 챙겨주세요." : "기록했습니다. 상담에서 함께 다룰 장면 하나가 남았습니다.");
+      if (!isHighRisk && activePractices().length) {
+        setTimeout(() => {
+          if (confirm("오늘 약속한 작은 실천도 확인해볼까요?\n\n확인을 누르면 수행도 체크로 이동합니다. 취소하면 오늘은 여기까지입니다.")) {
+            scrollToTodayPractice();
+          }
+        }, 250);
+      }
     }
     function resetObserveDefaults() {
       $("#observeId").value = "";
@@ -3398,7 +3432,10 @@ const TEXT_LIMITS = {
     function touchActivity() { state.lastActive = Date.now(); }
     function setupEvents() {
       $$(".tab").forEach(tab => tab.addEventListener("click", () => setView(tab.dataset.view)));
-      $$("[data-jump]").forEach(b => b.addEventListener("click", () => setView(b.dataset.jump)));
+      $$("[data-jump]").forEach(b => {
+        b.dataset.boundJump = "1";
+        b.addEventListener("click", () => setView(b.dataset.jump));
+      });
       $("#observeForm").addEventListener("submit", observeSubmit);
       $("#observeStepBack").addEventListener("click", () => goObserveStep(-1));
       $("#observeStepNext").addEventListener("click", () => goObserveStep(1));
@@ -3453,6 +3490,8 @@ const TEXT_LIMITS = {
       });
       $("#quickObserve").addEventListener("click", () => startQuickObservation("observe"));
       $("#quickRisk").addEventListener("click", () => startQuickObservation("risk"));
+      $("#quickPracticeCheck").addEventListener("click", scrollToTodayPractice);
+      $("#jumpTodayPractice").addEventListener("click", scrollToTodayPractice);
       $("#quickBackup").addEventListener("click", () => {
         const data = buildCsv({ fullBackup: true });
         downloadBlob(data.blob, data.fileName);

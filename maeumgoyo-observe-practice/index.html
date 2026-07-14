@@ -61,10 +61,12 @@
           <p class="small">3. 기록을 상담에서 함께 보고 조정합니다.</p>
           <div class="card-divider"></div>
           <h3>빠른 시작</h3>
+          <p class="small">오늘은 무엇을 남길까요? 가장 가까운 것 하나만 눌러도 됩니다.</p>
           <div class="quick-actions">
             <button class="solid-btn" type="button" id="quickObserve">30초 관찰기록</button>
             <button class="ghost-btn" type="button" data-jump="observe">자세히 관찰기록</button>
             <button class="ghost-btn" type="button" id="quickRisk">고위험 신호 남기기</button>
+            <button class="ghost-btn" type="button" id="quickPracticeCheck">실천 수행도 체크</button>
             <button class="ghost-btn" type="button" id="quickBackup">CSV 백업하기</button>
           </div>
         </div>
@@ -137,7 +139,10 @@
           <div class="card">
             <div class="section-head" style="margin-top:0">
               <h2>오늘의 작은 실천</h2>
-              <button class="ghost-btn" data-jump="practice">설정하기</button>
+              <div class="button-row">
+                <button class="solid-btn" type="button" id="jumpTodayPractice">수행도 체크</button>
+                <button class="ghost-btn" data-jump="practice">설정하기</button>
+              </div>
             </div>
             <div class="triple">
               <div class="plain-card metric">
