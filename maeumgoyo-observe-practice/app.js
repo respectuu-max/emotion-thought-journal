@@ -1,4 +1,4 @@
-const APP_VERSION = "v87"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v88"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
@@ -146,7 +146,7 @@ const TEXT_LIMITS = {
       shareRange: 7,
       trendRange: 14,
       shareMode: "counselorDetail",
-      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "" } },
+      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "", onboardingSeen: false } },
       lastActive: Date.now()
     };
 
@@ -545,7 +545,8 @@ const TEXT_LIMITS = {
           noRecordReminderTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(settings.noRecordReminderTime || "") ? settings.noRecordReminderTime : "20:00",
           lastBackupAt: settings.lastBackupAt || "",
           safetyContacts: normalizeSafetyContacts(settings.safetyContacts),
-          weeklyFocus: cleanMultiline(settings.weeklyFocus, TEXT_LIMITS.medium)
+          weeklyFocus: cleanMultiline(settings.weeklyFocus, TEXT_LIMITS.medium),
+          onboardingSeen: Boolean(settings.onboardingSeen)
         }
       };
     }
@@ -568,7 +569,7 @@ const TEXT_LIMITS = {
         state.data = normalizeData(parsed);
         if (!current && legacy) saveData();
       } catch {
-        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "" } };
+        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "", onboardingSeen: false } };
         showToast("저장된 기록을 읽지 못해 새 기록 공간으로 시작합니다.");
       }
     }
@@ -1365,6 +1366,7 @@ const TEXT_LIMITS = {
     }
     function renderToday() {
       updateMetrics();
+      renderFirstUseGuide();
       renderWeeklyFocus();
       renderTodayTaskSummary();
       renderCleanStreak();
@@ -1378,6 +1380,11 @@ const TEXT_LIMITS = {
       bindInlineNavigation();
       bindTodayLogButtons();
       bindObservationActions();
+    }
+    function renderFirstUseGuide() {
+      const box = $("#firstUseGuide");
+      if (!box) return;
+      box.classList.toggle("hidden", Boolean(state.data.settings.onboardingSeen));
     }
     function scrollToTodayPractice() {
       setView("today");
@@ -1462,39 +1469,67 @@ const TEXT_LIMITS = {
         <div class="small">오늘 약속: ${target}회 · 현재 ${todayLogs.length}회 기록</div>
         <div class="small">30% 버전: ${escapeHtml(p.smallVersion || "-")}</div>
         <div style="height:8px"></div>
-        <label class="checkline">
-          <input type="checkbox" data-expect-toggle="${escapeHtml(p.id)}"> 시작하기 전 예상도 함께 남기기 (선택)
-        </label>
-        <div class="hidden" data-expect-box="${escapeHtml(p.id)}">
-          <div class="small">막상 해보면 예상과 다를 때가 많습니다. 그 차이 자체가 유용한 정보입니다.</div>
-          <div class="slider-card">
-            <div class="slider-top"><span>예상 즐거움</span><span class="slider-value" data-practice-expected-pleasure-value="${escapeHtml(p.id)}">5</span></div>
-            <input data-practice-expected-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 즐거움">
-          </div>
-          <div class="slider-card">
-            <div class="slider-top"><span>예상 성취감</span><span class="slider-value" data-practice-expected-mastery-value="${escapeHtml(p.id)}">5</span></div>
-            <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 성취감">
-          </div>
-        </div>
-        <div style="height:4px"></div>
-        <div class="slider-card">
-          <div class="slider-top"><span>실제 즐거움</span><span class="slider-value" data-practice-pleasure-value="${escapeHtml(p.id)}">0</span></div>
-          <input data-practice-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 즐거움">
-          <div class="small score-help" data-practice-pleasure-help="${escapeHtml(p.id)}">${escapeHtml(pleasureScoreText(0))}</div>
-          <div class="small">이 점수는 이 실천을 계속해야 할 이유가 아니라, 지금 즐거움을 느끼는 감각이 살아있는지 살펴보는 참고 지표입니다. 가치에 맞는 행동이 재미없어도 괜찮습니다.</div>
+        <div class="small"><strong>오늘 했나요?</strong></div>
+        <div class="button-row">
+          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="6" data-mastery="8">했음</button>
+          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="3" data-mastery="5">일부</button>
+          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="0" data-mastery="0">못함</button>
         </div>
         <div class="slider-card">
           <div class="slider-top"><span>실제 성취감</span><span class="slider-value" data-practice-mastery-value="${escapeHtml(p.id)}">0</span></div>
           <input data-practice-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 성취감">
           <div class="small score-help" data-practice-mastery-help="${escapeHtml(p.id)}">${escapeHtml(masteryScoreText(0))}</div>
         </div>
-        <textarea data-practice-note="${escapeHtml(p.id)}" maxlength="600" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
+        <details class="form-row">
+          <summary>자세히 기록 (선택)</summary>
+          <div style="height:8px"></div>
+          <label class="checkline">
+            <input type="checkbox" data-expect-toggle="${escapeHtml(p.id)}"> 시작하기 전 예상도 함께 남기기
+          </label>
+          <div class="hidden" data-expect-box="${escapeHtml(p.id)}">
+            <div class="small">막상 해보면 예상과 다를 때가 많습니다. 그 차이 자체가 유용한 정보입니다.</div>
+            <div class="slider-card">
+              <div class="slider-top"><span>예상 즐거움</span><span class="slider-value" data-practice-expected-pleasure-value="${escapeHtml(p.id)}">5</span></div>
+              <input data-practice-expected-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 즐거움">
+            </div>
+            <div class="slider-card">
+              <div class="slider-top"><span>예상 성취감</span><span class="slider-value" data-practice-expected-mastery-value="${escapeHtml(p.id)}">5</span></div>
+              <input data-practice-expected-mastery="${escapeHtml(p.id)}" type="range" min="0" max="10" value="5" aria-label="예상 성취감">
+            </div>
+          </div>
+          <div style="height:4px"></div>
+          <div class="slider-card">
+            <div class="slider-top"><span>실제 즐거움</span><span class="slider-value" data-practice-pleasure-value="${escapeHtml(p.id)}">0</span></div>
+            <input data-practice-pleasure="${escapeHtml(p.id)}" type="range" min="0" max="10" value="0" aria-label="실제 즐거움">
+            <div class="small score-help" data-practice-pleasure-help="${escapeHtml(p.id)}">${escapeHtml(pleasureScoreText(0))}</div>
+            <div class="small">이 점수는 이 실천을 계속해야 할 이유가 아니라, 지금 즐거움을 느끼는 감각이 살아있는지 살펴보는 참고 지표입니다. 가치에 맞는 행동이 재미없어도 괜찮습니다.</div>
+          </div>
+          <textarea data-practice-note="${escapeHtml(p.id)}" maxlength="600" placeholder="방해요인, 도움이 된 조건, 짧은 성찰"></textarea>
+        </details>
         <div style="height:8px"></div>
         <button class="solid-btn full" data-save-log="${escapeHtml(p.id)}" type="button">실천 수행도 체크 저장</button>
         ${logHistory}
       </div>`;
     }
     function bindTodayLogButtons() {
+      $$("[data-practice-quick]").forEach(button => {
+        button.addEventListener("click", () => {
+          const id = button.dataset.practiceQuick;
+          const container = button.closest(".record-item");
+          const pleasureInput = container ? container.querySelector(`[data-practice-pleasure="${selectorEscape(id)}"]`) : null;
+          const masteryInput = container ? container.querySelector(`[data-practice-mastery="${selectorEscape(id)}"]`) : null;
+          if (pleasureInput) {
+            pleasureInput.value = button.dataset.pleasure || "0";
+            pleasureInput.dispatchEvent(new Event("input"));
+          }
+          if (masteryInput) {
+            masteryInput.value = button.dataset.mastery || "0";
+            masteryInput.dispatchEvent(new Event("input"));
+          }
+          container?.querySelectorAll("[data-practice-quick]").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+        });
+      });
       $$("[data-expect-toggle]").forEach(checkbox => {
         checkbox.addEventListener("change", () => {
           const id = checkbox.dataset.expectToggle;
@@ -3492,6 +3527,11 @@ const TEXT_LIMITS = {
       $("#quickRisk").addEventListener("click", () => startQuickObservation("risk"));
       $("#quickPracticeCheck").addEventListener("click", scrollToTodayPractice);
       $("#jumpTodayPractice").addEventListener("click", scrollToTodayPractice);
+      $("#dismissFirstUseGuide").addEventListener("click", () => {
+        state.data.settings.onboardingSeen = true;
+        if (!saveData()) return;
+        renderFirstUseGuide();
+      });
       $("#quickBackup").addEventListener("click", () => {
         const data = buildCsv({ fullBackup: true });
         downloadBlob(data.blob, data.fileName);
