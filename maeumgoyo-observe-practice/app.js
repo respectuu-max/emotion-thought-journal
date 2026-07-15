@@ -1,4 +1,4 @@
-const APP_VERSION = "v89"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v91"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -709,7 +709,7 @@ const TEXT_LIMITS = {
         }
       };
     }
-    const OBSERVE_STEP_TITLES = ["1 · 문제상황과 촉발단서", "2 · 마음 관찰", "3 · 강도 기록", "4 · 대처와 성찰"];
+    const OBSERVE_STEP_TITLES = ["1 · 경험한 문제와 상황", "2 · 마음 관찰", "3 · 강도 기록", "4 · 대처와 성찰"];
     const OBSERVE_STEP_LABELS = [
       "1단계 / 4단계 · 30초면 충분합니다",
       "2단계 / 4단계 · 해당하는 것만 눌러주세요",
@@ -1411,10 +1411,10 @@ const TEXT_LIMITS = {
       const saveBtn = $("#saveDailyCheckin");
       if (existing) {
         statusBox.textContent = `오늘 기록됨 (${formatSavedTime(existing.updatedAt)}) · 다시 저장하면 갱신됩니다.`;
-        saveBtn.textContent = "오늘 마무리 수정";
+        saveBtn.textContent = "오늘 하루 돌아보기 수정";
       } else {
         statusBox.textContent = "";
-        saveBtn.textContent = "오늘 마무리 저장";
+        saveBtn.textContent = "오늘 하루 돌아보기 저장";
       }
     }
     function renderToday() {
@@ -2065,17 +2065,114 @@ const TEXT_LIMITS = {
         </div>
       `;
     }
+    function trendRangeStartDate() {
+      return daysAgo(trendRangeDays() - 1);
+    }
+    function trendCheckins() {
+      const start = trendRangeStartDate();
+      return activeDailyCheckins().filter(c => dateObj(c.date) >= start);
+    }
+    function simpleTrendDates(maxDays = 14) {
+      const displayDays = Math.max(1, Math.min(trendRangeDays(), maxDays));
+      return Array.from({ length: displayDays }, (_, i) => dateToISO(daysAgo(displayDays - 1 - i)));
+    }
+    function simpleBarRow(label, value, detail, tone = "") {
+      const score = clampNumber(value, 0, 10, 0);
+      return `
+        <div class="simple-trend-row">
+          <div class="simple-trend-label">${escapeHtml(label)}</div>
+          <div class="simple-trend-track"><div class="simple-trend-fill ${tone}" style="width:${Math.max(4, score * 10)}%"></div></div>
+          <div class="simple-trend-note">${escapeHtml(detail)}</div>
+        </div>
+      `;
+    }
+    function renderSimpleSummary() {
+      const box = $("#trendSimpleSummary");
+      if (!box) return;
+      const days = trendRangeDays();
+      const observations = recentObservations(days);
+      const logs = recentLogs(days);
+      const checkins = trendCheckins();
+      const actionDays = new Set(observations.filter(o => Number(o.actionLevel) > 0).map(recordDate));
+      const emotionAvg = observations.length ? avg(observations, o => Number(o.emotionScore)).toFixed(1) : "-";
+      const urgeAvg = observations.length ? avg(observations, o => Number(o.urgeScore)).toFixed(1) : "-";
+      const practiceAvg = logs.length ? avg(logs, l => Number(l.score)).toFixed(1) : "-";
+      const expansionAvg = checkins.length ? avg(checkins, c => Number(c.expansionScore)).toFixed(1) : "-";
+      box.innerHTML = `
+        <div class="simple-metric-grid">
+          <div><strong>${observations.length}</strong><span>관찰기록</span></div>
+          <div><strong>${logs.length}</strong><span>실천기록</span></div>
+          <div><strong>${checkins.length}</strong><span>하루 돌아보기</span></div>
+          <div><strong>${actionDays.size}</strong><span>문제행동 기록일</span></div>
+        </div>
+        <div class="summary-box simple-summary">
+${trendRangeLabel()} 평균
+감정 ${emotionAvg} · 충동 ${urgeAvg}
+실천 수행도 ${practiceAvg} · 삶의 경험 확장 ${expansionAvg}
+        </div>
+      `;
+    }
+    function renderSimpleMindTrend() {
+      const box = $("#trendSimpleMind");
+      if (!box) return;
+      const rows = simpleTrendDates().map(day => {
+        const dayObservations = activeObservations().filter(o => sameRecordDate(o, day));
+        const emotion = avg(dayObservations, o => Number(o.emotionScore));
+        const urge = avg(dayObservations, o => Number(o.urgeScore));
+        const value = dayObservations.length ? (emotion + urge) / 2 : 0;
+        const detail = dayObservations.length ? `감정 ${emotion.toFixed(1)} · 충동 ${urge.toFixed(1)}` : "기록 없음";
+        return simpleBarRow(day.slice(5).replace("-", "/"), value, detail, "mind");
+      }).join("");
+      box.innerHTML = `<div class="simple-trend-list">${rows}</div>`;
+    }
+    function renderSimpleExpansionTrend() {
+      const box = $("#trendSimpleExpansion");
+      if (!box) return;
+      const checkins = activeDailyCheckins();
+      const rows = simpleTrendDates().map(day => {
+        const checkin = checkins.find(c => c.date === day);
+        const value = checkin ? Number(checkin.expansionScore) : 0;
+        const detail = checkin ? `${value}/10` : "기록 없음";
+        return simpleBarRow(day.slice(5).replace("-", "/"), value, detail, "expansion");
+      }).join("");
+      box.innerHTML = `<div class="simple-trend-list">${rows}</div>`;
+    }
+    function renderSimplePracticeTrend() {
+      const box = $("#trendSimplePractice");
+      if (!box) return;
+      const logs = activeLogs();
+      const rows = simpleTrendDates().map(day => {
+        const dayLogs = logs.filter(l => sameRecordDate(l, day));
+        const value = averageDailyLogScore(dayLogs);
+        const detail = dayLogs.length ? `${value.toFixed(1)}/10 · ${dayLogs.length}건` : "기록 없음";
+        return simpleBarRow(day.slice(5).replace("-", "/"), value, detail, "practice");
+      }).join("");
+      box.innerHTML = `<div class="simple-trend-list">${rows}</div>`;
+    }
+    function renderSimpleQuestions() {
+      const box = $("#trendSimpleQuestions");
+      if (!box) return;
+      const days = trendRangeDays();
+      const observations = recentObservations(days);
+      const logs = recentLogs(days);
+      const highEmotion = observations.slice().sort((a, b) => Number(b.emotionScore) - Number(a.emotionScore))[0];
+      const highUrge = observations.slice().sort((a, b) => Number(b.urgeScore) - Number(a.urgeScore))[0];
+      const helpfulCoping = observations.slice().filter(o => o.coping && Number(o.copingScore) >= 6).sort((a, b) => Number(b.copingScore) - Number(a.copingScore))[0];
+      const lowPractice = logs.length && avg(logs, l => Number(l.score)) < 5;
+      const items = [
+        highEmotion ? `가장 감정이 강했던 날(${recordDate(highEmotion)})에는 무엇이 먼저 시작되었나요?` : "이번 기간에 가장 기억나는 감정 장면은 무엇인가요?",
+        highUrge ? `충동이 올라왔던 순간(${recordDate(highUrge)})에 행동으로 이어지기 전 틈이 있었나요?` : "충동이 크지 않았던 날에는 무엇이 도움이 되었나요?",
+        helpfulCoping ? `도움이 컸던 대처(${helpfulCoping.coping})를 다음에도 쓸 수 있을까요?` : "다음에 감정이 올라오면 가장 먼저 시도할 대처는 무엇인가요?",
+        lowPractice ? "실천행동을 더 작게 줄이면 다시 시작하기 쉬울까요?" : "다음 24시간 안에 이어갈 가장 작은 가치 행동은 무엇인가요?"
+      ];
+      box.innerHTML = `<ul class="simple-question-list">${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+    }
     function renderTrend() {
-      renderWeeklyHighlights();
-      renderProblemBehaviorCalendar();
-      renderExpansionTrend();
-      renderTrendLineChart();
-      renderTrendMovingAverage();
-      renderTrendBars();
-      renderEmotionUrgeScatter();
-      renderTriggerCorrelation();
-      renderWorrySection();
-      $("#patternSummary").textContent = buildReflectionSummary();
+      renderSimpleSummary();
+      renderSimpleMindTrend();
+      renderSimpleExpansionTrend();
+      renderSimplePracticeTrend();
+      renderSimpleQuestions();
     }
     function countTags(values) {
       const counts = {};
@@ -3662,7 +3759,7 @@ const TEXT_LIMITS = {
         }
         if (!saveData()) return;
         renderAll();
-        showToast("오늘 하루 마무리를 저장했습니다.");
+        showToast("오늘 하루 돌아보기를 저장했습니다.");
       });
       $("#rangeButtons").addEventListener("click", e => {
         const b = e.target.closest("button");

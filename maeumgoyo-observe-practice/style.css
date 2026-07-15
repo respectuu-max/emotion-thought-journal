@@ -298,6 +298,66 @@
       line-height: 1.6;
       min-height: 180px;
     }
+    .simple-summary { min-height: 0; margin-top: 10px; }
+    .simple-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .simple-metric-grid div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfb;
+      padding: 10px;
+      min-width: 0;
+    }
+    .simple-metric-grid strong {
+      display: block;
+      font-size: 22px;
+      color: var(--brand-dark);
+      line-height: 1.1;
+    }
+    .simple-metric-grid span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .simple-trend-list { display: grid; gap: 8px; margin-top: 10px; }
+    .simple-trend-row {
+      display: grid;
+      grid-template-columns: 50px minmax(0, 1fr) 112px;
+      gap: 8px;
+      align-items: center;
+    }
+    .simple-trend-label,
+    .simple-trend-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .simple-trend-note { text-align: right; }
+    .simple-trend-track {
+      height: 12px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .simple-trend-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--brand);
+    }
+    .simple-trend-fill.mind { background: var(--danger); }
+    .simple-trend-fill.expansion { background: var(--brand); }
+    .simple-trend-fill.practice { background: var(--accent); }
+    .simple-question-list {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.65;
+    }
+    .simple-question-list li { margin-bottom: 6px; }
     .backup-warning { color: var(--danger); font-weight: 800; }
     .toast {
       position: fixed;
@@ -357,4 +417,7 @@
       .record-actions { display: grid; grid-template-columns: 1fr; }
       .record-actions button { width: 100%; }
       .chart-wrap { height: 280px; }
+      .simple-metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .simple-trend-row { grid-template-columns: 44px minmax(0, 1fr); }
+      .simple-trend-note { grid-column: 2; text-align: left; }
     }

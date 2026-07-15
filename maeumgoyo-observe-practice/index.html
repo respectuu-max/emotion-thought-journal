@@ -64,6 +64,23 @@
           <p class="small"><strong>3.</strong> 상담 전에 기록을 상담자에게 보냅니다.</p>
         </div>
         <div class="plain-card" style="margin-top:10px;">
+          <h3>오늘 하루 돌아보기</h3>
+          <p class="small">오늘 문제행동이 줄었는지만이 아니라, 삶의 경험이 조금이라도 넓어졌는지도 함께 돌아봅니다.</p>
+          <div class="slider-card">
+            <div class="slider-top"><span>삶의 확장감과 만족도</span><span class="slider-value" id="expansionScoreValue">5</span></div>
+            <input id="expansionScore" type="range" min="0" max="10" value="5" aria-label="삶의 확장감과 만족도">
+            <div class="small score-help" id="expansionScoreHelp"></div>
+          </div>
+          <details class="form-row" id="expansionNoteDetails">
+            <summary>오늘 그렇게 느끼게 한 순간 (선택)</summary>
+            <div style="height:8px"></div>
+            <textarea id="expansionNote" maxlength="160" placeholder="예: 저녁에 오랜만에 친구와 산책"></textarea>
+          </details>
+          <div style="height:8px"></div>
+          <button class="solid-btn full" id="saveDailyCheckin" type="button">오늘 하루 돌아보기 저장</button>
+          <div class="small" id="dailyCheckinStatus" style="margin-top:8px;"></div>
+        </div>
+        <div class="plain-card" style="margin-top:10px;">
           <h3>처음 사용 안내</h3>
           <p class="small">1. 오늘 마음과 행동을 관찰합니다.</p>
           <p class="small">2. 내가 중요하게 여기는 가치에서 작은 실천행동을 정합니다.</p>
@@ -96,23 +113,6 @@
           <div id="cleanStreakCard"></div>
           <div class="card-divider"></div>
           <div id="relapseStatusCard"></div>
-        </div>
-        <div class="plain-card" style="margin-top:10px;">
-          <h3>오늘 하루 마무리</h3>
-          <p class="small">문제행동이 아닌 다른 방향으로 오늘 하루가 조금이라도 넓어지고, 그것이 만족스러웠나요?</p>
-          <div class="slider-card">
-            <div class="slider-top"><span>삶의 확장감과 만족도</span><span class="slider-value" id="expansionScoreValue">5</span></div>
-            <input id="expansionScore" type="range" min="0" max="10" value="5" aria-label="삶의 확장감과 만족도">
-            <div class="small score-help" id="expansionScoreHelp"></div>
-          </div>
-          <details class="form-row" id="expansionNoteDetails">
-            <summary>오늘 그렇게 느끼게 한 순간 (선택)</summary>
-            <div style="height:8px"></div>
-            <textarea id="expansionNote" maxlength="160" placeholder="예: 저녁에 오랜만에 친구와 산책"></textarea>
-          </details>
-          <div style="height:8px"></div>
-          <button class="solid-btn full" id="saveDailyCheckin" type="button">오늘 마무리 저장</button>
-          <div class="small" id="dailyCheckinStatus" style="margin-top:8px;"></div>
         </div>
         <div class="section-head">
           <h2>오늘의 관찰과 작은 실천</h2>
@@ -207,7 +207,7 @@
             <div style="height:12px"></div>
             <div class="wizard-nav">
               <div class="wizard-nav-top">
-                <div class="wizard-step-title" id="observeStepTitle" aria-live="polite">1 · 문제상황과 촉발단서</div>
+                <div class="wizard-step-title" id="observeStepTitle" aria-live="polite">1 · 경험한 문제와 상황</div>
                 <button class="quick-save-btn" type="button" id="observeQuickSave">지금까지 저장</button>
               </div>
               <div class="wizard-dots" id="observeStepDots" aria-hidden="true">
@@ -234,15 +234,15 @@
                 </div>
               </div>
               <div class="form-row">
-                <label><span class="q-number" aria-hidden="true">2</span>문제 행동 영역</label>
+                <label><span class="q-number" aria-hidden="true">2</span>경험한 문제</label>
                 <div class="chip-row" id="behaviorChips"></div>
                 <div style="height:8px"></div>
-                <input id="behaviorCustom" maxlength="160" placeholder="기타 영역 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
-                <div class="small">여기서는 어떤 영역에 대한 감정·생각·충동인지 고릅니다. 여러 영역을 함께 선택할 수 있고, 실제 행동 여부와 정도는 아래 문제행동 활성화 수준에서 기록합니다.</div>
+                <input id="behaviorCustom" maxlength="160" placeholder="기타 문제 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
+                <div class="small">여기서 경험한 문제란 스트레스, 부정적 감정, 반복되는 생각, 몸반응, 충동, 회피, 관계 갈등, 중독행동 또는 문제행동을 포함합니다.</div>
               </div>
               <div class="form-row">
-                <label for="situation"><span class="q-number" aria-hidden="true">3</span>문제 촉발 상황</label>
-                <textarea id="situation" maxlength="600" placeholder="어떤 상황에서, 문제되는 생각이나 감정/충동을 느끼고 문제 행동이 자극되었나요? (언제, 어디서, 무슨 일이 있었는지)"></textarea>
+                <label for="situation"><span class="q-number" aria-hidden="true">3</span>그 문제가 시작된 상황</label>
+                <textarea id="situation" maxlength="600" placeholder="언제, 어디서, 누구와, 어떤 일이 있었나요? 그때 스트레스나 부정적 감정이 어떻게 시작되었나요?"></textarea>
               </div>
               <details class="form-row" id="triggerDetails">
                 <summary>촉발 단서 추가하기 (선택)</summary>
@@ -530,52 +530,34 @@
             <button type="button" data-days="all">전체</button>
           </div>
         </div>
-        <div id="weeklyHighlights" style="margin-bottom:12px;"></div>
-        <div class="plain-card" style="margin-bottom:12px;">
-          <h3>문제행동 캘린더</h3>
-          <p class="small">최근 10주를 한눈에 봅니다. 기록이 없는 날은 실패로 세지 않습니다.</p>
-          <div id="problemBehaviorCalendar" style="margin-top:8px;"></div>
-          <div class="card-divider"></div>
-          <h3>삶의 확장감과 만족도 추이</h3>
-          <p class="small">문제행동이 줄어드는 것과 삶이 넓어지는 것은 다른 질문입니다. 두 그래프를 나란히 비교해보세요.</p>
-          <div id="expansionTrend" style="margin-top:8px;"></div>
+        <div class="lead">
+          추세보기는 진단이나 평가가 아니라, 내가 요즘 어떤 흐름 속에 있는지 가볍게 확인하는 화면입니다. 자세한 분석은 상담 시간에 함께 다룹니다.
         </div>
-        <div class="plain-card" style="margin-bottom:12px;">
-          <h3>걱정 확인</h3>
-          <p class="small">기록해둔 걱정이 실제로 어떻게 됐는지 돌아봅니다. 생각이 맞았는지 틀렸는지를 따지려는 것이 아니라, 예상과 실제 사이의 차이를 있는 그대로 보기 위한 것입니다.</p>
-          <div id="worrySummary" style="margin-top:8px;"></div>
-          <div id="worryPendingList" class="list" style="margin-top:10px;"></div>
+        <div class="grid">
+          <div class="card">
+            <h2>이번 기간 한눈에 보기</h2>
+            <div id="trendSimpleSummary"></div>
+          </div>
+          <div class="card">
+            <h2>마음 흐름</h2>
+            <p class="small">감정과 충동이 높고 낮았던 흐름만 간단히 봅니다.</p>
+            <div id="trendSimpleMind"></div>
+          </div>
+          <div class="card">
+            <h2>삶의 경험 확장</h2>
+            <p class="small">문제가 줄었는지만이 아니라 삶의 경험이 조금이라도 넓어졌는지 확인합니다.</p>
+            <div id="trendSimpleExpansion"></div>
+          </div>
+          <div class="card">
+            <h2>작은 실천</h2>
+            <p class="small">완벽하게 했는지보다 다시 시도하고 이어가는 흐름을 봅니다.</p>
+            <div id="trendSimplePractice"></div>
+          </div>
+          <div class="card">
+            <h2>상담에서 함께 볼 질문</h2>
+            <div id="trendSimpleQuestions"></div>
+          </div>
         </div>
-        <details class="plain-card">
-          <summary style="cursor:pointer; font-weight:800;">더 자세히 살펴보기 (그래프 · 패턴 요약)</summary>
-          <div style="height:10px"></div>
-          <div class="grid">
-            <div class="card">
-              <h2>관찰과 실천 함께 보기</h2>
-              <p class="small">완벽한 성공보다 변화의 방향을 봅니다.</p>
-              <div id="trendLineChart"></div>
-              <div id="trendMovingAverage" class="trend-bars" style="margin-top:12px;"></div>
-              <details class="form-row" style="margin-top:10px;">
-                <summary>일별 상세 보기</summary>
-                <div style="height:8px"></div>
-                <div id="trendBars" class="trend-bars"></div>
-              </details>
-            </div>
-            <div class="card">
-              <h2>패턴 요약</h2>
-              <div id="patternSummary" class="summary-box"></div>
-            </div>
-          </div>
-          <div class="plain-card" style="margin-top:14px;">
-            <h3>감정·충동 산점도</h3>
-            <p class="small">감정과 충동이 함께 얼마나 높았는지, 그리고 그 순간 문제행동이 있었는지를 한 화면에서 봅니다.</p>
-            <div id="emotionUrgeScatter" style="margin-top:8px;"></div>
-          </div>
-          <div class="plain-card" style="margin-top:14px;">
-            <h3>촉발 단서와 충동의 관계</h3>
-            <div id="triggerCorrelation"></div>
-          </div>
-        </details>
       </section>
 
       <section class="view" id="relapseView">
@@ -776,7 +758,7 @@
           </div>
           <div class="card">
             <h2>안전한 언어 설정 (화면 표시용)</h2>
-            <p class="small">문제 행동 영역은 원래 이름 그대로 자유롭게 선택할 수 있습니다. 다만 화면에 그 단어가 그대로 보이는 것이 부담스럽다면, 항목별로 별칭을 지정해 화면에는 별칭만 보이도록 할 수 있습니다. CSV로 상담자에게 전달되는 실제 자료는 항목 이름이 그대로 유지되어 분석에는 영향이 없습니다.</p>
+            <p class="small">경험한 문제 항목은 원래 이름 그대로 자유롭게 선택할 수 있습니다. 다만 화면에 그 단어가 그대로 보이는 것이 부담스럽다면, 항목별로 별칭을 지정해 화면에는 별칭만 보이도록 할 수 있습니다. CSV로 상담자에게 전달되는 실제 자료는 항목 이름이 그대로 유지되어 분석에는 영향이 없습니다.</p>
             <div class="form-row">
               <label for="aliasTarget">별칭을 적용할 항목</label>
               <select id="aliasTarget"></select>
