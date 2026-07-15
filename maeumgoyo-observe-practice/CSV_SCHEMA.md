@@ -40,6 +40,22 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 | `range_days` | 내보낼 때 선택한 기간을 나타내는 기계 판독용 값. `7` / `14` / `28` 처럼 숫자이거나, 전체 기간이면 문자열 `"all"`. 사람이 읽는 기간 표현("최근 1주" 등)은 CSV에는 넣지 않고, 상담자 요약 텍스트에만 사용합니다. |
 | `payload_json` | record_type별 세부 자료 JSON |
 
+## 상담분석실 행복도 연동
+
+CSV의 마지막 레코드 `payload_json`에는 아래 선택 필드가 포함될 수 있습니다. 별도 CSV 열은 추가하지 않습니다.
+
+| 필드 | 표시명 | 형식 |
+| --- | --- | --- |
+| `personal_life_happiness` | 개인생활행복도 | 0~100 정수 |
+| `intimate_relationship_happiness` | 친밀관계행복도 | 0~100 정수 |
+| `social_life_happiness` | 사회생활행복도 | 0~100 정수 |
+| `overall_happiness` | 전반적행복도 | 0~100 정수 |
+
+- 네 값은 서로 독립적인 직접 평정값이며, 합계나 평균을 계산하지 않습니다.
+- `0`과 `100`은 모두 유효합니다.
+- 필드가 없거나 값이 유효하지 않으면 해당 값만 비어 있는 것으로 처리합니다.
+- CSV를 다시 저장할 때 유효한 행복도 값과 기존의 알 수 없는 `payload_json` 필드를 보존합니다.
+
 ## observation payload
 
 ```json
@@ -241,6 +257,7 @@ schema_version,record_type,id,date,updated_at,exported_at,client_alias,share_mod
 
 | 시점 | 추가/변경 내용 |
 | --- | --- |
+| v89 행복도 연동 | CSV 마지막 레코드의 `payload_json`에 선택 필드 `personal_life_happiness`, `intimate_relationship_happiness`, `social_life_happiness`, `overall_happiness` 추가. 모두 0~100 정수이며, 기존 알 수 없는 payload 필드는 재저장 시 보존. |
 | 구조 정리(현재, `maeumgoyo_csv_v1`) | 이전 버전과의 호환을 고려하지 않고 구조를 다시 정리: (1) `archived`를 모든 record_type에서 문자열 `"0"`/`"1"`이 아닌 진짜 JSON 불리언(`true`/`false`)으로 통일. (2) `emotion_custom`, `body_custom`을 다른 자유 입력 필드와 동일하게 배열로 통일. (3) `reminder_times`를 `custom_days`와 동일하게 배열로 통일. (4) `pleasure_score`/`mastery_score`의 평균을 미리 계산해 저장하던 파생 필드 `practice_score`를 제거. (5) 가져오기 검증에서 모든 필드가 실제로 존재하는지(타입뿐 아니라 존재 여부까지) 확인하도록 강화하고, `observation`의 `archived` 검증 누락을 수정. (6) 이 문서의 JSON 예시를 실제 내보내기 코드와 한 줄씩 대조해 일치시킴. |
 | 정리 시점 | 이전까지의 모든 필드를 정리해 새 기준 버전으로 통합. `range_label`(문자열) → `range_days`(기계 판독용 숫자/`"all"`)로 교체. CSV 가져오기가 upsert(신규 추가 + 최신 갱신) 방식으로 동작하도록 변경. |
 | 이전 이력 1 | `observation`, `practice_definition`, `practice_log` 3개 record_type과 공통 열 구조 도입 (넓은 표 구조에서 전환) |

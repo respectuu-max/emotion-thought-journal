@@ -1,6 +1,13 @@
-const APP_VERSION = "v88"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v89"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
+const HAPPINESS_FIELDS = [
+  "personal_life_happiness",
+  "intimate_relationship_happiness",
+  "social_life_happiness",
+  "overall_happiness"
+];
+const CSV_RECORD_TYPES = ["observation", "practice_definition", "practice_log", "prediction", "daily_checkin"];
 const LEGACY_STORAGE_KEY = "maeumgoyo.observePractice.v1";
 const STORAGE_KEY = "maeumgoyo.observePractice.v2";
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
@@ -146,7 +153,7 @@ const TEXT_LIMITS = {
       shareRange: 7,
       trendRange: 14,
       shareMode: "counselorDetail",
-      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "", onboardingSeen: false } },
+      data: { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], csvInterop: { happiness: {} }, settings: { alias: "", behaviorAliases: {}, noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "", onboardingSeen: false } },
       lastActive: Date.now()
     };
 
@@ -179,6 +186,35 @@ const TEXT_LIMITS = {
       return date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
     }
     function escapeCsv(value) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
+    function isPlainObject(value) {
+      return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+    }
+    function normalizeHappiness(value) {
+      const source = isPlainObject(value) ? value : {};
+      const result = {};
+      HAPPINESS_FIELDS.forEach(key => {
+        const score = source[key];
+        if (Number.isInteger(score) && score >= 0 && score <= 100) result[key] = score;
+      });
+      return result;
+    }
+    function normalizePreservedPayload(value) {
+      if (!isPlainObject(value)) return {};
+      const result = { ...value };
+      HAPPINESS_FIELDS.forEach(key => delete result[key]);
+      return result;
+    }
+    function payloadForExport(record, knownPayload) {
+      return { ...normalizePreservedPayload(record && record._payloadJson), ...knownPayload };
+    }
+    function happinessFromLastCsvRows(rows, payloadIndex) {
+      const lastRow = rows[rows.length - 1] || [];
+      try {
+        return normalizeHappiness(JSON.parse(lastRow[payloadIndex] || "{}"));
+      } catch {
+        return {};
+      }
+    }
     function thoughtScoreText(score) {
       const value = clampNumber(score, 0, 10, 0);
       return [
@@ -409,6 +445,7 @@ const TEXT_LIMITS = {
       const avoidanceCustomValue = Array.isArray(record.avoidanceCustom) ? record.avoidanceCustom.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       return {
         ...record,
+        _payloadJson: normalizePreservedPayload(record._payloadJson),
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
         date: cleanDate(record.date),
         mode: cleanText(record.mode, TEXT_LIMITS.short) || "저녁",
@@ -448,6 +485,7 @@ const TEXT_LIMITS = {
       const frequency = ["daily", "1week", "3week", "custom"].includes(record.frequency) ? record.frequency : "daily";
       return {
         ...record,
+        _payloadJson: normalizePreservedPayload(record._payloadJson),
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
         value: cleanText(record.value, TEXT_LIMITS.short),
         name: cleanMultiline(record.name, TEXT_LIMITS.medium),
@@ -470,6 +508,7 @@ const TEXT_LIMITS = {
       const masteryScore = clampNumber(record.masteryScore, 0, 10, legacyScore);
       return {
         ...record,
+        _payloadJson: normalizePreservedPayload(record._payloadJson),
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
         practiceId: cleanText(record.practiceId, TEXT_LIMITS.medium),
         date: cleanDate(record.date),
@@ -486,6 +525,7 @@ const TEXT_LIMITS = {
     const PREDICTION_STATUSES = ["pending", "occurred", "partial", "did_not_occur"];
     function normalizePrediction(record) {
       return {
+        _payloadJson: normalizePreservedPayload(record._payloadJson),
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
         date: cleanDate(record.date),
         relatedObservationId: cleanText(record.relatedObservationId, TEXT_LIMITS.medium),
@@ -501,6 +541,7 @@ const TEXT_LIMITS = {
     }
     function normalizeDailyCheckin(record) {
       return {
+        _payloadJson: normalizePreservedPayload(record._payloadJson),
         id: cleanText(record.id, TEXT_LIMITS.medium) || uid(),
         date: cleanDate(record.date),
         expansionScore: clampNumber(record.expansionScore, 0, 10, 5),
@@ -532,6 +573,8 @@ const TEXT_LIMITS = {
     }
     function normalizeData(data) {
       const settings = data.settings || {};
+      const csvInterop = isPlainObject(data.csvInterop) ? data.csvInterop : {};
+      const fallback = isPlainObject(csvInterop.fallbackRecord) ? csvInterop.fallbackRecord : null;
       return {
         schemaVersion: APP_SCHEMA_VERSION,
         observations: Array.isArray(data.observations) ? data.observations.map(normalizeObservation) : [],
@@ -539,6 +582,16 @@ const TEXT_LIMITS = {
         logs: Array.isArray(data.logs) ? data.logs.map(normalizeLog) : [],
         predictions: Array.isArray(data.predictions) ? data.predictions.map(normalizePrediction) : [],
         dailyCheckins: Array.isArray(data.dailyCheckins) ? data.dailyCheckins.map(normalizeDailyCheckin) : [],
+        csvInterop: {
+          happiness: normalizeHappiness(csvInterop.happiness),
+          fallbackRecord: fallback && CSV_RECORD_TYPES.includes(fallback.recordType) && fallback.id ? {
+            recordType: fallback.recordType,
+            id: cleanText(fallback.id, TEXT_LIMITS.medium),
+            date: fallback.recordType === "practice_definition" ? "" : cleanDate(fallback.date),
+            updatedAt: fallback.updatedAt || new Date().toISOString(),
+            payload: normalizePreservedPayload(fallback.payload)
+          } : null
+        },
         settings: {
           alias: cleanText(settings.alias, TEXT_LIMITS.short),
           behaviorAliases: normalizeBehaviorAliases(settings.behaviorAliases),
@@ -569,7 +622,7 @@ const TEXT_LIMITS = {
         state.data = normalizeData(parsed);
         if (!current && legacy) saveData();
       } catch {
-        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "", onboardingSeen: false } };
+        state.data = { schemaVersion: APP_SCHEMA_VERSION, observations: [], practices: [], logs: [], predictions: [], dailyCheckins: [], csvInterop: { happiness: {} }, settings: { alias: "", noRecordReminderTime: "20:00", safetyContacts: [], weeklyFocus: "", onboardingSeen: false } };
         showToast("저장된 기록을 읽지 못해 새 기록 공간으로 시작합니다.");
       }
     }
@@ -2549,7 +2602,7 @@ const TEXT_LIMITS = {
       };
 
       observations.forEach(o => {
-        addRow("observation", o.id, o.date, o.updatedAt, {
+        addRow("observation", o.id, o.date, o.updatedAt, payloadForExport(o, {
           time_slot: o.mode || "",
           behavior_areas: Array.isArray(o.behaviorAreas) ? o.behaviorAreas : splitBehaviorCustom(o.behavior || ""),
           behavior_custom_areas: Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : [],
@@ -2578,11 +2631,11 @@ const TEXT_LIMITS = {
           value: o.value || "",
           value_action_draft: o.valueActionDraft || "",
           archived: Boolean(o.archived)
-        });
+        }));
       });
 
       state.data.practices.forEach(p => {
-        addRow("practice_definition", p.id, "", p.updatedAt, {
+        addRow("practice_definition", p.id, "", p.updatedAt, payloadForExport(p, {
           practice_value: p.value || "",
           practice_name: p.name || "",
           practice_reason: p.reason || "",
@@ -2595,12 +2648,12 @@ const TEXT_LIMITS = {
           barriers: p.barriers || "",
           small_version: p.smallVersion || "",
           archived: Boolean(p.archived)
-        });
+        }));
       });
 
       logs.forEach(l => {
         const p = state.data.practices.find(x => x.id === l.practiceId) || {};
-        addRow("practice_log", l.id, l.date, l.updatedAt, {
+        addRow("practice_log", l.id, l.date, l.updatedAt, payloadForExport(l, {
           practice_id: l.practiceId || "",
           practice_value: p.value || "",
           practice_name: p.name || "",
@@ -2611,12 +2664,12 @@ const TEXT_LIMITS = {
           expected_mastery_score: l.expectedMasteryScore ?? "",
           practice_note: l.note || "",
           archived: Boolean(l.archived)
-        });
+        }));
       });
 
       const predictions = fullBackup ? (state.data.predictions || []).slice() : rangeRecords(activePredictions());
       predictions.forEach(pr => {
-        addRow("prediction", pr.id, pr.date, pr.updatedAt, {
+        addRow("prediction", pr.id, pr.date, pr.updatedAt, payloadForExport(pr, {
           related_observation_id: pr.relatedObservationId || "",
           worry_text: pr.worryText || "",
           predicted_severity: pr.predictedSeverity ?? 5,
@@ -2625,17 +2678,28 @@ const TEXT_LIMITS = {
           resolved_at: pr.resolvedAt || "",
           note: pr.note || "",
           archived: Boolean(pr.archived)
-        });
+        }));
       });
 
       const dailyCheckins = fullBackup ? (state.data.dailyCheckins || []).slice() : rangeRecords(activeDailyCheckins());
       dailyCheckins.forEach(c => {
-        addRow("daily_checkin", c.id, c.date, c.updatedAt, {
+        addRow("daily_checkin", c.id, c.date, c.updatedAt, payloadForExport(c, {
           expansion_score: c.expansionScore ?? 5,
           note: c.note || "",
           archived: Boolean(c.archived)
-        });
+        }));
       });
+
+      const happiness = normalizeHappiness(state.data.csvInterop && state.data.csvInterop.happiness);
+      const fallback = state.data.csvInterop && state.data.csvInterop.fallbackRecord;
+      if (rows.length === 1 && Object.keys(happiness).length && fallback && CSV_RECORD_TYPES.includes(fallback.recordType)) {
+        addRow(fallback.recordType, fallback.id, fallback.date, fallback.updatedAt, normalizePreservedPayload(fallback.payload));
+      }
+      if (rows.length > 1) {
+        const lastRow = rows[rows.length - 1];
+        const lastPayload = JSON.parse(lastRow[9] || "{}");
+        lastRow[9] = JSON.stringify({ ...lastPayload, ...happiness });
+      }
 
       const csv = rows.map(row => row.map(escapeCsv).join(",")).join("\n");
       const nameMode = fullBackup ? "전체백업" : "상담자치료자료";
@@ -2786,7 +2850,7 @@ const TEXT_LIMITS = {
         errors.push("첫 행은 현재 규격의 10개 열과 순서가 정확히 일치해야 합니다.");
         return { errors, warnings };
       }
-      const allowedTypes = new Set(["observation", "practice_definition", "practice_log", "prediction", "daily_checkin"]);
+        const allowedTypes = new Set(CSV_RECORD_TYPES);
       const validDate = value => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
         const parsed = new Date(value + "T00:00:00Z");
@@ -2840,6 +2904,11 @@ const TEXT_LIMITS = {
           payload = null;
         }
         if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+          HAPPINESS_FIELDS.forEach(key => {
+            if (key in payload && !(Number.isInteger(payload[key]) && payload[key] >= 0 && payload[key] <= 100)) {
+              warnings.push(`${line}행: ${key}는 0-100 범위 정수가 아니어서 무시됩니다.`);
+            }
+          });
           if (type === "observation") {
             ["behavior_areas", "behavior_custom_areas", "emotion_custom", "body_reactions", "body_custom", "trigger_places", "trigger_people", "trigger_times", "trigger_custom", "avoidance_tags", "avoidance_custom"].forEach(key => expectArray(payload, key, line));
             ["time_slot", "emotion", "situation", "thought_text", "coping", "gratitude", "insight", "value", "value_action_draft"].forEach(key => expectString(payload, key, line));
@@ -2949,6 +3018,24 @@ const TEXT_LIMITS = {
           daily_checkin: { added: 0, updated: 0 }
         };
         const dataBeforeImport = JSON.parse(JSON.stringify(state.data));
+        const lastSourceRow = rows[rows.length - 1] || [];
+        let lastSourcePayload = {};
+        try {
+          lastSourcePayload = JSON.parse(cell(lastSourceRow, "payload_json") || "{}");
+        } catch {
+          lastSourcePayload = {};
+        }
+        state.data.csvInterop = {
+          happiness: happinessFromLastCsvRows(rows, index.payload_json),
+          fallbackRecord: {
+            recordType: cell(lastSourceRow, "record_type"),
+            id: cell(lastSourceRow, "id"),
+            date: cell(lastSourceRow, "date"),
+            updatedAt: cell(lastSourceRow, "updated_at"),
+            payload: normalizePreservedPayload(lastSourcePayload)
+          }
+        };
+        const restoredHappinessCount = Object.keys(state.data.csvInterop.happiness).length;
         rows.forEach(row => {
           if (cell(row, "schema_version") !== CSV_SCHEMA_VERSION) return;
           const type = cell(row, "record_type");
@@ -2967,6 +3054,7 @@ const TEXT_LIMITS = {
             const behaviorAreas = Array.isArray(payload.behavior_areas) ? payload.behavior_areas : splitBehaviorCustom(payload.behavior_areas);
             const behaviorCustomAreas = Array.isArray(payload.behavior_custom_areas) ? payload.behavior_custom_areas : splitBehaviorCustom(payload.behavior_custom_areas);
             const record = {
+              _payloadJson: normalizePreservedPayload(payload),
               id,
               date: cleanDate(cell(row, "date") || todayISO()),
               mode: cleanText(payload.time_slot || "가져오기", TEXT_LIMITS.short),
@@ -3010,6 +3098,7 @@ const TEXT_LIMITS = {
             const existing = existingIndex >= 0 ? state.data.practices[existingIndex] : null;
             if (!shouldUpsert(existing, updatedAt)) return;
             const record = {
+              _payloadJson: normalizePreservedPayload(payload),
               id,
               value: cleanText(payload.practice_value, TEXT_LIMITS.short),
               name: cleanMultiline(payload.practice_name, TEXT_LIMITS.medium),
@@ -3037,6 +3126,7 @@ const TEXT_LIMITS = {
             const practiceId = payload.practice_id || "";
             if (practiceId && !state.data.practices.some(p => p.id === practiceId)) {
               state.data.practices.push({
+                _payloadJson: {},
                 id: practiceId,
                 value: cleanText(payload.practice_value, TEXT_LIMITS.short),
                 name: cleanMultiline(payload.practice_name, TEXT_LIMITS.medium),
@@ -3056,6 +3146,7 @@ const TEXT_LIMITS = {
             const pleasureScore = clampNumber(payload.pleasure_score, 0, 10, 0);
             const masteryScore = clampNumber(payload.mastery_score, 0, 10, 0);
             const record = {
+              _payloadJson: normalizePreservedPayload(payload),
               id,
               practiceId,
               date: cleanDate(cell(row, "date") || todayISO()),
@@ -3078,6 +3169,7 @@ const TEXT_LIMITS = {
             const existing = existingIndex >= 0 ? state.data.predictions[existingIndex] : null;
             if (!shouldUpsert(existing, updatedAt)) return;
             const record = {
+              _payloadJson: normalizePreservedPayload(payload),
               id,
               date: cleanDate(cell(row, "date") || todayISO()),
               relatedObservationId: cleanText(payload.related_observation_id, TEXT_LIMITS.medium),
@@ -3102,6 +3194,7 @@ const TEXT_LIMITS = {
             if (!shouldUpsert(existing, updatedAt)) return;
             const id = existing ? existing.id : importedId;
             const record = {
+              _payloadJson: normalizePreservedPayload(payload),
               id,
               date: importedDate,
               expansionScore: clampNumber(payload.expansion_score, 0, 10, 5),
@@ -3118,7 +3211,7 @@ const TEXT_LIMITS = {
           return;
         }
         renderAll();
-        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 신규 ${stats.observation.added}개/갱신 ${stats.observation.updated}개, 실천행동 신규 ${stats.practice_definition.added}개/갱신 ${stats.practice_definition.updated}개, 수행도 신규 ${stats.practice_log.added}개/갱신 ${stats.practice_log.updated}개, 걱정기록 신규 ${stats.prediction.added}개/갱신 ${stats.prediction.updated}개, 하루마무리 신규 ${stats.daily_checkin.added}개/갱신 ${stats.daily_checkin.updated}개`;
+        $("#importInfo").textContent = `CSV를 가져왔습니다: 관찰 신규 ${stats.observation.added}개/갱신 ${stats.observation.updated}개, 실천행동 신규 ${stats.practice_definition.added}개/갱신 ${stats.practice_definition.updated}개, 수행도 신규 ${stats.practice_log.added}개/갱신 ${stats.practice_log.updated}개, 걱정기록 신규 ${stats.prediction.added}개/갱신 ${stats.prediction.updated}개, 하루마무리 신규 ${stats.daily_checkin.added}개/갱신 ${stats.daily_checkin.updated}개, 행복도 ${restoredHappinessCount}개 복원`;
         showToast("CSV를 가져왔습니다.");
       };
       reader.readAsText(file, "utf-8");
@@ -3177,7 +3270,7 @@ const TEXT_LIMITS = {
         updatedAt: new Date().toISOString()
       };
       const index = state.data.observations.findIndex(o => o.id === id);
-      if (index >= 0) state.data.observations[index] = entry;
+      if (index >= 0) state.data.observations[index] = { ...state.data.observations[index], ...entry };
       else state.data.observations.push(entry);
       const worryText = cleanMultiline($("#worryText").value, TEXT_LIMITS.long);
       if (worryText) {
