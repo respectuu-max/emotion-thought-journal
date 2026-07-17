@@ -1,4 +1,4 @@
-const APP_VERSION = "v91"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v95"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -41,7 +41,16 @@ const TEXT_LIMITS = {
     };
     const emotions = ["불안", "외로움", "분노", "공허함", "수치심", "우울", "초조", "지루함", "피곤함", "무기력"];
     const bodies = ["가슴 답답함", "두근거림", "근육 긴장", "열감", "손 떨림", "시선 고정", "멍함", "얼어붙음", "호흡 짧음"];
-    const defaultBehaviors = ["도박", "성행동", "쇼핑", "음주", "게임", "스마트폰/인터넷", "회피/미루기", "분노표출", "과식", "자기비난", "무기력"];
+    const defaultBehaviors = ["도박", "성(sex)", "스트레스", "심심함", "분노/짜증", "불안/걱정", "외로움/공허함", "회피/무기력"];
+    const problemDomains = [
+      { value: "urge", label: "충동" },
+      { value: "emotion", label: "감정" },
+      { value: "thought", label: "생각" },
+      { value: "behavior", label: "행동" },
+      { value: "body", label: "몸반응" },
+      { value: "relationship", label: "관계/상황" },
+      { value: "unknown", label: "잘 모르겠음" }
+    ];
     const triggerPlaces = ["집", "직장/학교", "이동 중(차·대중교통)", "술자리/모임", "온라인/SNS"];
     const triggerPeople = ["혼자 있을 때", "특정 인물과 함께", "갈등 직후", "사교 모임 상황"];
     const triggerTimes = ["아침", "낮", "저녁", "밤/늦은 시간", "주말"];
@@ -140,6 +149,10 @@ const TEXT_LIMITS = {
       practiceValue: "",
       behavior: "",
       behaviorAreas: [],
+      problemDomain: "unknown",
+      problemDomainTouched: false,
+      problemAutofillTarget: "",
+      problemAutofillValue: "",
       emotion: "",
       emotionCustom: "",
       body: [],
@@ -437,6 +450,7 @@ const TEXT_LIMITS = {
       const body = Array.isArray(record.body) ? record.body.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       const behaviorAreas = Array.isArray(record.behaviorAreas) ? record.behaviorAreas.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       const behaviorCustomAreas = Array.isArray(record.behaviorCustomAreas) ? record.behaviorCustomAreas.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
+      const problemLabels = Array.isArray(record.problemLabels) ? record.problemLabels.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : behaviorAreas;
       const triggerPlacesValue = Array.isArray(record.triggerPlaces) ? record.triggerPlaces.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       const triggerPeopleValue = Array.isArray(record.triggerPeople) ? record.triggerPeople.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
       const triggerTimesValue = Array.isArray(record.triggerTimes) ? record.triggerTimes.map(item => cleanText(item, TEXT_LIMITS.short)).filter(Boolean).slice(0, 8) : [];
@@ -450,7 +464,9 @@ const TEXT_LIMITS = {
         date: cleanDate(record.date),
         mode: cleanText(record.mode, TEXT_LIMITS.short) || "저녁",
         behavior: cleanText(record.behavior, TEXT_LIMITS.medium),
-        behaviorAreas,
+        problemLabels,
+        problemDomain: normalizeProblemDomain(record.problemDomain || defaultProblemDomainForLabels(problemLabels)),
+        behaviorAreas: behaviorAreas.length ? behaviorAreas : problemLabels,
         behaviorCustomAreas,
         situation: cleanMultiline(record.situation, TEXT_LIMITS.long),
         triggerPlaces: triggerPlacesValue,
@@ -645,7 +661,7 @@ const TEXT_LIMITS = {
         button.classList.toggle("active", button.dataset.value === mode);
       });
       const curveBox = $("#urgeCurveBox");
-      if (curveBox) curveBox.classList.toggle("hidden", mode !== "충동 발생");
+      if (curveBox) curveBox.classList.toggle("hidden", mode !== "감정/충동 발생 시점");
     }
     function safetyContactsHtml() {
       const personal = state.data.settings.safetyContacts || [];
@@ -720,7 +736,7 @@ const TEXT_LIMITS = {
       formId: "observeForm", dotsId: "observeStepDots", titleId: "observeStepTitle", labelId: "observeStepLabel",
       backId: "observeStepBack", nextId: "observeStepNext", saveId: "observeStepSave", stepKey: "observeStep",
       titles: OBSERVE_STEP_TITLES, labels: OBSERVE_STEP_LABELS,
-      lastStepOnlyIds: ["sendToPractice", "sendToPracticeHint"]
+      lastStepOnlyIds: []
     });
     function renderObserveStep() { observeWizard.render(); }
     function goObserveStep(delta) { observeWizard.go(delta); }
@@ -744,7 +760,7 @@ const TEXT_LIMITS = {
       state.observeStep = 0;
       renderObserveStep();
       if (kind === "risk") {
-        setObserveMode("충동 발생");
+        setObserveMode("감정/충동 발생 시점");
         $("#urgeScore").value = 8;
         $("#urgeScoreValue").textContent = "8";
         paintIntensitySlider("urgeScore");
@@ -824,7 +840,8 @@ const TEXT_LIMITS = {
       const ordered = [];
       const sorted = activeObservations().slice().sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
       sorted.forEach(o => {
-        (Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : []).forEach(value => {
+        const customValues = Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : [];
+        customValues.forEach(value => {
           if (value && !defaultBehaviors.includes(value) && !seen.has(value)) {
             seen.add(value);
             ordered.push(value);
@@ -832,6 +849,130 @@ const TEXT_LIMITS = {
         });
       });
       return ordered;
+    }
+    function normalizeProblemDomain(value) {
+      const text = String(value || "").trim();
+      return problemDomains.some(item => item.value === text) ? text : "unknown";
+    }
+    function defaultProblemDomainForLabel(label) {
+      const text = String(label || "").trim();
+      const map = {
+        "도박": "urge",
+        "성(sex)": "urge",
+        "스트레스": "emotion",
+        "심심함": "emotion",
+        "분노/짜증": "emotion",
+        "불안/걱정": "thought",
+        "외로움/공허함": "emotion",
+        "회피/무기력": "behavior"
+      };
+      return map[text] || "unknown";
+    }
+    function defaultProblemDomainForLabels(labels) {
+      const list = Array.isArray(labels) ? labels : [];
+      const found = list.map(defaultProblemDomainForLabel).find(value => value !== "unknown");
+      return found || "unknown";
+    }
+    function problemLabelsFromRecord(record) {
+      if (Array.isArray(record.problemLabels) && record.problemLabels.length) return record.problemLabels;
+      return behaviorAreasFromRecord(record);
+    }
+    function selectedProblemLabels() {
+      return selectedBehaviorAreas();
+    }
+    function setProblemDomainGroup() {
+      const oldBox = $("#problemDomainChips");
+      if (!oldBox) return;
+      const freshBox = oldBox.cloneNode(false);
+      oldBox.replaceWith(freshBox);
+      const box = $("#problemDomainChips");
+      const active = normalizeProblemDomain(state.problemDomain || defaultProblemDomainForLabels(state.behaviorAreas));
+      box.innerHTML = problemDomains.map(item => `<button type="button" class="chip ${item.value === active ? "active" : ""}" data-value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</button>`).join("");
+      box.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button || !button.classList.contains("chip")) return;
+        state.problemDomain = normalizeProblemDomain(button.dataset.value);
+        state.problemDomainTouched = true;
+        $$("#problemDomainChips button").forEach(b => b.classList.remove("active"));
+        button.classList.add("active");
+        applyProblemAutofill();
+      });
+    }
+    function updateProblemDomainFromLabels() {
+      if (state.problemDomainTouched) return;
+      const next = defaultProblemDomainForLabels(selectedProblemLabels());
+      state.problemDomain = next;
+      setProblemDomainGroup();
+    }
+    function canReplaceAutoFilled(selector) {
+      const el = $(selector);
+      if (!el) return false;
+      const current = String(el.value || "");
+      return !current.trim() || (state.problemAutofillTarget === selector && current === state.problemAutofillValue);
+    }
+    function setAutofillGuide(text) {
+      const guide = $("#problemAutofillGuide");
+      if (guide) guide.textContent = text;
+    }
+    function markAutofill(selector, value) {
+      state.problemAutofillTarget = selector;
+      state.problemAutofillValue = value;
+    }
+    function syncEmotionChipSelection() {
+      $$("#emotionChips button").forEach(button => {
+        button.classList.toggle("active", button.dataset.value === state.emotion);
+      });
+    }
+    function applyProblemAutofill() {
+      const labels = selectedProblemLabels();
+      const text = labels.join(", ");
+      const domain = normalizeProblemDomain(state.problemDomain || defaultProblemDomainForLabels(labels));
+      if (!text) {
+        setAutofillGuide("선택한 문제에 따라 가까운 중심을 먼저 표시합니다. 지금 경험에 더 맞게 바꿔도 됩니다.");
+        return;
+      }
+      if (domain === "thought" && canReplaceAutoFilled("#thoughtText")) {
+        $("#thoughtText").value = text;
+        markAutofill("#thoughtText", text);
+        setAutofillGuide("앞에서 적은 문제가 생각에 가까워 보여, '그때 든 생각'에 먼저 넣어두었습니다. 더 정확한 표현이 있으면 바꿔도 됩니다.");
+        return;
+      }
+      if (domain === "emotion") {
+        if (emotions.includes(text) && (!state.emotion || state.problemAutofillTarget === "emotion")) {
+          state.emotion = text;
+          markAutofill("emotion", text);
+          syncEmotionChipSelection();
+          setAutofillGuide("앞에서 적은 문제가 감정에 가까워 보여, '그때 느낀 감정'에 먼저 반영했습니다. 더 정확한 감정으로 바꿔도 됩니다.");
+          return;
+        }
+        if (canReplaceAutoFilled("#emotionCustom")) {
+          $("#emotionCustom").value = cleanText(text, 10);
+          markAutofill("#emotionCustom", $("#emotionCustom").value);
+          setAutofillGuide("앞에서 적은 문제가 감정에 가까워 보여, '그때 느낀 감정'에 먼저 넣어두었습니다. 더 정확한 감정으로 바꿔도 됩니다.");
+          return;
+        }
+      }
+      if (domain === "body" && canReplaceAutoFilled("#bodyCustom")) {
+        $("#bodyCustom").value = cleanText(text, 10);
+        markAutofill("#bodyCustom", $("#bodyCustom").value);
+        setAutofillGuide("앞에서 적은 문제가 몸반응에 가까워 보여, '그때 느낀 몸 반응'에 먼저 넣어두었습니다. 더 정확한 표현이 있으면 바꿔도 됩니다.");
+        return;
+      }
+      if (domain === "relationship" && canReplaceAutoFilled("#situation")) {
+        $("#situation").value = text;
+        markAutofill("#situation", text);
+        setAutofillGuide("앞에서 적은 문제가 관계나 상황에 가까워 보여, '이 문제가 발생한 구체적 상황?'에 먼저 넣어두었습니다. 더 구체적인 장면으로 바꿔도 됩니다.");
+        return;
+      }
+      if (domain === "urge") {
+        setAutofillGuide("도박이나 성(sex)처럼 충동에 가까운 문제는 아래 강도 기록에서 충동 점수를 남기면 좋습니다. 실제 행동 여부는 문제행동수준에서 따로 기록합니다.");
+        return;
+      }
+      if (domain === "behavior") {
+        setAutofillGuide("행동에 가까운 문제라도 실제로 행동했는지는 아래 문제행동수준에서 따로 기록합니다.");
+        return;
+      }
+      setAutofillGuide("지금 경험에 더 가까운 중심을 고르면, 해당 기록칸에 앞의 내용을 먼저 넣어둘 수 있습니다.");
     }
     function setBehaviorGroup(items, maxVisible = 0) {
       const oldBox = $("#behaviorChips");
@@ -851,17 +992,26 @@ const TEXT_LIMITS = {
           const input = label.querySelector("input");
           label.classList.toggle("active", Boolean(input && input.checked));
         });
+        updateProblemDomainFromLabels();
+        applyProblemAutofill();
       });
       applyChipVisibility(box, maxVisible);
     }
     function initPickers() {
       const learnedBehaviors = learnedCustomBehaviorAreas();
       setBehaviorGroup([...learnedBehaviors, ...defaultBehaviors], learnedBehaviors.length + 6);
+      const customInput = $("#behaviorCustom");
+      if (customInput) {
+        customInput.oninput = () => {
+          updateProblemDomainFromLabels();
+          applyProblemAutofill();
+        };
+      }
+      setProblemDomainGroup();
       renderAliasTargetOptions();
       renderAliasList();
       setChipGroup("#emotionChips", emotions, "emotion", state.emotion, 6);
       setChipGroup("#bodyChips", bodies, "body", "", 6);
-      setChipGroup("#valueChips", values, "value", state.value, 6);
       renderPracticeValueChips();
       setMultiChipGroup("#triggerPlaceChips", triggerPlaces, "triggerPlaces");
       setMultiChipGroup("#triggerPeopleChips", triggerPeople, "triggerPeople");
@@ -1487,12 +1637,11 @@ const TEXT_LIMITS = {
       const avoidance = avoidanceText(o);
       return `<div class="record-item">
         <div class="record-top"><strong>${escapeHtml(o.date)} · ${escapeHtml(o.mode)}</strong><span class="tag ${risk ? "danger" : ""}">${risk ? "고위험 신호" : escapeHtml(behaviorAreaText(o))}</span></div>
-        <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))} · 가치: ${escapeHtml(o.value || "-")}</div>
+        <div class="small">감정: ${escapeHtml(emotionText(o))} · 몸 반응: ${escapeHtml(bodyText(o))}</div>
         <div class="small">사고/감정/충동: ${o.thoughtScore}/${o.emotionScore}/${o.urgeScore} · 문제행동 활성화 수준 ${o.actionLevel}/5</div>
         ${hasCurve ? `<div class="small">충동 흐름: 처음 ${o.urgeInitialScore} → 정점 ${o.urgeScore} → 끝 ${o.urgeEndScore}</div>` : ""}
         ${triggers ? `<div class="small">촉발 단서: ${escapeHtml(triggers)}</div>` : ""}
         ${avoidance ? `<div class="small">회피 신호: ${escapeHtml(avoidance)}</div>` : ""}
-        ${o.valueActionDraft ? `<div class="small">가치 실천 초안: ${escapeHtml(o.valueActionDraft)}</div>` : ""}
         <div class="button-row record-actions">
           <button class="ghost-btn" type="button" data-edit-observation="${escapeHtml(o.id)}">수정</button>
           <button class="danger-btn" type="button" data-delete-observation="${escapeHtml(o.id)}">숨김</button>
@@ -1681,7 +1830,11 @@ const TEXT_LIMITS = {
       $("#observeId").value = record.id;
       $("#observeDate").value = cleanDate(record.date);
       setObserveMode(record.mode || "저녁");
-      state.behaviorAreas = behaviorAreasFromRecord(record).filter(value => value !== "-");
+      state.behaviorAreas = problemLabelsFromRecord(record).filter(value => value !== "-");
+      state.problemDomain = normalizeProblemDomain(record.problemDomain || defaultProblemDomainForLabels(state.behaviorAreas));
+      state.problemDomainTouched = true;
+      state.problemAutofillTarget = "";
+      state.problemAutofillValue = "";
       state.emotion = record.emotion || "";
       state.body = Array.isArray(record.body) ? record.body.slice() : [];
       state.value = record.value || "";
@@ -1710,10 +1863,7 @@ const TEXT_LIMITS = {
       $("#actionLevel").value = clampNumber(record.actionLevel, 0, 5, 0);
       $("#coping").value = record.coping || "";
       $("#copingScore").value = clampNumber(record.copingScore, 0, 10, 0);
-      $("#gratitude").value = record.gratitude || "";
       $("#insight").value = record.insight || "";
-      $("#valueCustom").value = record.value || "";
-      $("#valueActionDraft").value = record.valueActionDraft || "";
       ["thoughtScore","emotionScore","urgeScore","urgeInitialScore","urgeEndScore","actionLevel","copingScore"].forEach(field => {
         $("#" + field + "Value").textContent = $("#" + field).value;
       });
@@ -2699,9 +2849,12 @@ ${trendRangeLabel()} 평균
       };
 
       observations.forEach(o => {
+        const problemLabels = Array.isArray(o.problemLabels) && o.problemLabels.length ? o.problemLabels : (Array.isArray(o.behaviorAreas) ? o.behaviorAreas : splitBehaviorCustom(o.behavior || ""));
         addRow("observation", o.id, o.date, o.updatedAt, payloadForExport(o, {
           time_slot: o.mode || "",
-          behavior_areas: Array.isArray(o.behaviorAreas) ? o.behaviorAreas : splitBehaviorCustom(o.behavior || ""),
+          problem_labels: problemLabels,
+          problem_domain: normalizeProblemDomain(o.problemDomain || defaultProblemDomainForLabels(problemLabels)),
+          behavior_areas: problemLabels,
           behavior_custom_areas: Array.isArray(o.behaviorCustomAreas) ? o.behaviorCustomAreas : [],
           emotion: o.emotion || "",
           emotion_custom: compactList([o.emotionCustom]),
@@ -3008,7 +3161,9 @@ ${trendRangeLabel()} 평균
           });
           if (type === "observation") {
             ["behavior_areas", "behavior_custom_areas", "emotion_custom", "body_reactions", "body_custom", "trigger_places", "trigger_people", "trigger_times", "trigger_custom", "avoidance_tags", "avoidance_custom"].forEach(key => expectArray(payload, key, line));
+            if ("problem_labels" in payload) expectArray(payload, "problem_labels", line);
             ["time_slot", "emotion", "situation", "thought_text", "coping", "gratitude", "insight", "value", "value_action_draft"].forEach(key => expectString(payload, key, line));
+            if ("problem_domain" in payload) expectString(payload, "problem_domain", line);
             expectBoolean(payload, "archived", line);
             [["thought_score", 0, 10], ["emotion_score", 0, 10], ["urge_score", 0, 10], ["action_level", 0, 5], ["coping_score", 0, 10]].forEach(([key, min, max]) => {
               if (!numberInRange(payload[key], min, max)) errors.push(`${line}행: ${key}는 ${min}-${max} 범위 숫자여야 합니다.`);
@@ -3148,7 +3303,8 @@ ${trendRangeLabel()} 평균
             const existingIndex = state.data.observations.findIndex(o => o.id === id);
             const existing = existingIndex >= 0 ? state.data.observations[existingIndex] : null;
             if (!shouldUpsert(existing, updatedAt)) return;
-            const behaviorAreas = Array.isArray(payload.behavior_areas) ? payload.behavior_areas : splitBehaviorCustom(payload.behavior_areas);
+            const problemLabels = Array.isArray(payload.problem_labels) && payload.problem_labels.length ? payload.problem_labels : (Array.isArray(payload.behavior_areas) ? payload.behavior_areas : splitBehaviorCustom(payload.behavior_areas));
+            const behaviorAreas = problemLabels;
             const behaviorCustomAreas = Array.isArray(payload.behavior_custom_areas) ? payload.behavior_custom_areas : splitBehaviorCustom(payload.behavior_custom_areas);
             const record = {
               _payloadJson: normalizePreservedPayload(payload),
@@ -3156,6 +3312,8 @@ ${trendRangeLabel()} 평균
               date: cleanDate(cell(row, "date") || todayISO()),
               mode: cleanText(payload.time_slot || "가져오기", TEXT_LIMITS.short),
               behavior: behaviorAreas.join(", "),
+              problemLabels,
+              problemDomain: normalizeProblemDomain(payload.problem_domain || defaultProblemDomainForLabels(problemLabels)),
               behaviorAreas,
               behaviorCustomAreas,
               situation: cleanMultiline(payload.situation, TEXT_LIMITS.long),
@@ -3325,8 +3483,9 @@ ${trendRangeLabel()} 평균
     }
     function observeSubmit(event) {
       event.preventDefault();
-      const value = cleanText($("#valueCustom").value || state.value || "", TEXT_LIMITS.short);
-      const behaviorAreas = selectedBehaviorAreas();
+      const problemLabels = selectedProblemLabels();
+      const problemDomain = normalizeProblemDomain(state.problemDomain || defaultProblemDomainForLabels(problemLabels));
+      const behaviorAreas = problemLabels;
       const behaviorCustomAreas = Array.from(new Set([
         ...behaviorAreas.filter(area => !defaultBehaviors.includes(area)),
         ...splitBehaviorCustom($("#behaviorCustom").value)
@@ -3338,6 +3497,8 @@ ${trendRangeLabel()} 평균
         date: cleanDate($("#observeDate").value || todayISO()),
         mode: state.observeMode,
         behavior,
+        problemLabels,
+        problemDomain,
         behaviorAreas,
         behaviorCustomAreas,
         situation: cleanMultiline($("#situation").value, TEXT_LIMITS.long),
@@ -3355,15 +3516,15 @@ ${trendRangeLabel()} 평균
         thoughtScore: clampNumber($("#thoughtScore").value, 0, 10, 0),
         emotionScore: clampNumber($("#emotionScore").value, 0, 10, 0),
         urgeScore: clampNumber($("#urgeScore").value, 0, 10, 0),
-        urgeInitialScore: state.observeMode === "충동 발생" ? clampNumber($("#urgeInitialScore").value, 0, 10, 0) : null,
-        urgeEndScore: state.observeMode === "충동 발생" ? clampNumber($("#urgeEndScore").value, 0, 10, 0) : null,
+        urgeInitialScore: state.observeMode === "감정/충동 발생 시점" ? clampNumber($("#urgeInitialScore").value, 0, 10, 0) : null,
+        urgeEndScore: state.observeMode === "감정/충동 발생 시점" ? clampNumber($("#urgeEndScore").value, 0, 10, 0) : null,
         actionLevel: clampNumber($("#actionLevel").value, 0, 5, 0),
         coping: cleanMultiline($("#coping").value, TEXT_LIMITS.long),
         copingScore: clampNumber($("#copingScore").value, 0, 10, 0),
-        gratitude: cleanMultiline($("#gratitude").value, TEXT_LIMITS.medium),
+        gratitude: "",
         insight: cleanMultiline($("#insight").value, TEXT_LIMITS.reflection),
-        value,
-        valueActionDraft: cleanMultiline($("#valueActionDraft").value, TEXT_LIMITS.medium),
+        value: "",
+        valueActionDraft: "",
         updatedAt: new Date().toISOString()
       };
       const index = state.data.observations.findIndex(o => o.id === id);
@@ -3407,6 +3568,10 @@ ${trendRangeLabel()} 평균
       setObserveMode("저녁");
       state.behavior = "";
       state.behaviorAreas = [];
+      state.problemDomain = "unknown";
+      state.problemDomainTouched = false;
+      state.problemAutofillTarget = "";
+      state.problemAutofillValue = "";
       state.emotion = "";
       state.emotionCustom = "";
       state.body = [];
@@ -3561,27 +3726,6 @@ ${trendRangeLabel()} 평균
       $("#reminderTimesRow").style.display = "none";
       showToast("새 실천행동 입력으로 전환했습니다.");
     }
-    function sendObservationToPractice() {
-      const value = cleanText($("#valueCustom").value || state.value, TEXT_LIMITS.short);
-      const action = cleanMultiline($("#valueActionDraft").value, TEXT_LIMITS.medium);
-      if (!value && !action) {
-        showToast("먼저 가치와 작은 실천행동 초안을 입력해주세요.");
-        return;
-      }
-      clearPracticeForm();
-      if (values.includes(value)) {
-        state.practiceValue = value;
-        $("#practiceValueCustom").value = "";
-      } else {
-        state.practiceValue = "";
-        $("#practiceValueCustom").value = value;
-      }
-      renderPracticeValueChips();
-      $("#practiceName").value = action;
-      $("#practiceStart").value = todayISO();
-      setView("practice");
-      showToast("가치와 실천행동 초안을 옮겼습니다. 나머지 항목을 채우고 저장까지 눌러야 반복 추적됩니다.");
-    }
     function renderSharePreview() {
       $("#sharePreview").textContent = buildSummary(state.shareMode);
     }
@@ -3695,7 +3839,6 @@ ${trendRangeLabel()} 평균
         $("#practiceName").focus();
       });
       $("#practiceName").addEventListener("input", startFreshPracticeFromTopFields);
-      $("#sendToPractice").addEventListener("click", sendObservationToPractice);
       $("#clearPracticeForm").addEventListener("click", clearPracticeForm);
       $("#frequency").addEventListener("change", () => $("#customDaysRow").style.display = $("#frequency").value === "custom" ? "block" : "none");
       $("#reminderMode").addEventListener("change", () => $("#reminderTimesRow").style.display = $("#reminderMode").value === "times" ? "block" : "none");

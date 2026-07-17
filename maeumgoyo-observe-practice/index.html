@@ -182,29 +182,6 @@
             <input type="hidden" id="observeId">
             <h2>관찰 기록</h2>
             <p class="small">감정, 생각, 몸 반응, 충동과 문제 행동의 흐름을 기록합니다. 정직한 기록은 심판이 아니라 치료 자료입니다.</p>
-            <div class="lead">
-              모든 칸을 채우지 않아도 됩니다. 오늘 가장 선명한 것 하나만 남겨도 상담에서 함께 다룰 수 있습니다.
-            </div>
-            <div class="lead">
-              지금 혼자 버티기 어렵다면 기록을 마치려고 애쓰기보다 가까운 사람이나 상담자에게 먼저 연락하세요.
-            </div>
-            <div style="height:10px"></div>
-            <div class="safety-card">
-              <h3>고위험일 때 먼저 할 일</h3>
-              <p class="small">1. 지금 있는 장소를 조금 더 안전한 곳으로 옮깁니다.</p>
-              <p class="small">2. 10분만 행동을 늦추고, 물 한 컵이나 천천히 호흡을 먼저 합니다.</p>
-              <p class="small">3. 혼자 버티기 어렵다면 아래 연락처로 바로 연락합니다.</p>
-              <div id="safetyContactsInline" style="margin-top:8px;"></div>
-            </div>
-            <div class="safety-card hidden" id="riskFollowup">
-              <h3>지금 확인할 안전 행동</h3>
-              <label class="checkline"><input type="checkbox"> 조금 더 안전한 장소로 이동했습니다.</label>
-              <label class="checkline"><input type="checkbox"> 10분만 늦추고 물 또는 호흡을 먼저 했습니다.</label>
-              <label class="checkline"><input type="checkbox"> 아래 연락처 중 한 곳에 연락했거나, 연락할 곳을 확인했습니다.</label>
-              <div id="safetyContactsInlineRisk" style="margin-top:8px;"></div>
-            </div>
-            <div class="hidden" id="relapseFollowup" style="margin-top:12px;"></div>
-            <div style="height:12px"></div>
             <div class="wizard-nav">
               <div class="wizard-nav-top">
                 <div class="wizard-step-title" id="observeStepTitle" aria-live="polite">1 · 경험한 문제와 상황</div>
@@ -225,23 +202,28 @@
                 <input id="observeDate" type="date" required>
               </div>
               <div class="form-row">
-                <label><span class="q-number" aria-hidden="true">1</span>기록 방식</label>
+                <label><span class="q-number" aria-hidden="true">1</span>기록 시점</label>
                 <div class="segmented" id="observeModeButtons">
                   <button type="button" data-value="오전">오전</button>
                   <button type="button" data-value="오후">오후</button>
                   <button type="button" data-value="저녁" class="active">저녁</button>
-                  <button type="button" data-value="충동 발생">충동 발생</button>
+                  <button type="button" data-value="감정/충동 발생 시점">감정/충동 발생 시점</button>
                 </div>
               </div>
               <div class="form-row">
-                <label><span class="q-number" aria-hidden="true">2</span>경험한 문제</label>
+                <label><span class="q-number" aria-hidden="true">2</span>지금 관찰·기록하려는 문제는 무엇인가요?</label>
                 <div class="chip-row" id="behaviorChips"></div>
                 <div style="height:8px"></div>
-                <input id="behaviorCustom" maxlength="160" placeholder="기타 문제 또는 안전한 별칭 입력. 여러 개면 쉼표로 구분">
-                <div class="small">여기서 경험한 문제란 스트레스, 부정적 감정, 반복되는 생각, 몸반응, 충동, 회피, 관계 갈등, 중독행동 또는 문제행동을 포함합니다.</div>
+                <input id="behaviorCustom" maxlength="160" placeholder="직접 입력. 여러 개면 쉼표로 구분">
+                <div class="small">도박이나 성(sex)을 선택해도 그것이 꼭 행동을 했다는 뜻은 아닙니다. 생각, 감정, 충동, 행동 중 무엇으로 경험되었는지는 아래에서 다시 고릅니다.</div>
               </div>
               <div class="form-row">
-                <label for="situation"><span class="q-number" aria-hidden="true">3</span>그 문제가 시작된 상황</label>
+                <label><span class="q-number" aria-hidden="true">3</span>이 문제는 지금 어떤 영역에 가장 가깝나요?</label>
+                <div class="chip-row" id="problemDomainChips"></div>
+                <div class="small" id="problemAutofillGuide">선택한 문제에 따라 가까운 중심을 먼저 표시합니다. 지금 경험에 더 맞게 바꿔도 됩니다.</div>
+              </div>
+              <div class="form-row">
+                <label for="situation"><span class="q-number" aria-hidden="true">4</span>이 문제가 발생한 구체적 상황?</label>
                 <textarea id="situation" maxlength="600" placeholder="언제, 어디서, 누구와, 어떤 일이 있었나요? 그때 스트레스나 부정적 감정이 어떻게 시작되었나요?"></textarea>
               </div>
               <details class="form-row" id="triggerDetails">
@@ -290,15 +272,6 @@
                 <div style="height:8px"></div>
                 <input id="bodyCustom" maxlength="10" placeholder="기타 몸 반응 10자 이내">
               </div>
-              <details class="form-row" id="avoidanceDetails">
-                <summary>오늘의 회피 신호 추가하기 (선택)</summary>
-                <div style="height:8px"></div>
-                <div class="small">문제 행동과 별개로, 활동이 줄어들고 있다는 신호도 회복에 중요한 정보입니다.</div>
-                <div style="height:6px"></div>
-                <div class="chip-row" id="avoidanceChips"></div>
-                <div style="height:8px"></div>
-                <input id="avoidanceCustom" maxlength="160" placeholder="기타 회피 신호. 여러 개면 쉼표로 구분">
-              </details>
             </div>
             <div class="section-block wizard-step" data-step="2">
               <div class="form-row">
@@ -335,12 +308,21 @@
                   <input id="actionLevel" type="range" min="0" max="5" value="0" aria-label="문제행동 활성화 수준">
                   <div class="small score-help" id="actionLevelHelp"></div>
                 </div>
+                <details class="form-row" id="avoidanceDetails">
+                  <summary>오늘의 회피 신호 추가하기 (선택)</summary>
+                  <div style="height:8px"></div>
+                  <div class="small">문제행동과 별개로, 활동이 줄어들고 있다는 신호도 회복에 중요한 정보입니다.</div>
+                  <div style="height:6px"></div>
+                  <div class="chip-row" id="avoidanceChips"></div>
+                  <div style="height:8px"></div>
+                  <input id="avoidanceCustom" maxlength="160" placeholder="기타 회피 신호. 여러 개면 쉼표로 구분">
+                </details>
               </div>
             </div>
             <div class="section-block wizard-step" data-step="3">
               <div class="form-row">
                 <label for="coping"><span class="q-number" aria-hidden="true">1</span>대처행동</label>
-                <textarea id="coping" maxlength="600" placeholder="멈춤, 한 걸음 뒤로, 호흡, 장소 바꾸기, 연락하기 등"></textarea>
+                <textarea id="coping" maxlength="600" placeholder="문제행동을 대체하였던 행동: 현재 행동 멈추기, 한 걸음 뒤로 물러서기, 느린 호흡, 장소 바꾸기, 연락하기 등"></textarea>
               </div>
               <div class="form-row">
                 <label><span class="q-number" aria-hidden="true">2</span>대처 후 도움 정도</label>
@@ -350,32 +332,30 @@
                 </div>
               </div>
               <div class="form-row">
-                <label for="gratitude"><span class="q-number" aria-hidden="true">3</span>감사 기록</label>
-                <textarea id="gratitude" maxlength="160" placeholder="오늘 고마웠던 사람, 일, 또는 나에게 고마운 점"></textarea>
-              </div>
-              <div class="form-row">
-                <label for="insight"><span class="q-number" aria-hidden="true">4</span>오늘 배우고 알아차린 점</label>
-                <textarea id="insight" maxlength="800" placeholder="기록을 보며 알아차린 점은 무엇인가요?"></textarea>
-              </div>
-              <div class="form-row">
-                <label><span class="q-number" aria-hidden="true">5</span>오늘 지키고 싶은 내 삶의 가치</label>
-                <div class="chip-row" id="valueChips"></div>
-                <div style="height:8px"></div>
-                <input id="valueCustom" maxlength="40" placeholder="직접 입력">
-              </div>
-              <div class="form-row">
-                <label for="valueActionDraft"><span class="q-number" aria-hidden="true">6</span>그 가치를 위한 아주 작은 실천행동</label>
-                <textarea id="valueActionDraft" maxlength="160" placeholder="예: 저녁 식사 후 운동화 신고 집 앞 3분 걷기"></textarea>
-                <div class="small">이 칸은 오늘의 기록으로만 저장됩니다. 반복 추적하고 싶다면 아래 "이 가치로 실천행동 만들기"를 눌러 실천하기에서 등록하세요.</div>
+                <label for="insight"><span class="q-number" aria-hidden="true">3</span>이번 기록을 남기며 알게 된 점</label>
+                <textarea id="insight" maxlength="800" placeholder="정답처럼 쓰지 않아도 됩니다. 감정, 생각, 충동, 대처 중 새롭게 보인 것을 한 줄만 적어도 충분합니다."></textarea>
               </div>
             </div>
-            <button class="ghost-btn full hidden" type="button" id="sendToPractice" style="margin-top:12px;">이 가치로 실천행동 만들기</button>
-            <p class="small hidden" id="sendToPracticeHint" style="margin-top:6px;">위 버튼을 누르면 실천하기 화면으로 이동해 가치와 행동이 미리 채워집니다. 빈도·하루 횟수를 정하고 "실천행동 저장"까지 눌러야 반복 추적됩니다.</p>
             <div class="wizard-bottom-nav">
               <button class="ghost-btn" type="button" id="observeStepBack">이전</button>
               <button class="solid-btn full" type="button" id="observeStepNext">다음</button>
               <button class="solid-btn full hidden" type="submit" id="observeStepSave">관찰 저장</button>
             </div>
+            <div class="safety-card">
+              <h3>고위험일 때 먼저 할 일</h3>
+              <p class="small">1. 지금 있는 장소를 조금 더 안전한 곳으로 옮깁니다.</p>
+              <p class="small">2. 10분만 행동을 늦추고, 물 한 컵이나 천천히 호흡을 먼저 합니다.</p>
+              <p class="small">3. 혼자 버티기 어렵다면 아래 연락처로 바로 연락합니다.</p>
+              <div id="safetyContactsInline" style="margin-top:8px;"></div>
+            </div>
+            <div class="safety-card hidden" id="riskFollowup">
+              <h3>지금 확인할 안전 행동</h3>
+              <label class="checkline"><input type="checkbox"> 조금 더 안전한 장소로 이동했습니다.</label>
+              <label class="checkline"><input type="checkbox"> 10분만 늦추고 물 또는 호흡을 먼저 했습니다.</label>
+              <label class="checkline"><input type="checkbox"> 아래 연락처 중 한 곳에 연락했거나, 연락할 곳을 확인했습니다.</label>
+              <div id="safetyContactsInlineRisk" style="margin-top:8px;"></div>
+            </div>
+            <div class="hidden" id="relapseFollowup" style="margin-top:12px;"></div>
           </form>
 
           <div class="card">
@@ -401,8 +381,8 @@
         <div class="grid">
           <form class="card" id="practiceForm">
             <input type="hidden" id="practiceId">
-            <h2>작은 실천행동 설정</h2>
-            <p class="small">가치 기반 작은 실천행동은 평소의 자동반응, 회피, 충동이 좁혀놓은 삶에서 벗어나 내가 중요하게 여기는 방향으로 경험을 조금 넓히는 행동입니다.</p>
+            <h2>문제를 줄이는 것에서 멈추지 않고, 삶의 경험을 넓히는 작은 행동을 반복합니다.</h2>
+            <p class="small">가치 기반 작은 실천행동은 평소의 자동반응, 회피, 충동이 좁혀놓은 삶에서 벗어나 내가 중요하게 여기는 방향으로 삶의 경험을 조금 넓히는 행동입니다.</p>
             <div class="wizard-nav">
               <div class="wizard-nav-top">
                 <div class="wizard-step-title" id="practiceStepTitle" aria-live="polite">1 · 가치와 실천행동</div>
@@ -428,7 +408,7 @@
                 <textarea id="practiceName" maxlength="160" placeholder="언제, 어디서, 무엇을 할지 작게 적습니다."></textarea>
               </div>
               <div class="form-row">
-                <label for="practiceReason">이 행동이 내 경험을 넓혀주는 이유(선택)</label>
+                <label for="practiceReason">이 행동이 내 삶의 경험을 넓혀주는 이유(선택)</label>
                 <textarea id="practiceReason" maxlength="600" placeholder="문제 행동이 좁힌 삶에서 어느 방향으로 한 걸음 넓어지나요?"></textarea>
               </div>
             </div>
