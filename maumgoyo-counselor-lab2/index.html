@@ -1,25 +1,25 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>마음고요 상담분석실 20260714v55</title>
-  <link rel="stylesheet" href="styles-20260714-v55.css?v=20260714v55">
+  <title>마음고요 상담분석실 20260717v66</title>
+  <link rel="stylesheet" href="styles-20260717-v66.css?v=20260717v66">
 </head>
 <body>
   <header class="app-header">
     <div>
       <p class="eyebrow">상담자용 CSV 분석 도구</p>
-      <h1>마음고요 상담분석실 <span class="version-badge">20260714v55</span></h1>
-      <p class="version-note">측정치 기반 피드백 치료 · 측정치 너머의 삶의 맥락 · 중독유형별 초점 · 가치기반 실천 습관화</p>
+      <h1>마음고요 상담분석실 <span class="version-badge">20260717v66</span></h1>
+      <p class="version-note">측정치 기반 피드백 치료 · 감정 감내력 창 · 자동 연쇄 재구성 · 가치기반 실천</p>
     </div>
     <div class="header-actions">
-      <button id="patientModeBtn" class="primary mode-toggle" type="button">환자용 보기</button>
+      <button id="patientModeBtn" class="primary mode-toggle" type="button">내담자용 보기</button>
       <button id="sampleBtn" class="secondary counselor-only" type="button">예시</button>
-      <button id="refreshBtn" class="secondary counselor-only" type="button">현재 파일 새로고침</button>
-      <button id="resetBtn" class="secondary counselor-only" type="button">자료 제거</button>
-      <button id="printBtn" class="secondary counselor-only" type="button">인쇄</button>
-      <button id="exportBtn" class="primary counselor-only" type="button">요약 저장</button>
+      <button id="refreshBtn" class="secondary counselor-only" type="button" title="마지막으로 불러온 CSV 파일을 다시 읽어 분석 화면을 갱신합니다." aria-label="현재 파일 새로고침: 마지막으로 불러온 CSV 파일을 다시 읽어 분석 화면을 갱신합니다.">현재 파일 새로고침</button>
+      <button id="resetBtn" class="secondary counselor-only" type="button" title="현재 탭에 불러온 내담자 자료와 분석 결과를 모두 비웁니다." aria-label="자료 제거: 현재 탭에 불러온 내담자 자료와 분석 결과를 모두 비웁니다.">자료 제거</button>
+      <button id="printBtn" class="secondary counselor-only" type="button" title="현재 분석 화면을 인쇄하거나 PDF로 저장합니다." aria-label="인쇄: 현재 분석 화면을 인쇄하거나 PDF로 저장합니다.">인쇄</button>
+      <button id="exportBtn" class="primary counselor-only" type="button" title="현재 회기 기록 보관과 다음 회기 비교용 JSON을 저장합니다." aria-label="상담기록 요약 저장: 현재 회기 기록 보관과 다음 회기 비교용 JSON을 저장합니다.">상담기록 요약 저장</button>
     </div>
   </header>
 
@@ -41,8 +41,8 @@
           <p>상담자용 상세, 상담자용 요약, 가족회복용 여부와 민감정보 제외 가능성을 확인합니다.</p>
         </div>
         <p class="privacy-note">이 앱은 CSV 파일을 서버에 저장하지 않으며, 불러온 자료는 이 브라우저 탭 안에만 있습니다. <strong>새 CSV를 불러오면 같은 내담자 자료에 이어서 누적됩니다</strong>(다른 내담자 파일이면 자동으로 병합을 막고 알려줍니다). 자료를 지우려면 "자료 제거"를 누르세요.</p>
-        <button id="exportAccumulatedCsvBtn" class="secondary small" type="button">전체 자료 저장(CSV)</button>
-        <p class="privacy-note">지금까지 누적된 원본 기록 전체를 CSV로 저장합니다. 파일명은 "내담자별칭_첫날~마지막날_전체자료.csv"로 자동 지정되며, 다음에 이 파일 하나만 다시 불러오면 지금까지의 누적 자료가 그대로 복원됩니다. 실제 기록 문장이 포함된 민감정보 파일이므로 안전하게 보관하세요.</p>
+        <button id="exportAccumulatedCsvBtn" class="secondary small" type="button">누적 원본자료 저장(CSV)</button>
+        <p class="privacy-note">여러 주 CSV를 하나로 묶어 다음 분석 때 다시 불러오기 위한 원본자료 보관 파일입니다. 회기 작업용 요약이 아니라 실제 기록 문장이 포함된 민감정보 파일이므로 내담자별 보안 폴더에 저장하세요.</p>
       </section>
 
       <section class="panel">
@@ -50,7 +50,7 @@
         <label>정서적 재발 경고 기준 <input id="emotionThreshold" type="number" min="0" max="10" step="1" value="7"></label>
         <label>인지적 재발 주의 기준 <input id="cognitiveUrgeThreshold" type="number" min="0" max="10" step="1" value="6"></label>
         <label>충동 높음 기준 <input id="urgeThreshold" type="number" min="0" max="10" step="1" value="8"></label>
-        <label>문제행동 기준 <input id="actionThreshold" type="number" min="0" max="5" step="1" value="4"></label>
+        <label>문제행동 활성화 수준 기준 <input id="actionThreshold" type="number" min="0" max="5" step="1" value="4"></label>
         <label>실천 저수행 기준 <input id="practiceThreshold" type="number" min="0" max="10" step="1" value="0"></label>
         <p class="privacy-note">정서·인지 신호는 순서대로만 나타나지 않으며 함께 경고될 수 있습니다. 기준을 조정하면 모든 작업판이 즉시 다시 계산됩니다.</p>
       </section>
@@ -58,18 +58,18 @@
       <section class="panel">
         <h2>회복 목표</h2>
         <label>충동 평균 목표(이하) <input id="urgeGoalInput" type="number" min="0" max="10" step="0.5" value="5"></label>
-        <label>문제행동 평균 목표(이하) <input id="actionGoalInput" type="number" min="0" max="5" step="0.5" value="1"></label>
+        <label>문제행동 활성화 수준 평균 목표(이하) <input id="actionGoalInput" type="number" min="0" max="5" step="0.5" value="1"></label>
         <label>실천 완료율 목표%(이상) <input id="practiceGoalInput" type="number" min="0" max="100" step="5" value="70"></label>
-        <label>삶의 확장감 평균 목표(이상) <input id="expansionGoalInput" type="number" min="0" max="10" step="0.5" value="6"></label>
+        <label>삶의 경험 확장/만족도 평균 목표(이상) <input id="expansionGoalInput" type="number" min="0" max="10" step="0.5" value="6"></label>
         <p class="privacy-note">"위험 기준"은 경고를 띄우는 임계값이고, 이건 이번 기간에 도달하고 싶은 목표입니다. "9. 회기 피드백 요약" 탭에서 실제 값과 비교해 보여줍니다.</p>
       </section>
 
       <section class="panel">
         <h2>지난 회기와 비교</h2>
-        <p class="privacy-note">지난주에 저장해둔 "요약 저장" JSON 파일을 다시 불러오면, 그 안의 수치와 이번 주 CSV를 비교합니다. 이 앱은 원본 CSV를 저장하지 않으므로, 비교하려면 상담자가 직접 저장해둔 요약 파일이 필요합니다.</p>
+        <p class="privacy-note">지난주에 저장해둔 "상담기록·비교 요약" JSON 파일을 다시 불러오면, 그 안의 수치와 이번 주 CSV를 비교합니다. 이 앱은 원본 CSV를 저장하지 않으므로, 비교하려면 상담자가 직접 저장해둔 요약 파일이 필요합니다.</p>
         <label class="drop-zone" for="previousSummaryInput" id="previousSummaryDropZone">
           <strong>이전 요약 JSON 불러오기</strong>
-          <span>지난 회기에 저장했던 "maeumgoyo-counselor-summary-*.json" 파일을 선택하세요.</span>
+          <span>지난 회기에 저장했던 "*_상담기록요약.json" 파일을 선택하세요.</span>
           <input id="previousSummaryInput" type="file" accept=".json,application/json">
         </label>
         <div id="sessionComparisonResult" class="file-meta">비교할 이전 요약 파일을 아직 불러오지 않았습니다.</div>
@@ -80,17 +80,88 @@
         <dl id="schemaInfo" class="info-list"></dl>
       </section>
 
+      <section class="panel save-purpose-panel">
+        <h2>저장 자료 만들기</h2>
+        <p class="privacy-note">저장 파일은 브라우저 다운로드 폴더 또는 상담사가 선택한 저장 위치에 내려갑니다. 저장 후 아래에 파일명이 표시되면 다운로드 요청이 완료된 것입니다.</p>
+        <div id="saveStatus" class="save-status" role="status" aria-live="polite">아직 저장한 파일이 없습니다.</div>
+        <div class="save-action-list">
+          <article class="save-action-card">
+            <span class="save-kind">기록 보관·다음 회기 비교</span>
+            <button id="summaryArchiveBtn" class="primary small" type="button" title="현재 회기 핵심 수치, 상담 메모, 연쇄 요약을 JSON으로 저장합니다.">상담기록·비교 요약 저장(JSON)</button>
+            <p><strong>활용:</strong> 이번 회기 기록 보관과 다음 회기 수치 비교용입니다. 지난 회기와 이번 회기의 충동, 문제행동 활성화 수준, 실천 완료율, 삶의 경험 확장을 비교할 때 다시 불러옵니다.</p>
+          </article>
+          <article class="save-action-card">
+            <span class="save-kind">AI에게 회기 계획 요청</span>
+            <button id="sessionPrepExportBtn" class="primary small" type="button" title="최근 1~2주 핵심 정보와 프로젝트 연속성 프롬프트를 마크다운으로 저장합니다.">AI 회기준비 자료 저장(MD)</button>
+            <p><strong>활용:</strong> 이번 50분 회기를 준비할 때 AI에게 붙여넣는 자료입니다. 이전 회기맥락과 이번 주 측정치를 함께 참고해 회기 초점, 단계 순서, 질문 예시를 만들게 합니다.</p>
+          </article>
+          <article class="save-action-card">
+            <span class="save-kind">AI 회기 연속성 기록</span>
+            <button id="exportAiContextBtn" class="primary small" type="button" title="상담자가 채택한 가설, 보류한 가설, 다음 확인점을 누적 요약 MD로 저장합니다.">AI 회기맥락 누적 요약 저장(MD)</button>
+            <p><strong>활용:</strong> 회기 후 상담자가 채택한 가설, 보류한 가설, 다음 확인 질문을 남기는 다음 회기 준비용 맥락 파일입니다. 다음 주에 "이전 AI 회기맥락 불러오기"로 다시 사용합니다.</p>
+          </article>
+          <article class="save-action-card">
+            <span class="save-kind">AI에게 긴 원자료 분석 요청</span>
+            <button id="exportAiReportBtn" class="secondary small" type="button" title="관찰·실천 기록을 길게 정리한 AI 상세분석 원자료를 TXT로 저장합니다.">AI 상세분석 원자료 저장(TXT)</button>
+            <p><strong>활용:</strong> 매 회기 필수는 아니며, 자료가 많거나 반복 패턴을 넓게 점검하고 싶을 때 AI에게 긴 원자료 분석을 요청하는 보조 파일입니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel session-flow-panel">
+        <h2>50분 회기 운영구조</h2>
+        <p class="privacy-note"><strong>필수 뼈대:</strong> 1 → 3 → 7 → 9. 시간이 부족해도 이 네 단계는 유지합니다.</p>
+        <div class="flow-group required">
+          <strong>기본 회기</strong>
+          <span>1 → 2 짧게 → 3 깊게 → 4 판단 → 필요 시 5 또는 8 → 6 짧게 → 7 → 9</span>
+        </div>
+        <div class="flow-group required">
+          <strong>시간 부족</strong>
+          <span>1 → 3 → 7 → 9</span>
+        </div>
+        <div class="flow-group optional">
+          <strong>위기 회기</strong>
+          <span>1 → 3 → 5 → 7 → 9</span>
+        </div>
+        <div class="flow-group optional">
+          <strong>인지·불안 핵심</strong>
+          <span>1 → 3 → 8 → 7 → 9</span>
+        </div>
+        <div class="flow-group support">
+          <strong>동기 저하</strong>
+          <span>1 → 2 → 6 → 7 → 9</span>
+        </div>
+        <p class="privacy-note">2와 6은 회기의 질을 높이는 피드백 보조축이고, 4·5·8은 필요할 때 깊게 들어가는 선택 작업입니다.</p>
+      </section>
+
       <section class="panel">
         <h2>상담 메모</h2>
         <textarea id="notes" placeholder="회기 중 확인한 가설, 변화언어, 다음 실천과제를 적어두세요. 메모는 새 CSV를 불러오면 지워집니다."></textarea>
       </section>
 
+      <section class="panel ai-context-panel">
+        <h2>AI 회기맥락 관리</h2>
+        <p class="privacy-note">같은 내담자의 AI 분석과 상담자 판단을 이어가기 위한 영역입니다. 실제 이름 대신 비식별 프로젝트명을 사용하세요.</p>
+        <label>AI 프로젝트명 <input id="projectNameInput" type="text" placeholder="예: 마음고요-MG-20260716-Q7K4"></label>
+        <p class="privacy-note">CSV를 불러오면 자동 제안됩니다. 상담사가 수정하면 AI 회기준비 자료와 회기맥락 누적 요약 파일에 반영됩니다.</p>
+        <label class="drop-zone compact-drop" for="previousAiContextInput" id="previousAiContextDropZone">
+          <strong>이전 AI 회기맥락 불러오기</strong>
+          <span>지난 회기에 저장한 "*_AI회기맥락누적요약.md" 파일을 선택하세요.</span>
+          <input id="previousAiContextInput" type="file" accept=".md,.txt,text/markdown,text/plain">
+        </label>
+        <div id="previousAiContextStatus" class="file-meta">이전 AI 회기맥락을 아직 불러오지 않았습니다.</div>
+        <label>상담자가 채택한 AI 제안 <textarea id="acceptedAiSuggestions" class="context-textarea" placeholder="이번 회기에서 실제 치료 작업에 반영하기로 한 AI 제안이나 상담자 판단을 적으세요."></textarea></label>
+        <label>보류한 가설·주의점 <textarea id="deferredAiSuggestions" class="context-textarea" placeholder="아직 확정하지 않거나 다음 회기에 검증할 가설, 위험한 단정, 주의점을 적으세요."></textarea></label>
+        <label>다음 회기 확인 질문 <textarea id="nextSessionQuestions" class="context-textarea" placeholder="다음 회기에서 반드시 확인할 질문과 측정치 기반 확인점을 적으세요."></textarea></label>
+        <label>다음 AI에게 참고시킬 맥락 <textarea id="nextAiContext" class="context-textarea" placeholder="다음 AI 회기준비 자료에 꼭 이어서 전달할 핵심 맥락을 적으세요."></textarea></label>
+      </section>
+
       <section class="panel">
-        <h2>AI 분석용 정리본</h2>
-        <p class="privacy-note">관찰·실천 기록을 연쇄관계·재발 위험·실천 효과 중심으로 정리한 원자료입니다. 다른 AI 챗봇에 붙여넣어 함께 분석할 때 쓰도록 만들어졌습니다. 이 정리본 자체는 진단이나 치료 개입을 결정하지 않으며, 상담자의 임상적 판단 아래 참고 자료로만 활용되어야 합니다.</p>
-        <button id="buildAiReportBtn" class="primary small" type="button">AI 분석용 정리본 만들기</button>
+        <h2>AI 상세분석 원자료</h2>
+        <p class="privacy-note">관찰·실천 기록을 연쇄관계·재발 위험·실천 효과 중심으로 길게 정리한 원자료입니다. 회기 프로토콜을 바로 만들기보다는, 자료 자체를 넓게 검토하고 싶은 때 사용합니다. 외부 AI에 넣기 전에는 내담자 식별정보를 제거하세요.</p>
+        <button id="buildAiReportBtn" class="primary small" type="button">AI 상세분석 원자료 만들기</button>
         <textarea id="aiReportBox" class="ai-report-box" readonly hidden></textarea>
-        <button id="copyAiReportBtn" class="secondary small" type="button" hidden>클립보드에 복사</button>
+        <button id="copyAiReportBtn" class="secondary small" type="button" hidden>원자료 정리본 복사</button>
       </section>
 
       <section class="panel">
@@ -117,6 +188,7 @@
           <span id="activeStepLabel" class="muted">자료 확인</span>
         </div>
         <nav id="therapyMenu" class="therapy-menu" aria-label="치료작업 메뉴"></nav>
+          <div id="weekFocusPlan" class="week-focus-plan"></div>
       </section>
 
       <section class="panel workbench-panel">
@@ -133,6 +205,8 @@
     </section>
   </main>
 
-  <script src="app-20260714-v55.js?v=20260714v55"></script>
+  <script src="app-20260717-v66.js?v=20260717v66"></script>
 </body>
 </html>
+
+
