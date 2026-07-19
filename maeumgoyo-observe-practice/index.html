@@ -417,10 +417,9 @@
                 <label><span class="q-number" aria-hidden="true">1</span>실천행동의 매주 빈도</label>
                 <select id="frequency">
                   <option value="daily">매일</option>
-                  <option value="3week">주 3일</option>
-                  <option value="1week">주 1일</option>
                   <option value="custom">맞춤 요일</option>
                 </select>
+                <div class="small">맞춤 요일은 매주 초에 계획을 검토하고 필요하면 수정할 수 있습니다.</div>
               </div>
               <div class="form-row" id="customDaysRow" style="display:none">
                 <label>맞춤 요일</label>
@@ -434,15 +433,15 @@
               <div class="form-row">
                 <label for="reminderMode"><span class="q-number" aria-hidden="true">3</span>알림 방식</label>
                 <select id="reminderMode">
-                  <option value="morning">매일 아침에 하루 일정 알림</option>
-                  <option value="times">정해진 시간마다 알림</option>
+                  <option value="morning">실천 예정일 오전 8시 알림</option>
+                  <option value="times">실천 예정일의 지정 시간 알림</option>
                   <option value="none">알림 사용 안 함</option>
                 </select>
               </div>
               <div class="form-row" id="reminderTimesRow" style="display:none">
                 <label for="reminderTimes">알림 시간</label>
                 <input id="reminderTimes" maxlength="48" placeholder="예: 08:00, 20:00">
-                <div class="small">하루 여러 번 실천하기로 했다면 시간도 여러 개 입력할 수 있습니다.</div>
+                <div class="small">선택한 실천 예정일에만 알림이 울립니다. 하루 여러 번 실천한다면 시간도 여러 개 입력할 수 있습니다.</div>
               </div>
               <div class="form-row">
                 <button class="ghost-btn full" id="requestNotification" type="button">알림 권한 요청</button>

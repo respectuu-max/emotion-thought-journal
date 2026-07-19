@@ -1,4 +1,4 @@
-const APP_VERSION = "v95"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v96"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -498,7 +498,15 @@ const TEXT_LIMITS = {
     }
     function normalizePractice(record) {
       const days = Array.isArray(record.customDays) ? record.customDays.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6) : [];
-      const frequency = ["daily", "1week", "3week", "custom"].includes(record.frequency) ? record.frequency : "daily";
+      let frequency = ["daily", "custom"].includes(record.frequency) ? record.frequency : "daily";
+      let customDays = [...new Set(days)];
+      if (record.frequency === "1week") {
+        frequency = "custom";
+        customDays = [dateObj(record.startDate || todayISO()).getDay()];
+      } else if (record.frequency === "3week") {
+        frequency = "custom";
+        customDays = [1, 3, 5];
+      }
       return {
         ...record,
         _payloadJson: normalizePreservedPayload(record._payloadJson),
@@ -507,7 +515,7 @@ const TEXT_LIMITS = {
         name: cleanMultiline(record.name, TEXT_LIMITS.medium),
         reason: cleanMultiline(record.reason, TEXT_LIMITS.long),
         frequency,
-        customDays: [...new Set(days)],
+        customDays,
         targetCount: clampNumber(record.targetCount, 1, 12, 1),
         reminderMode: ["morning", "times", "none"].includes(record.reminderMode) ? record.reminderMode : "morning",
         reminderTimes: cleanTimeList(record.reminderTimes),
@@ -1673,9 +1681,9 @@ const TEXT_LIMITS = {
         <div style="height:8px"></div>
         <div class="small"><strong>오늘 했나요?</strong></div>
         <div class="button-row">
-          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="6" data-mastery="8">했음</button>
-          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="3" data-mastery="5">일부</button>
           <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="0" data-mastery="0">못함</button>
+          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="3" data-mastery="5">일부</button>
+          <button class="ghost-btn" type="button" data-practice-quick="${escapeHtml(p.id)}" data-pleasure="6" data-mastery="8">했음</button>
         </div>
         <div class="slider-card">
           <div class="slider-top"><span>실제 성취감</span><span class="slider-value" data-practice-mastery-value="${escapeHtml(p.id)}">0</span></div>
@@ -1954,7 +1962,7 @@ const TEXT_LIMITS = {
       if ((practice.reminderMode || "morning") === "none") return "사용 안 함";
       const times = reminderTimesForPractice(practice);
       if ((practice.reminderMode || "morning") === "times") return times.length ? times.join(", ") : "시간 미설정";
-      return "매일 아침 하루 일정 알림";
+      return "실천 예정일 오전 8시";
     }
     function notify(message) {
       if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -3622,6 +3630,10 @@ ${trendRangeLabel()} 평균
       };
       if (!entry.value || !entry.name) {
         showToast("가치와 실천행동을 입력해주세요.");
+        return;
+      }
+      if (entry.frequency === "custom" && entry.customDays.length === 0) {
+        showToast("실천할 요일을 하나 이상 선택해주세요.");
         return;
       }
       const index = state.data.practices.findIndex(p => p.id === id);
