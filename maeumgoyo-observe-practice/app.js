@@ -1,4 +1,4 @@
-const APP_VERSION = "v96"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v97"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -664,6 +664,7 @@ const TEXT_LIMITS = {
       renderAll();
     }
     function setObserveMode(mode) {
+      if (mode === "충동 발생") mode = "감정/충동 발생 시점"; // v94 이전 CSV/기록과의 호환
       state.observeMode = mode;
       $$("#observeModeButtons button").forEach(button => {
         button.classList.toggle("active", button.dataset.value === mode);
