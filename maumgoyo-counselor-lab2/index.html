@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>마음고요 상담분석실 maeumgoyo-counselor-lab-20260718v84</title>
-  <link rel="stylesheet" href="styles-20260721-v87.css?v=maeumgoyo-counselor-lab-20260721v87">
+  <link rel="stylesheet" href="styles-20260721-v88.css?v=maeumgoyo-counselor-lab-20260721v88">
 </head>
 <body>
   <header class="app-header">
@@ -23,6 +23,8 @@
     </div>
   </header>
   <div id="actionToast" class="action-toast" role="status" aria-live="polite" hidden></div>
+
+  <div id="safetyScreeningBanner" class="safety-screening-banner counselor-only" hidden></div>
 
   <div id="atAGlanceBanner" class="at-a-glance counselor-only" hidden></div>
 
@@ -195,6 +197,16 @@
       <section class="panel counselor-evidence-panel">
         <h2>회기 확인 정보</h2>
         <p class="panel-summary">AI 자료에 상담자가 직접 확인한 내용을 구분해 넣습니다.</p>
+        <label>자살·자해 위험 선별 (매 회기 확인)
+          <select id="safetyScreeningStatus">
+            <option value="not_recorded">기록하지 않음</option>
+            <option value="none">없음</option>
+            <option value="passive_ideation">경미한 사고 있으나 계획·의도 없음</option>
+            <option value="high_risk">위험도 높음(계획·의도·수단 관련 언급)</option>
+          </select>
+        </label>
+        <p class="field-help">이 항목은 표준화된 진단·평가 도구가 아니라, 상담자가 매 회기 직접 확인하는 짧은 선별입니다. 자동 초점 판정(위기/인지불안 등)과 무관하게 매 회기 별도로 확인하세요. 이 값은 다음 회기로 자동 이어지지 않으며, 새 회기마다 다시 확인해야 합니다.</p>
+        <label>선별 관련 메모(선택) <textarea id="safetyScreeningNote" class="context-textarea" placeholder="확인 방법, 취한 조치(예: 안전계획 재확인, 위기상담 연계) 등. 실명·식별정보는 적지 마세요."></textarea></label>
         <label>상담 회기일 <input id="sessionDateInput" type="date"></label>
         <label>회기 참여 상태
           <select id="sessionAttendanceInput">
@@ -322,7 +334,7 @@
     </section>
   </main>
 
-  <script src="app-20260721-v87.js?v=maeumgoyo-counselor-lab-20260721v87"></script>
+  <script src="app-20260721-v88.js?v=maeumgoyo-counselor-lab-20260721v88"></script>
 </body>
 </html>
 
