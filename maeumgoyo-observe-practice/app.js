@@ -1,4 +1,4 @@
-const APP_VERSION = "v97"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v99"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -3945,24 +3945,47 @@ ${trendRangeLabel()} 평균
         renderSharePreview();
         showToast("공유 미리보기를 만들었습니다.");
       });
-      $("#downloadCsv").addEventListener("click", () => {
+    async function saveOrShareCsv(data, shareText, savedMessage, sharedMessage) {
+      const file = new File([data.blob], data.fileName, { type: "text/csv" });
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        try {
+          await navigator.share({ title: "마음고요 관찰과 실천", text: shareText, files: [file] });
+          $("#shareInfo").textContent = sharedMessage;
+          return;
+        } catch (error) {
+          if (error.name === "AbortError") return;
+        }
+      }
+      downloadBlob(data.blob, data.fileName);
+      $("#shareInfo").textContent = savedMessage;
+    }
+    $("#downloadCsv").addEventListener("click", () => {
         const data = buildCsv();
-        downloadBlob(data.blob, data.fileName);
-        $("#shareInfo").textContent = `상담자 치료자료 전체본을 저장했습니다: ${data.fileName}`;
+        saveOrShareCsv(
+          data,
+          `${rangeLabel()} 상담자 치료자료 전체본입니다.`,
+          `상담자 치료자료 전체본을 저장했습니다: ${data.fileName}`,
+          `상담자 치료자료 전체본을 공유했습니다: ${data.fileName} (공유 시트에서 "파일에 저장"을 선택하면 파일 앱에서 확인할 수 있습니다)`
+        );
       });
       $("#downloadFullBackup").addEventListener("click", () => {
         const data = buildCsv({ fullBackup: true });
-        downloadBlob(data.blob, data.fileName);
-        state.data.settings.lastBackupAt = new Date().toISOString();
-        if (!saveData()) return;
-        $("#shareInfo").textContent = `숨긴 기록을 포함한 전체 백업을 저장했습니다: ${data.fileName}`;
+        saveOrShareCsv(
+          data,
+          "마음고요 관찰과 실천 전체 백업 파일입니다. 안전한 곳에 보관해 주세요.",
+          `숨긴 기록을 포함한 전체 백업을 저장했습니다: ${data.fileName}`,
+          `숨긴 기록을 포함한 전체 백업을 공유했습니다: ${data.fileName} (공유 시트에서 "파일에 저장"을 선택하면 파일 앱에서 확인할 수 있습니다)`
+        ).then(() => {
+          state.data.settings.lastBackupAt = new Date().toISOString();
+          saveData();
+        });
       });
       $("#verifyCsv").addEventListener("click", renderCsvVerification);
       function prepareCsvForEmail() {
         const data = buildCsv();
         downloadBlob(data.blob, data.fileName);
         const subjectText = `마음고요 관찰과 실천 상담자 치료자료 ${todayISO()}`;
-        const bodyText = `안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`;
+        const bodyText = `안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n\n[첨부할 파일] ${data.fileName}\n(보통 PC는 "다운로드" 폴더, 아이폰은 파일 앱의 "다운로드" 폴더에서 찾으실 수 있습니다)\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 위 파일을 찾아 직접 첨부해 주세요.`;
         return { fileName: data.fileName, subjectText, bodyText };
       }
       $("#shareNaver").addEventListener("click", () => {
@@ -4005,7 +4028,7 @@ ${trendRangeLabel()} 평균
         }
         downloadBlob(data.blob, data.fileName);
         const subject = encodeURIComponent(`마음고요 관찰과 실천 상담자 치료자료 ${todayISO()}`);
-        const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n첨부할 파일명: ${data.fileName}\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 파일을 직접 첨부해 주세요.`);
+        const body = encodeURIComponent(`안녕하세요.\n\n마음고요 관찰과 실천 상담자 치료자료 전체본을 공유드립니다.\n범위: ${rangeLabel()}\n\n[첨부할 파일] ${data.fileName}\n(보통 PC는 "다운로드" 폴더, 아이폰은 파일 앱의 "다운로드" 폴더에서 찾으실 수 있습니다)\n\n파일 자동 첨부가 제한되어 CSV 파일을 먼저 저장했습니다. 메일 발송 전 위 파일을 찾아 직접 첨부해 주세요.`);
         window.location.href = `mailto:respectuu@naver.com?subject=${subject}&body=${body}`;
       });
       $("#importCsv").addEventListener("click", () => importCsvFile($("#importFile").files[0]));
