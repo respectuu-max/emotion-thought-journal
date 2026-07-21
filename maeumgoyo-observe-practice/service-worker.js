@@ -1,4 +1,4 @@
-const CACHE_NAME = "maeumgoyo-observe-practice-v99";
+const CACHE_NAME = "maeumgoyo-observe-practice-v100";
 const APP_SHELL = [
   "./",
   "./index.html",

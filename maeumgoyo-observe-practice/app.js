@@ -1,4 +1,4 @@
-const APP_VERSION = "v99"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v100"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -570,6 +570,8 @@ const TEXT_LIMITS = {
         date: cleanDate(record.date),
         expansionScore: clampNumber(record.expansionScore, 0, 10, 5),
         note: cleanMultiline(record.note, TEXT_LIMITS.medium),
+        gratitudeOthers: cleanMultiline(record.gratitudeOthers, TEXT_LIMITS.medium),
+        gratitudeSelf: cleanMultiline(record.gratitudeSelf, TEXT_LIMITS.medium),
         archived: boolFlag(record.archived),
         updatedAt: record.updatedAt || new Date().toISOString()
       };
@@ -693,11 +695,23 @@ const TEXT_LIMITS = {
       if (box2) box2.innerHTML = html;
       if (box3) box3.innerHTML = html;
     }
+    function positionSafetyCard(isHighRisk) {
+      const card = $("#primarySafetyCard");
+      const topAnchor = $("#safetyCardTopAnchor");
+      const bottomAnchor = $("#riskFollowup");
+      if (!card || !topAnchor || !bottomAnchor) return;
+      if (isHighRisk) {
+        topAnchor.insertAdjacentElement("afterend", card);
+      } else {
+        bottomAnchor.insertAdjacentElement("beforebegin", card);
+      }
+    }
     function showRiskFollowup(show = true) {
       const box = $("#riskFollowup");
       if (!box) return;
       box.classList.toggle("hidden", !show);
       if (show) box.querySelectorAll("input[type='checkbox']").forEach(input => input.checked = false);
+      positionSafetyCard(show);
     }
     function createWizardController(config) {
       return {
@@ -1565,6 +1579,8 @@ const TEXT_LIMITS = {
       scoreInput.value = existing ? existing.expansionScore : 5;
       $("#expansionScoreValue").textContent = scoreInput.value;
       $("#expansionNote").value = existing ? existing.note : "";
+      $("#gratitudeOthers").value = existing ? existing.gratitudeOthers : "";
+      $("#gratitudeSelf").value = existing ? existing.gratitudeSelf : "";
       paintExpansionSlider();
       const statusBox = $("#dailyCheckinStatus");
       const saveBtn = $("#saveDailyCheckin");
@@ -2945,6 +2961,8 @@ ${trendRangeLabel()} 평균
         addRow("daily_checkin", c.id, c.date, c.updatedAt, payloadForExport(c, {
           expansion_score: c.expansionScore ?? 5,
           note: c.note || "",
+          gratitude_others: c.gratitudeOthers || "",
+          gratitude_self: c.gratitudeSelf || "",
           archived: Boolean(c.archived)
         }));
       });
@@ -3138,6 +3156,10 @@ ${trendRangeLabel()} 평균
         if (!(key in payload)) { errors.push(`${line}행: ${key} 필드가 없습니다.`); return; }
         if (typeof payload[key] !== "boolean") errors.push(`${line}행: ${key}는 true/false 값이어야 합니다.`);
       };
+      const optionalString = (payload, key, line) => {
+        if (!(key in payload)) return; // v99 이전 CSV 호환: 없어도 오류로 취급하지 않음
+        if (typeof payload[key] !== "string") errors.push(`${line}행: ${key}는 문자열이어야 합니다.`);
+      };
       rows.slice(1).forEach((row, offset) => {
         const line = offset + 2;
         if (row.length !== required.length) { errors.push(`${line}행: 열 개수가 ${required.length}개가 아닙니다.`); return; }
@@ -3210,6 +3232,8 @@ ${trendRangeLabel()} 평균
           }
           if (type === "daily_checkin") {
             expectString(payload, "note", line);
+            optionalString(payload, "gratitude_others", line);
+            optionalString(payload, "gratitude_self", line);
             expectBoolean(payload, "archived", line);
             if (!numberInRange(payload.expansion_score, 0, 10)) errors.push(`${line}행: expansion_score는 0-10 범위 숫자여야 합니다.`);
           }
@@ -3463,6 +3487,8 @@ ${trendRangeLabel()} 평균
               date: importedDate,
               expansionScore: clampNumber(payload.expansion_score, 0, 10, 5),
               note: cleanMultiline(payload.note, TEXT_LIMITS.medium),
+              gratitudeOthers: cleanMultiline(payload.gratitude_others, TEXT_LIMITS.medium),
+              gratitudeSelf: cleanMultiline(payload.gratitude_self, TEXT_LIMITS.medium),
               archived: boolFlag(payload.archived),
               updatedAt
             };
@@ -3899,9 +3925,13 @@ ${trendRangeLabel()} 평균
         const existing = todayDailyCheckin();
         const expansionScore = clampNumber($("#expansionScore").value, 0, 10, 5);
         const note = cleanMultiline($("#expansionNote").value, TEXT_LIMITS.medium);
+        const gratitudeOthers = cleanMultiline($("#gratitudeOthers").value, TEXT_LIMITS.medium);
+        const gratitudeSelf = cleanMultiline($("#gratitudeSelf").value, TEXT_LIMITS.medium);
         if (existing) {
           existing.expansionScore = expansionScore;
           existing.note = note;
+          existing.gratitudeOthers = gratitudeOthers;
+          existing.gratitudeSelf = gratitudeSelf;
           existing.updatedAt = new Date().toISOString();
         } else {
           state.data.dailyCheckins.push({
@@ -3909,6 +3939,8 @@ ${trendRangeLabel()} 평균
             date: todayISO(),
             expansionScore,
             note,
+            gratitudeOthers,
+            gratitudeSelf,
             archived: false,
             updatedAt: new Date().toISOString()
           });
