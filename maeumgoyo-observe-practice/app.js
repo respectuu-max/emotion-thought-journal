@@ -1,4 +1,4 @@
-const APP_VERSION = "v100"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
+const APP_VERSION = "v101"; // service-worker.js의 CACHE_NAME 버전과 함께 배포 때마다 갱신
 const APP_SCHEMA_VERSION = "maeumgoyo_app_v2";
 const CSV_SCHEMA_VERSION = "maeumgoyo_csv_v1";
 const HAPPINESS_FIELDS = [
@@ -563,6 +563,11 @@ const TEXT_LIMITS = {
         updatedAt: record.updatedAt || new Date().toISOString()
       };
     }
+    function normalizeGratitudeList(value) {
+      if (Array.isArray(value)) return value.map(item => cleanText(item, TEXT_LIMITS.medium)).filter(Boolean);
+      if (typeof value === "string" && value.trim()) return [cleanText(value, TEXT_LIMITS.medium)];
+      return [];
+    }
     function normalizeDailyCheckin(record) {
       return {
         _payloadJson: normalizePreservedPayload(record._payloadJson),
@@ -570,8 +575,8 @@ const TEXT_LIMITS = {
         date: cleanDate(record.date),
         expansionScore: clampNumber(record.expansionScore, 0, 10, 5),
         note: cleanMultiline(record.note, TEXT_LIMITS.medium),
-        gratitudeOthers: cleanMultiline(record.gratitudeOthers, TEXT_LIMITS.medium),
-        gratitudeSelf: cleanMultiline(record.gratitudeSelf, TEXT_LIMITS.medium),
+        gratitudeOthers: normalizeGratitudeList(record.gratitudeOthers),
+        gratitudeSelf: normalizeGratitudeList(record.gratitudeSelf),
         archived: boolFlag(record.archived),
         updatedAt: record.updatedAt || new Date().toISOString()
       };
@@ -1572,6 +1577,50 @@ const TEXT_LIMITS = {
     function todayDailyCheckin() {
       return activeDailyCheckins().find(c => c.date === todayISO());
     }
+    function renderGratitudeList(kind) {
+      const record = todayDailyCheckin();
+      const key = kind === "others" ? "gratitudeOthers" : "gratitudeSelf";
+      const list = record ? record[key] : [];
+      const box = $(kind === "others" ? "#gratitudeOthersList" : "#gratitudeSelfList");
+      if (!box) return;
+      if (!list.length) {
+        box.innerHTML = `<p class="small">아직 기록한 감사가 없습니다.</p>`;
+        return;
+      }
+      box.innerHTML = list.map((text, i) => `
+        <div class="plain-card small" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+          <span>${escapeHtml(text)}</span>
+          <button class="danger-btn" type="button" data-remove-gratitude="${kind}" data-index="${i}" style="flex-shrink:0;">삭제</button>
+        </div>
+      `).join("");
+    }
+    function addGratitudeEntry(kind) {
+      const inputBox = $(kind === "others" ? "#gratitudeOthersInput" : "#gratitudeSelfInput");
+      const text = cleanText(inputBox.value, TEXT_LIMITS.medium);
+      if (!text) return;
+      let record = todayDailyCheckin();
+      if (!record) {
+        record = normalizeDailyCheckin({ id: uid(), date: todayISO(), expansionScore: 5, note: "", gratitudeOthers: [], gratitudeSelf: [], archived: false, updatedAt: new Date().toISOString() });
+        state.data.dailyCheckins.push(record);
+      }
+      const key = kind === "others" ? "gratitudeOthers" : "gratitudeSelf";
+      record[key] = [...record[key], text];
+      record.updatedAt = new Date().toISOString();
+      if (!saveData()) return;
+      inputBox.value = "";
+      renderGratitudeList(kind);
+      renderAll();
+      showToast("감사 기록을 추가했습니다.");
+    }
+    function removeGratitudeEntry(kind, index) {
+      const record = todayDailyCheckin();
+      if (!record) return;
+      const key = kind === "others" ? "gratitudeOthers" : "gratitudeSelf";
+      record[key] = record[key].filter((_, i) => i !== index);
+      record.updatedAt = new Date().toISOString();
+      if (!saveData()) return;
+      renderGratitudeList(kind);
+    }
     function renderDailyCheckinCard() {
       const scoreInput = $("#expansionScore");
       if (!scoreInput) return;
@@ -1579,8 +1628,8 @@ const TEXT_LIMITS = {
       scoreInput.value = existing ? existing.expansionScore : 5;
       $("#expansionScoreValue").textContent = scoreInput.value;
       $("#expansionNote").value = existing ? existing.note : "";
-      $("#gratitudeOthers").value = existing ? existing.gratitudeOthers : "";
-      $("#gratitudeSelf").value = existing ? existing.gratitudeSelf : "";
+      renderGratitudeList("others");
+      renderGratitudeList("self");
       paintExpansionSlider();
       const statusBox = $("#dailyCheckinStatus");
       const saveBtn = $("#saveDailyCheckin");
@@ -2961,8 +3010,8 @@ ${trendRangeLabel()} 평균
         addRow("daily_checkin", c.id, c.date, c.updatedAt, payloadForExport(c, {
           expansion_score: c.expansionScore ?? 5,
           note: c.note || "",
-          gratitude_others: c.gratitudeOthers || "",
-          gratitude_self: c.gratitudeSelf || "",
+          gratitude_others: Array.isArray(c.gratitudeOthers) ? c.gratitudeOthers : [],
+          gratitude_self: Array.isArray(c.gratitudeSelf) ? c.gratitudeSelf : [],
           archived: Boolean(c.archived)
         }));
       });
@@ -3160,6 +3209,10 @@ ${trendRangeLabel()} 평균
         if (!(key in payload)) return; // v99 이전 CSV 호환: 없어도 오류로 취급하지 않음
         if (typeof payload[key] !== "string") errors.push(`${line}행: ${key}는 문자열이어야 합니다.`);
       };
+      const optionalArray = (payload, key, line) => {
+        if (!(key in payload)) return; // v100 이전 CSV 호환: 없어도 오류로 취급하지 않음
+        if (!Array.isArray(payload[key]) && typeof payload[key] !== "string") errors.push(`${line}행: ${key}는 배열이어야 합니다.`);
+      };
       rows.slice(1).forEach((row, offset) => {
         const line = offset + 2;
         if (row.length !== required.length) { errors.push(`${line}행: 열 개수가 ${required.length}개가 아닙니다.`); return; }
@@ -3232,8 +3285,8 @@ ${trendRangeLabel()} 평균
           }
           if (type === "daily_checkin") {
             expectString(payload, "note", line);
-            optionalString(payload, "gratitude_others", line);
-            optionalString(payload, "gratitude_self", line);
+            optionalArray(payload, "gratitude_others", line);
+            optionalArray(payload, "gratitude_self", line);
             expectBoolean(payload, "archived", line);
             if (!numberInRange(payload.expansion_score, 0, 10)) errors.push(`${line}행: expansion_score는 0-10 범위 숫자여야 합니다.`);
           }
@@ -3487,8 +3540,8 @@ ${trendRangeLabel()} 평균
               date: importedDate,
               expansionScore: clampNumber(payload.expansion_score, 0, 10, 5),
               note: cleanMultiline(payload.note, TEXT_LIMITS.medium),
-              gratitudeOthers: cleanMultiline(payload.gratitude_others, TEXT_LIMITS.medium),
-              gratitudeSelf: cleanMultiline(payload.gratitude_self, TEXT_LIMITS.medium),
+              gratitudeOthers: normalizeGratitudeList(payload.gratitude_others),
+              gratitudeSelf: normalizeGratitudeList(payload.gratitude_self),
               archived: boolFlag(payload.archived),
               updatedAt
             };
@@ -3925,29 +3978,37 @@ ${trendRangeLabel()} 평균
         const existing = todayDailyCheckin();
         const expansionScore = clampNumber($("#expansionScore").value, 0, 10, 5);
         const note = cleanMultiline($("#expansionNote").value, TEXT_LIMITS.medium);
-        const gratitudeOthers = cleanMultiline($("#gratitudeOthers").value, TEXT_LIMITS.medium);
-        const gratitudeSelf = cleanMultiline($("#gratitudeSelf").value, TEXT_LIMITS.medium);
         if (existing) {
           existing.expansionScore = expansionScore;
           existing.note = note;
-          existing.gratitudeOthers = gratitudeOthers;
-          existing.gratitudeSelf = gratitudeSelf;
           existing.updatedAt = new Date().toISOString();
         } else {
-          state.data.dailyCheckins.push({
+          state.data.dailyCheckins.push(normalizeDailyCheckin({
             id: uid(),
             date: todayISO(),
             expansionScore,
             note,
-            gratitudeOthers,
-            gratitudeSelf,
+            gratitudeOthers: [],
+            gratitudeSelf: [],
             archived: false,
             updatedAt: new Date().toISOString()
-          });
+          }));
         }
         if (!saveData()) return;
         renderAll();
         showToast("오늘 하루 돌아보기를 저장했습니다.");
+      });
+      $("#addGratitudeOthers").addEventListener("click", () => addGratitudeEntry("others"));
+      $("#addGratitudeSelf").addEventListener("click", () => addGratitudeEntry("self"));
+      $("#gratitudeOthersList").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-remove-gratitude]");
+        if (!button) return;
+        removeGratitudeEntry(button.dataset.removeGratitude, Number(button.dataset.index));
+      });
+      $("#gratitudeSelfList").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-remove-gratitude]");
+        if (!button) return;
+        removeGratitudeEntry(button.dataset.removeGratitude, Number(button.dataset.index));
       });
       $("#rangeButtons").addEventListener("click", e => {
         const b = e.target.closest("button");
